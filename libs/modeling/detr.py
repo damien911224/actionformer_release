@@ -6,32 +6,40 @@ import torch
 import torch.nn.functional as F
 import math, os
 import copy
+import numpy as np
+import itertools
 from torch import nn
 
 from util import box_ops, segment_ops
 from util.misc import (NestedTensor, nested_tensor_from_tensor_list,
                        accuracy, get_world_size, interpolate,
                        is_dist_avail_and_initialized, inverse_sigmoid)
+
+from .backbone import build_backbone
 from .matcher import build_matcher
-from .segmentation import (DETRsegm, PostProcessPanoptic, PostProcessSegm,
-                           dice_loss, sigmoid_focal_loss)
+from .segmentation import (dice_loss, sigmoid_focal_loss)
+from .transformer import build_transformer
 from .deformable_transformer import build_deforamble_transformer
+
 from .dn_components import prepare_for_dn, dn_post_process, compute_dn_loss
+from .cdn_components import prepare_for_cdn, cdn_post_process
 
 
 def _get_clones(module, N):
     return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
 
 
-class DABDeformableDETR(nn.Module):
+class DINO(nn.Module):
     """ This is the DAB-Deformable-DETR for object detection """
 
-    def __init__(self, transformer, num_classes, num_queries, in_channels,
+    def __init__(self, transformer, num_classes, num_queries,
                  pos_1d_embeds, pos_2d_embeds, num_feature_levels,
                  aux_loss=True, with_box_refine=True, two_stage=False,
-                 use_dab=True, num_patterns=0, random_refpoints_xy=False):
+                 use_dab=True, num_patterns=0, random_refpoints_xy=False,
+                 dn_number=100, dn_box_noise_scale=0.4, dn_label_noise_ratio=0.5, dn_labelbook_size=100):
         """ Initializes the model.
         Parameters:
+            backbone: torch module of the backbone to be used. See backbone.py
             transformer: torch module of the transformer architecture. See transformer.py
             num_classes: number of object classes
             num_queries: number of object queries, ie detection slot. This is the maximal number of objects
@@ -47,24 +55,21 @@ class DABDeformableDETR(nn.Module):
         self.num_queries = num_queries
         self.transformer = transformer
         self.hidden_dim = hidden_dim = transformer.d_model
-        self.in_channels = in_channels
         self.num_classes = num_classes
         self.pos_1d_embeds = pos_1d_embeds
         self.pos_2d_embeds = pos_2d_embeds
         self.class_embed = nn.Linear(hidden_dim, num_classes)
         self.bbox_embed = MLP(hidden_dim, hidden_dim, 4, 3)
-        # self.iou_embed = MLP(hidden_dim, hidden_dim, 2, 3)
         self.num_feature_levels = num_feature_levels
         self.use_dab = use_dab
         self.num_patterns = num_patterns
         self.random_refpoints_xy = random_refpoints_xy
-        # dn label enc
-        self.label_enc = nn.Embedding(num_classes + 1, hidden_dim - 1)  # # for indicator
-        # if not two_stage:
+        self.label_enc = nn.Embedding(dn_labelbook_size + 1, hidden_dim)
+        self.score_enc = nn.Linear(1, hidden_dim)
         if not use_dab:
             self.query_embed = nn.Embedding(num_queries, hidden_dim * 2)
         else:
-            self.tgt_embed = nn.Embedding(num_queries, hidden_dim - 1)  # for indicator
+            self.tgt_embed = nn.Embedding(num_queries, hidden_dim)  # for indicator
             self.refpoint_embed = nn.Embedding(num_queries, 4)
             if random_refpoints_xy:
                 # import ipdb; ipdb.set_trace()
@@ -76,27 +81,36 @@ class DABDeformableDETR(nn.Module):
             self.patterns_embed = nn.Embedding(self.num_patterns, hidden_dim)
 
         if num_feature_levels > 1:
-            num_backbone_outs = num_feature_levels
             input_proj_list = []
-            for _ in range(num_backbone_outs):
-                input_proj_list.append(nn.Sequential(
-                    nn.Conv2d(in_channels, hidden_dim, kernel_size=1),
-                    nn.GroupNorm(32, hidden_dim)))
+
+            input_proj_list.append(nn.Sequential(
+                nn.Conv2d(2048, hidden_dim, kernel_size=1),
+                nn.GroupNorm(32, hidden_dim)))
+            input_proj_list.append(nn.Sequential(
+                nn.Conv2d(2048 // 8, hidden_dim, kernel_size=1),
+                nn.GroupNorm(32, hidden_dim)))
 
             self.input_proj = nn.ModuleList(input_proj_list)
         else:
             self.input_proj = nn.ModuleList([
                 nn.Sequential(
-                    nn.Conv2d(in_channels, hidden_dim, kernel_size=1),
+                    nn.Conv1d(2048, hidden_dim, kernel_size=1),
                     nn.GroupNorm(32, hidden_dim),
                 )])
         self.aux_loss = aux_loss
         self.with_box_refine = with_box_refine
         self.two_stage = two_stage
 
+        # for dn training
+        self.num_patterns = num_patterns
+        self.dn_number = dn_number
+        self.dn_box_noise_scale = dn_box_noise_scale
+        self.dn_label_noise_ratio = dn_label_noise_ratio
+        self.dn_labelbook_size = dn_labelbook_size
+
         prior_prob = 0.01
         bias_value = -math.log((1 - prior_prob) / prior_prob)
-        self.class_specific_embed.bias.data = torch.ones(num_classes) * bias_value
+        self.class_embed.bias.data = torch.ones(num_classes) * bias_value
         nn.init.constant_(self.bbox_embed.layers[-1].weight.data, 0)
         nn.init.constant_(self.bbox_embed.layers[-1].bias.data, 0)
         for proj in self.input_proj:
@@ -109,17 +123,15 @@ class DABDeformableDETR(nn.Module):
             self.class_embed = _get_clones(self.class_embed, num_pred)
             self.bbox_embed = _get_clones(self.bbox_embed, num_pred)
             nn.init.constant_(self.bbox_embed[0].layers[-1].bias.data[2:], -2.0)
-            # self.iou_embed = _get_clones(self.iou_embed, num_pred)
             # hack implementation for iterative bounding box refinement
             self.transformer.decoder.bbox_embed = self.bbox_embed
         else:
             nn.init.constant_(self.bbox_embed.layers[-1].bias.data[2:], -2.0)
             self.class_embed = nn.ModuleList([self.class_embed for _ in range(num_pred)])
             self.bbox_embed = nn.ModuleList([self.bbox_embed for _ in range(num_pred)])
-            self.iou_embed = nn.ModuleList([self.iou_embed for _ in range(num_pred)])
             self.transformer.decoder.bbox_embed = None
 
-    def forward(self, features, proposals, dn_args=None):
+    def forward(self, features, proposals, targets=None):
         """ The forward expects a NestedTensor, which consists of:
                - samples.tensor: batched images, of shape [batch_size x 3 x H x W]
                - samples.mask: a binary mask of shape [batch_size x H x W], containing 1 on padded pixels
@@ -133,15 +145,23 @@ class DABDeformableDETR(nn.Module):
                - "aux_outputs": Optional, only returned when auxilary losses are activated. It is a list of
                                 dictionnaries containing the two above keys for each decoder layer.
         """
-        raw_pos_1d = self.pos_1d_embeds.repeat(features[0].shape[0], 1, 1)
-        raw_pos_2d = self.pos_2d_embeds.repeat(features[0].shape[0], 1, 1, 1)
+        # features = list()
+        # backbone_features = self.backbone([samples[:, :, ::8], samples])
+        # for l, feat in enumerate(backbone_features):
+        #     feat = feat.mean(dim=(3, 4))
+        #     features.append(feat.unsqueeze(-1))
+
+        raw_pos_1d = self.pos_1d_embeds.repeat(features[0].size(0), 1, 1)
+        raw_pos_2d = self.pos_2d_embeds.repeat(features[0].size(0), 1, 1, 1)
 
         srcs = []
         pos_1d = []
         pos_2d = []
         for l, feat in enumerate(features):
-            src = self.input_proj[l](feat)
-            n, c, t, _ = src.shape
+            # src = self.input_proj[l](feat)
+            src = feat
+            n, c, t = src.shape
+            src = src.unsqueeze(-1)
             pos_1d_l = F.interpolate(raw_pos_1d, size=t, mode="linear")
             pos_2d_l = F.interpolate(raw_pos_2d, size=(t, t), mode="bilinear")
             pos_1d.append(pos_1d_l)
@@ -158,26 +178,38 @@ class DABDeformableDETR(nn.Module):
         else:
             assert NotImplementedError
 
+        # prop_labels = proposals[..., 0]
+        # prop_scores = proposals[..., -1].unsqueeze(-1)
+        # prop_label_embeds = self.label_enc(prop_labels.long())
+        # prop_score_embeds = self.score_enc(prop_scores)
+        input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
+        # input_query_label = input_query_label + prop_label_embeds + prop_score_embeds
+        # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features.size(0), 1, 1)
+        input_query_bbox = torch.cat([proposals[..., 1:-1],
+                                      ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
+                                      (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
+
         # prepare for dn
-        input_query_label, input_query_bbox, attn_mask, mask_dict = \
-            prepare_for_dn(dn_args, tgt_all_embed, refanchor, features[0].size(0),
-                           self.training, self.num_queries, self.num_classes, self.hidden_dim, self.label_enc)
+        if self.training:
+            dino_query_label, dino_query_bbox, attn_mask, dn_meta = \
+                prepare_for_cdn(dn_args=(targets, self.dn_number, self.dn_label_noise_ratio, self.dn_box_noise_scale),
+                                training=self.training, num_queries=self.num_queries, num_classes=self.num_classes,
+                                hidden_dim=self.hidden_dim, label_enc=self.label_enc)
+            input_query_label = torch.cat((dino_query_label, input_query_label), dim=1)
+            input_query_bbox = torch.cat((dino_query_bbox, input_query_bbox), dim=1)
+        else:
+            attn_mask = dn_meta = None
 
-        if proposals is not None:
-            proposal_labels = proposals[..., 0]
-            proposal_label_embed = self.label_enc(proposal_labels.long())
-            indicator1 = torch.ones_like(proposal_labels).unsqueeze(-1)
-            proposal_query_label = torch.cat([proposal_label_embed, indicator1], dim=-1)
-
-            input_query_label = proposal_query_label
-            input_query_bbox = torch.cat([proposals[..., 1:-1],
-                                          ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
-                                          (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
+            # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features.size(0), 1, 1)
+            # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features.size(0), 1, 1)
 
         query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
 
-        hs, init_reference, inter_references, (output_proposal, output_video), _ = \
+        hs, init_reference, inter_references, _, _ = \
             self.transformer(srcs, pos_1d, pos_2d, query_embeds, attn_mask, self.label_enc)
+
+        # In case num object=0
+        hs[0] += self.label_enc.weight[0, 0] * 0.0
 
         outputs_classes = []
         outputs_coords = []
@@ -201,14 +233,17 @@ class DABDeformableDETR(nn.Module):
         outputs_coord = torch.stack(outputs_coords)
 
         # dn post process
-        outputs_class, outputs_coord = dn_post_process(outputs_class, outputs_coord, mask_dict)
+        if self.dn_number > 0 and dn_meta is not None:
+            outputs_class, outputs_coord = \
+                cdn_post_process(outputs_class, outputs_coord, dn_meta, self.aux_loss, self._set_aux_loss)
 
         out = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord[-1]}
-
         if self.aux_loss:
             out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord)
 
-        return out, mask_dict
+        out['dn_meta'] = dn_meta
+
+        return out
 
     @torch.jit.unused
     def _set_aux_loss(self, outputs_class, outputs_coord):
@@ -219,14 +254,14 @@ class DABDeformableDETR(nn.Module):
                 for a, b in zip(outputs_class[:-1], outputs_coord[:-1])]
 
 
-class SetCriterion_DN(nn.Module):
-    """ This class computes the loss for DETR.
+class SetCriterion_DINO(nn.Module):
+    """ This class computes the loss for Conditional DETR.
     The process happens in two steps:
         1) we compute hungarian assignment between ground truth boxes and the outputs of the model
         2) we supervise each pair of matched ground-truth / prediction (supervise class and box)
     """
 
-    def __init__(self, num_classes, matcher, weight_dict, losses, focal_alpha=0.25):
+    def __init__(self, num_classes, matcher, weight_dict, focal_alpha, losses):
         """ Create the criterion.
         Parameters:
             num_classes: number of object categories, omitting the special no-object category
@@ -242,82 +277,41 @@ class SetCriterion_DN(nn.Module):
         self.losses = losses
         self.focal_alpha = focal_alpha
 
-        empty_weight = torch.ones(self.num_classes + 1)
-        # empty_weight = torch.ones(2)
-        empty_weight[-1] = 0.1
-        self.register_buffer('empty_weight', empty_weight)
-
-    def loss_labels(self, outputs, targets, indices, num_boxes, log=True):
-        """Classification loss (NLL)
+    def loss_labels(self, outputs, targets, indices, num_boxes, layer=None, log=True):
+        """Classification loss (Binary focal loss)
         targets dicts must contain the key "labels" containing a tensor of dim [nb_target_boxes]
         """
         assert 'pred_logits' in outputs
         src_logits = outputs['pred_logits']
 
         idx = self._get_src_permutation_idx(indices)
-        target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
-        # target_classes_o_bin = torch.zeros_like(target_classes_o)
-        target_classes = torch.full(src_logits.shape[:2], self.num_classes, dtype=torch.int64, device=src_logits.device)
+        if layer is None:
+            target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
+        else:
+            target_classes_o = torch.cat(
+                [t["labels"].repeat(2 ** (3 - layer))[J] for t, (_, J) in zip(targets, indices)])
+        target_classes = torch.full(src_logits.shape[:2], self.num_classes,
+                                    dtype=torch.int64, device=src_logits.device)
         target_classes[idx] = target_classes_o
-        # target_classes[idx] = target_classes_o_bin
 
         target_classes_onehot = torch.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2] + 1],
                                             dtype=src_logits.dtype, layout=src_logits.layout, device=src_logits.device)
         target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
 
         target_classes_onehot = target_classes_onehot[:, :, :-1]
+        if layer is not None:
+            num_boxes = num_boxes * (2 ** (3 - layer))
         loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2) * \
                   src_logits.shape[1]
-
-        # idx = self._get_src_permutation_idx(indices)
-        # target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
-        # # target_classes_o_bin = torch.zeros_like(target_classes_o)
-        # target_classes = torch.full(src_logits.shape[:2], self.num_classes, dtype=torch.int64, device=src_logits.device)
-        # # target_classes = torch.full(src_logits.shape[:2], 1, dtype=torch.int64, device=src_logits.device)
-        # target_classes[idx] = target_classes_o
-        # # target_classes[idx] = target_classes_o_bin
-        #
-        # loss_ce = F.cross_entropy(src_logits.transpose(1, 2), target_classes, self.empty_weight)
-
-        # target_weights = torch.full(src_logits.shape[:2], 0.1, dtype=torch.float32, device=src_logits.device)
-        # target_weights[idx] = 1.0
-        # src_logits_flat = src_logits.flatten(0, 1)
-        # targeted_src_logits = src_logits_flat[torch.arange(len(src_logits_flat)), target_classes.flatten(0, 1)]
-        # loss_ce = torch.mean((target_weights.flatten(0, 1) * (1.0 - targeted_src_logits)) ** 2)
-
         losses = {'loss_ce': loss_ce}
-
-        # assert 'pred_embeds' in outputs
-        #
-        # src_embeds = outputs['pred_embeds'][idx]
-        # target_embeds = torch.cat([t["embeddings"][J] for t, (_, J) in zip(targets, indices)])
-
-        # loss_embed = F.mse_loss(src_embeds, target_embeds, reduction="none")
-        # losses['loss_embed'] = loss_embed.sum() / num_boxes
-
-        # loss_embed = 1.0 - F.cosine_similarity(src_embeds, target_embeds)
-        # losses['loss_embed'] = loss_embed.sum() / num_boxes
-
-        # assert 'pred_sims' in outputs
-
-        # src_sims = outputs['pred_sims'][idx]
-        # target_sims = torch.cat([t['similarity'][i] for t, (_, i) in zip(targets, indices)], dim=0)
-
-        # loss_sim = 1.0 - F.cosine_similarity(src_sims, target_sims)
-        # losses['loss_similarty'] = loss_sim.sum() / num_boxes
-
-        # loss_sim = F.cross_entropy(src_sims, target_sims.softmax(dim=-1), reduction="none")
-        # losses['loss_similarity'] = loss_sim.sum() / num_boxes
 
         if log:
             # TODO this should probably be a separate loss, not hacked in this one here
             losses['class_error'] = 100 - accuracy(src_logits[idx], target_classes_o)[0]
-            # losses['class_error'] = 100 - accuracy(src_logits[idx], target_classes_o_bin)[0]
-            # losses['class_error'] = 100 - accuracy(F.softmax(src_sims, dim=-1), target_classes_o)[0]
         return losses
 
     @torch.no_grad()
-    def loss_cardinality(self, outputs, targets, indices, num_boxes):
+    def loss_cardinality(self, outputs, targets, indices, num_boxes, layer=None):
         """ Compute the cardinality error, ie the absolute error in the number of predicted non-empty boxes
         This is not really a loss, it is intended for logging purposes only. It doesn't propagate gradients
         """
@@ -330,25 +324,26 @@ class SetCriterion_DN(nn.Module):
         losses = {'cardinality_error': card_err}
         return losses
 
-    def loss_boxes(self, outputs, targets, indices, num_boxes):
+    def loss_boxes(self, outputs, targets, indices, num_boxes, layer=None):
         """Compute the losses related to the bounding boxes, the L1 regression loss and the GIoU loss
            targets dicts must contain the key "boxes" containing a tensor of dim [nb_target_boxes, 4]
-           The target boxes are expected in format (center_x, center_y, h, w), normalized by the image size.
+           The target boxes are expected in format (center_x, center_y, w, h), normalized by the image size.
         """
         assert 'pred_boxes' in outputs
         idx = self._get_src_permutation_idx(indices)
         src_boxes = outputs['pred_boxes'][idx]
-        target_boxes = torch.cat([t['boxes'][i] for t, (_, i) in zip(targets, indices)], dim=0)
+        if layer is None:
+            target_boxes = torch.cat([t['boxes'][i] for t, (_, i) in zip(targets, indices)], dim=0)
+        else:
+            target_boxes = torch.cat([t['boxes'].repeat(2 ** (3 - layer), 1)[i] for t, (_, i) in zip(targets, indices)],
+                                     dim=0)
 
         loss_bbox = F.l1_loss(src_boxes, target_boxes, reduction='none')
+        if layer is not None:
+            num_boxes = num_boxes * (2 ** (3 - layer))
 
         losses = {}
         losses['loss_bbox'] = loss_bbox.sum() / num_boxes
-
-        # loss_giou = 1 - torch.diag(box_ops.generalized_box_iou(
-        #     box_ops.box_cxcywh_to_xyxy(src_boxes),
-        #     box_ops.box_cxcywh_to_xyxy(target_boxes)))
-        # losses['loss_giou'] = loss_giou.sum() / num_boxes
 
         loss_giou = ((1 - torch.diag(segment_ops.segment_iou(
             segment_ops.segment_cw_to_t1t2(src_boxes[..., 2:]),
@@ -357,46 +352,11 @@ class SetCriterion_DN(nn.Module):
                          src_boxes[..., :2], target_boxes[..., :2])))) / 2
         losses['loss_giou'] = loss_giou.sum() / num_boxes
 
-        return losses
+        # calculate the x,y and h,w loss
+        with torch.no_grad():
+            losses['loss_xy'] = loss_bbox[..., :2].sum() / num_boxes
+            losses['loss_hw'] = loss_bbox[..., 2:].sum() / num_boxes
 
-    def loss_ious(self, outputs, targets, indices, num_boxes):
-        """Classification loss (NLL)
-        targets dicts must contain the key "labels" containing a tensor of dim [nb_target_boxes]
-        """
-        assert 'pred_boxes' in outputs and 'pred_ious' in outputs
-        idx = self._get_src_permutation_idx(indices)
-        src_boxes = outputs['pred_boxes'][idx]
-        src_ious = outputs['pred_ious']
-        target_boxes = torch.cat([t['boxes'][i] for t, (_, i) in zip(targets, indices)], dim=0)
-
-        losses = {}
-
-        target_ious = torch.zeros_like(src_ious)
-        matched_ious = torch.stack((torch.diag(segment_ops.segment_iou(
-            segment_ops.segment_cw_to_t1t2(src_boxes[..., 2:]),
-            segment_ops.segment_cw_to_t1t2(target_boxes[..., 2:]))),
-                                    torch.diag(segment_ops.segment_iou(
-                                        src_boxes[..., :2], target_boxes[..., :2]))), dim=-1)
-        target_ious[idx] = matched_ious
-        loss_iou = F.l1_loss(src_ious, target_ious, reduction='none')
-        losses['loss_iou'] = loss_iou.sum() / num_boxes
-
-        return losses
-
-    def loss_embeddings(self, outputs, targets, indices, num_boxes):
-        """Compute the losses related to the bounding boxes, the L1 regression loss and the GIoU loss
-           targets dicts must contain the key "boxes" containing a tensor of dim [nb_target_boxes, 4]
-           The target boxes are expected in format (center_x, center_y, h, w), normalized by the image size.
-        """
-        assert 'pred_embeddings' in outputs
-        idx = self._get_src_permutation_idx(indices)
-        src_embeds = outputs['pred_embeddings'][idx]
-        target_embeds = torch.cat([t['embeddings'][i] for t, (_, i) in zip(targets, indices)], dim=0)
-
-        loss_embed = F.cosine_embedding_loss(src_embeds, target_embeds, reduction="none")
-
-        losses = {}
-        losses['loss_embed'] = loss_embed.sum() / num_boxes
         return losses
 
     def loss_masks(self, outputs, targets, indices, num_boxes):
@@ -407,66 +367,25 @@ class SetCriterion_DN(nn.Module):
 
         src_idx = self._get_src_permutation_idx(indices)
         tgt_idx = self._get_tgt_permutation_idx(indices)
-
         src_masks = outputs["pred_masks"]
-
-        # TODO use valid to mask invalid areas due to padding in loss
-        target_masks, valid = nested_tensor_from_tensor_list([t["masks"] for t in targets]).decompose()
-        target_masks = target_masks.to(src_masks)
-
         src_masks = src_masks[src_idx]
+        masks = [t["masks"] for t in targets]
+        # TODO use valid to mask invalid areas due to padding in loss
+        target_masks, valid = nested_tensor_from_tensor_list(masks).decompose()
+        target_masks = target_masks.to(src_masks)
+        target_masks = target_masks[tgt_idx]
+
         # upsample predictions to the target size
         src_masks = interpolate(src_masks[:, None], size=target_masks.shape[-2:],
                                 mode="bilinear", align_corners=False)
         src_masks = src_masks[:, 0].flatten(1)
 
-        target_masks = target_masks[tgt_idx].flatten(1)
-
+        target_masks = target_masks.flatten(1)
+        target_masks = target_masks.view(src_masks.shape)
         losses = {
             "loss_mask": sigmoid_focal_loss(src_masks, target_masks, num_boxes),
             "loss_dice": dice_loss(src_masks, target_masks, num_boxes),
         }
-        return losses
-
-    def loss_encoder_outputs(self, outputs, targets, indices, num_boxes):
-        """Compute the losses related to the masks: the focal loss and the dice loss.
-           targets dicts must contain the key "masks" containing a tensor of dim [nb_target_boxes, h, w]
-        """
-        # src_segmentation = outputs["pred_segmentation"]
-        # target_segmentation = torch.stack([t["masks"] for t in targets], dim=0)
-        # loss_segmentation = F.cross_entropy(src_segmentation.permute(0, 2, 1), target_segmentation)
-        #
-        # src_video = outputs["pred_video"]
-        # target_max_class = torch.stack([torch.mode(t["labels"], dim=0)[0] for t in targets], dim=0)
-        # loss_video = F.cross_entropy(src_video, target_max_class)
-        #
-        # losses = {"loss_segmentation": loss_segmentation,
-        #           "loss_video": loss_video}
-
-        src_logits = outputs["pred_proposals"][..., 0]
-        target_classes_onehot = torch.stack([t["proposals"][..., 0] for t in targets], dim=0)
-
-        valid_flags = target_classes_onehot.flatten(0, 1) > 0.0
-        num_positives = torch.sum(valid_flags.float())
-
-        loss_actionness = \
-            sigmoid_focal_loss(src_logits, target_classes_onehot, num_positives, alpha=self.focal_alpha, gamma=2) * \
-            src_logits.shape[1]
-
-        src_boxes = outputs["pred_proposals"][..., 1:].flatten(0, 1)[valid_flags].sigmoid()
-        target_boxes = torch.stack([t["proposals"][..., 1:] for t in targets], dim=0).flatten(0, 1)[valid_flags]
-
-        loss_proposal = F.l1_loss(src_boxes, target_boxes, reduction='none')
-        loss_proposal = loss_proposal.sum() / num_positives
-
-        losses = {"loss_actionness": loss_actionness, "loss_proposal": loss_proposal}
-
-        if outputs["pred_video"] is not None:
-            src_video = outputs["pred_video"]
-            target_max_class = torch.stack([torch.mode(t["labels"], dim=0)[0] for t in targets], dim=0)
-            loss_video = F.cross_entropy(src_video, target_max_class)
-            losses["loss_video"] = loss_video
-
         return losses
 
     def _get_src_permutation_idx(self, indices):
@@ -487,40 +406,91 @@ class SetCriterion_DN(nn.Module):
             'cardinality': self.loss_cardinality,
             'boxes': self.loss_boxes,
             'masks': self.loss_masks,
-            'ious': self.loss_ious
+            # 'dn_labels': self.loss_dn_labels,
+            # 'dn_boxes': self.loss_dn_boxes
         }
         assert loss in loss_map, f'do you really want to compute {loss} loss?'
         return loss_map[loss](outputs, targets, indices, num_boxes, **kwargs)
 
-    def forward(self, outputs, targets, mask_dict=None):
+    def forward(self, outputs, targets, return_indices=False):
         """ This performs the loss computation.
         Parameters:
              outputs: dict of tensors, see the output specification of the model for the format
              targets: list of dicts, such that len(targets) == batch_size.
                       The expected keys in each dict depends on the losses applied, see each loss' doc
-        """
-        outputs_without_aux = {k: v for k, v in outputs.items() if k != 'aux_outputs' and k != 'enc_outputs'}
 
-        # Retrieve the matching between the outputs of the last layer and the targets
+             return_indices: used for vis. if True, the layer0-5 indices will be returned as well.
+        """
+        outputs_without_aux = {k: v for k, v in outputs.items() if k != 'aux_outputs'}
+        device = next(iter(outputs.values())).device
         indices = self.matcher(outputs_without_aux, targets)
+
+        if return_indices:
+            indices0_copy = indices
+            indices_list = []
 
         # Compute the average number of target boxes accross all nodes, for normalization purposes
         num_boxes = sum(len(t["labels"]) for t in targets)
-        num_boxes = torch.as_tensor([num_boxes], dtype=torch.float, device=next(iter(outputs.values())).device)
+        num_boxes = torch.as_tensor([num_boxes], dtype=torch.float, device=device)
         if is_dist_avail_and_initialized():
             torch.distributed.all_reduce(num_boxes)
         num_boxes = torch.clamp(num_boxes / get_world_size(), min=1).item()
 
         # Compute all the requested losses
         losses = {}
+
+        # prepare for dn loss
+        dn_meta = outputs['dn_meta']
+
+        if self.training and dn_meta and 'output_known_lbs_bboxes' in dn_meta:
+            output_known_lbs_bboxes, single_pad, scalar = self.prep_for_dn(dn_meta)
+
+            dn_pos_idx = []
+            dn_neg_idx = []
+            for i in range(len(targets)):
+                if len(targets[i]['labels']) > 0:
+                    t = torch.range(0, len(targets[i]['labels']) - 1).long().cuda()
+                    t = t.unsqueeze(0).repeat(scalar, 1)
+                    tgt_idx = t.flatten()
+                    output_idx = (torch.tensor(range(scalar)) * single_pad).long().cuda().unsqueeze(1) + t
+                    output_idx = output_idx.flatten()
+                else:
+                    output_idx = tgt_idx = torch.tensor([]).long().cuda()
+
+                dn_pos_idx.append((output_idx, tgt_idx))
+                dn_neg_idx.append((output_idx + single_pad // 2, tgt_idx))
+
+            output_known_lbs_bboxes = dn_meta['output_known_lbs_bboxes']
+            l_dict = {}
+            for loss in self.losses:
+                kwargs = {}
+                if 'labels' in loss:
+                    kwargs = {'log': False}
+                l_dict.update(
+                    self.get_loss(loss, output_known_lbs_bboxes, targets, dn_pos_idx, num_boxes * scalar, **kwargs))
+
+            l_dict = {k + f'_dn': v for k, v in l_dict.items()}
+            losses.update(l_dict)
+        else:
+            l_dict = dict()
+            l_dict['loss_bbox_dn'] = torch.as_tensor(0.).to('cuda')
+            l_dict['loss_giou_dn'] = torch.as_tensor(0.).to('cuda')
+            l_dict['loss_ce_dn'] = torch.as_tensor(0.).to('cuda')
+            l_dict['loss_xy_dn'] = torch.as_tensor(0.).to('cuda')
+            l_dict['loss_hw_dn'] = torch.as_tensor(0.).to('cuda')
+            l_dict['cardinality_error_dn'] = torch.as_tensor(0.).to('cuda')
+            losses.update(l_dict)
+
         for loss in self.losses:
-            kwargs = {}
-            losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes, **kwargs))
+            losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
 
         # In case of auxiliary losses, we repeat this process with the output of each intermediate layer.
         if 'aux_outputs' in outputs:
-            for i, aux_outputs in enumerate(outputs['aux_outputs']):
+            for idx, aux_outputs in enumerate(outputs['aux_outputs']):
                 indices = self.matcher(aux_outputs, targets)
+                # indices = self.matcher(aux_outputs, targets, layer=idx)
+                if return_indices:
+                    indices_list.append(indices)
                 for loss in self.losses:
                     if loss == 'masks':
                         # Intermediate masks losses are too costly to compute, we ignore them.
@@ -528,20 +498,42 @@ class SetCriterion_DN(nn.Module):
                     kwargs = {}
                     if loss == 'labels':
                         # Logging is enabled only for the last layer
-                        kwargs['log'] = False
+                        kwargs = {'log': False}
+                    # kwargs['layer'] = idx
                     l_dict = self.get_loss(loss, aux_outputs, targets, indices, num_boxes, **kwargs)
-                    l_dict = {k + f'_{i}': v for k, v in l_dict.items()}
+                    l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
                     losses.update(l_dict)
 
-        if 'enc_outputs' in outputs:
-            enc_outputs = outputs['enc_outputs']
-            bin_targets = copy.deepcopy(targets)
-            for bt in bin_targets:
-                bt['labels'] = torch.zeros_like(bt['labels'])
-            if os.environ.get('IPDB_SHILONG_DEBUG') == 'INFO':
-                import ipdb;
-                ipdb.set_trace()
-            indices = self.matcher(enc_outputs, bin_targets)
+                if self.training and dn_meta and 'output_known_lbs_bboxes' in dn_meta:
+                    aux_outputs_known = output_known_lbs_bboxes['aux_outputs'][idx]
+                    l_dict = {}
+                    for loss in self.losses:
+                        kwargs = {}
+                        if 'labels' in loss:
+                            kwargs = {'log': False}
+
+                        l_dict.update(self.get_loss(loss, aux_outputs_known, targets, dn_pos_idx, num_boxes * scalar,
+                                                    **kwargs))
+
+                    l_dict = {k + f'_dn_{idx}': v for k, v in l_dict.items()}
+                    losses.update(l_dict)
+                else:
+                    l_dict = dict()
+                    l_dict['loss_bbox_dn'] = torch.as_tensor(0.).to('cuda')
+                    l_dict['loss_giou_dn'] = torch.as_tensor(0.).to('cuda')
+                    l_dict['loss_ce_dn'] = torch.as_tensor(0.).to('cuda')
+                    l_dict['loss_xy_dn'] = torch.as_tensor(0.).to('cuda')
+                    l_dict['loss_hw_dn'] = torch.as_tensor(0.).to('cuda')
+                    l_dict['cardinality_error_dn'] = torch.as_tensor(0.).to('cuda')
+                    l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
+                    losses.update(l_dict)
+
+        # interm_outputs loss
+        if 'interm_outputs' in outputs:
+            interm_outputs = outputs['interm_outputs']
+            indices = self.matcher(interm_outputs, targets)
+            if return_indices:
+                indices_list.append(indices)
             for loss in self.losses:
                 if loss == 'masks':
                     # Intermediate masks losses are too costly to compute, we ignore them.
@@ -549,19 +541,42 @@ class SetCriterion_DN(nn.Module):
                 kwargs = {}
                 if loss == 'labels':
                     # Logging is enabled only for the last layer
-                    kwargs['log'] = False
-                l_dict = self.get_loss(loss, enc_outputs, bin_targets, indices, num_boxes, **kwargs)
-                l_dict = {k + f'_enc': v for k, v in l_dict.items()}
+                    kwargs = {'log': False}
+                l_dict = self.get_loss(loss, interm_outputs, targets, indices, num_boxes, **kwargs)
+                l_dict = {k + f'_interm': v for k, v in l_dict.items()}
                 losses.update(l_dict)
 
-        # dn loss computation
-        aux_num = 0
-        if 'aux_outputs' in outputs:
-            aux_num = len(outputs['aux_outputs'])
-        dn_losses = compute_dn_loss(mask_dict, self.training, aux_num, self.focal_alpha)
-        losses.update(dn_losses)
+        # enc output loss
+        if 'enc_outputs' in outputs:
+            for i, enc_outputs in enumerate(outputs['enc_outputs']):
+                indices = self.matcher(enc_outputs, targets)
+                if return_indices:
+                    indices_list.append(indices)
+                for loss in self.losses:
+                    if loss == 'masks':
+                        # Intermediate masks losses are too costly to compute, we ignore them.
+                        continue
+                    kwargs = {}
+                    if loss == 'labels':
+                        # Logging is enabled only for the last layer
+                        kwargs = {'log': False}
+                    l_dict = self.get_loss(loss, enc_outputs, targets, indices, num_boxes, **kwargs)
+                    l_dict = {k + f'_enc_{i}': v for k, v in l_dict.items()}
+                    losses.update(l_dict)
+
+        if return_indices:
+            indices_list.append(indices0_copy)
+            return losses, indices_list
 
         return losses
+
+    def prep_for_dn(self, dn_meta):
+        output_known_lbs_bboxes = dn_meta['output_known_lbs_bboxes']
+        num_dn_groups, pad_size = dn_meta['num_dn_group'], dn_meta['pad_size']
+        assert pad_size % num_dn_groups == 0
+        single_pad = pad_size // num_dn_groups
+
+        return output_known_lbs_bboxes, single_pad, num_dn_groups
 
 
 class MLP(nn.Module):
@@ -579,7 +594,7 @@ class MLP(nn.Module):
         return x
 
 
-def build_dn():
+def build_dino(args):
     # the `num_classes` naming here is somewhat misleading.
     # it indeed corresponds to `max_obj_id + 1`, where max_obj_id
     # is the maximum id for a class in your dataset. For example,
@@ -588,36 +603,15 @@ def build_dn():
     # you should pass `num_classes` to be 2 (max_obj_id + 1).
     # For more details on this, check the following discussion
     # https://github.com/facebookresearch/detr/issues/108#issuecomment-650269223
-    args = {
-        "num_classes": 200,
-        "num_queries": 30,
-        "hidden_dim": 256,
-        "in_channels": 256,
-        "num_feature_levels": 7,
-        "aux_loss": True,
-        "enc_layers": 2,
-        "dec_layers": 4,
-        "enc_n_points": 4,
-        "dec_n_points": 4,
-        "eos_coef": 0.1,
-        "set_cost_class": 6,
-        "set_cost_bbox": 5,
-        "set_cost_giou": 2,
-        "weight_loss_ce": 2,
-        "weight_loss_bbox": 5,
-        "weight_loss_giou": 2,
-        "nhead": 8,
-        "dropout": 0.1,
-        "dim_feedforward": 256 * 4,
-        "pre_norm": False,
-        "scalar": 5,
-        "label_noise_scale": 0.2,
-        "box_noise_scale": 0.4,
-        "num_patterns": 0
-    }
-
     num_classes = args["num_classes"]
     device = "cuda"
+
+    # Pick a pretrained model
+    # backbone_model_name = "slowfast_r50"
+    # backbone = torch.hub.load("facebookresearch/pytorchvideo:main", model=backbone_model_name, pretrained=True,
+    #                           slowfast_fusion_conv_stride=[8, 1, 1], norm=FrozenBatchNorm3d)
+    # backbone.blocks = backbone.blocks[:-2]
+    # backbone.num_channels = 2048
 
     T, C = 100, args["hidden_dim"]
     t_embeds = nn.Embedding(T, C)
@@ -634,32 +628,42 @@ def build_dn():
 
     transformer = build_deforamble_transformer(args)
 
-    model = DABDeformableDETR(
+    dn_labelbook_size = num_classes
+
+    model = DINO(
         transformer,
         num_classes=args["num_classes"],
         num_queries=args["num_queries"],
-        in_channels=args["in_channels"],
         aux_loss=True,
         pos_1d_embeds=pos_1d_embeds,
         pos_2d_embeds=pos_2d_embeds,
         num_feature_levels=args["num_feature_levels"],
+        dn_number=args["dn_number"] if args["use_dn"] else 0,
+        dn_box_noise_scale=args["dn_box_noise_scale"],
+        dn_label_noise_ratio=args["dn_label_noise_ratio"],
+        dn_labelbook_size=dn_labelbook_size
     )
 
     matcher = build_matcher(args)
-    weight_dict = {'loss_ce': args["weight_loss_ce"], 'loss_bbox': args["weight_loss_bbox"],
-                   'loss_giou': args["weight_loss_giou"], 'loss_similarity': args["weight_loss_similarity"]}
-    weight_dict['tgt_loss_ce'] = args["weight_loss_ce"]
-    weight_dict['tgt_loss_bbox'] = args["weight_loss_bbox"]
-    weight_dict['tgt_loss_giou'] = args["weight_loss_giou"]
+    weight_dict = {'loss_ce': args["weight_loss_ce"],
+                   'loss_bbox': args["weight_loss_bbox"],
+                   'loss_giou': args["weight_loss_giou"]}
+    clean_weight_dict = copy.deepcopy(weight_dict)
+
+    if args["use_dn"]:
+        weight_dict['loss_ce_dn'] = args["weight_loss_ce"]
+        weight_dict['loss_bbox_dn'] = args["weight_loss_bbox"]
+        weight_dict['loss_giou_dn'] = args["weight_loss_giou"]
     # TODO this is a hack
     if args["aux_loss"]:
         aux_weight_dict = {}
         for i in range(args["dec_layers"] - 1):
-            aux_weight_dict.update({k + f'_{i}': v for k, v in weight_dict.items()})
+            aux_weight_dict.update({k + f'_{i}': v for k, v in clean_weight_dict.items()})
         weight_dict.update(aux_weight_dict)
 
     losses = ['labels', 'boxes', 'cardinality']
-    criterion = SetCriterion_DN(num_classes, matcher=matcher, weight_dict=weight_dict, losses=losses)
+    criterion = SetCriterion_DINO(num_classes, matcher=matcher, weight_dict=weight_dict,
+                                  focal_alpha=args["focal_alpha"], losses=losses)
     criterion.to(device)
 
     return model, criterion

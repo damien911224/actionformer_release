@@ -20,7 +20,7 @@ from libs.modeling import make_meta_arch
 from libs.utils import (train_one_epoch, valid_one_epoch, ANETdetection,
                         save_checkpoint, make_optimizer, make_scheduler,
                         fix_random_seed, ModelEma)
-
+from libs.modeling.detr import build_dino
 
 ################################################################################
 def main(args):
@@ -80,6 +80,10 @@ def main(args):
     # schedule
     num_iters_per_epoch = len(train_loader)
     scheduler = make_scheduler(optimizer, cfg['opt'], num_iters_per_epoch)
+
+    """ DETR """
+    # detr model and criterion
+    detr, detr_criterion = build_dino(cfg['detr'])
 
     # enable model EMA
     print("Using model EMA ...")

@@ -59,7 +59,35 @@ class DeformableTransformer(nn.Module):
 
         self.level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
 
+        # if two_stage:
+        #     self.enc_output = nn.Linear(d_model, d_model)
+        #     self.enc_output_norm = nn.LayerNorm(d_model)
+        #     self.pos_trans = nn.Linear(d_model * 2, d_model * 2)
+        #     self.pos_trans_norm = nn.LayerNorm(d_model * 2)
+        # else:
+        #     if not self.use_dab:
+        #         self.reference_points = nn.Linear(d_model, 2)
+
         self.num_classes = num_classes
+
+        if two_stage:
+            self.proposal_embed = nn.Sequential(
+                nn.Conv1d(d_model * 2, d_model, kernel_size=3, padding=1),
+                nn.GroupNorm(32, d_model),
+                nn.ReLU(inplace=True),
+                nn.Conv1d(d_model, d_model, kernel_size=3, padding=1),
+                nn.GroupNorm(32, d_model),
+                nn.ReLU(inplace=True),
+                nn.Conv1d(d_model, 3, kernel_size=1))
+
+            self.video_embed = nn.Sequential(
+                nn.Conv1d(d_model * 2, d_model, kernel_size=3, padding=1),
+                nn.GroupNorm(32, d_model),
+                nn.ReLU(inplace=True),
+                nn.Conv1d(d_model, d_model, kernel_size=3, padding=1),
+                nn.GroupNorm(32, d_model),
+                nn.ReLU(inplace=True),
+                nn.Conv1d(d_model, self.num_classes, kernel_size=1))
 
         self.high_dim_query_update = high_dim_query_update
         if high_dim_query_update:
@@ -188,6 +216,18 @@ class DeformableTransformer(nn.Module):
         memory_2d = torch.cat(memory_2d, 1)
 
         if self.two_stage:
+            target_length = encoder_outputs[-1].shape[1]
+            merged_encoder_outputs = list()
+            for e_o in encoder_outputs:
+                _, t, _ = e_o.shape
+                if t != target_length:
+                    e_o = F.interpolate(e_o.permute(0, 2, 1), size=target_length, mode="linear")
+                else:
+                    e_o = e_o.permute(0, 2, 1)
+                merged_encoder_outputs.append(e_o)
+            merged_encoder_outputs = torch.cat(merged_encoder_outputs, dim=1)
+
+            proposals = self.proposal_embed(merged_encoder_outputs).permute(0, 2, 1)
             bs, t, _ = proposals.shape
             _, q, _ = query_embed.shape
             q = q // 4
@@ -201,6 +241,13 @@ class DeformableTransformer(nn.Module):
                                           proposal_boxes[..., 1] - proposal_boxes[..., 0]), dim=-1)
             topk_indices = torch.topk(proposals.detach()[..., 0], k=q, dim=1)[1]
             topk_references = torch.gather(proposal_boxes, 1, topk_indices.unsqueeze(-1).repeat(1, 1, 4))
+
+            video_embeds = self.video_embed(merged_encoder_outputs).permute(0, 2, 1).mean(dim=1)
+            video_class = torch.argmax(video_embeds.detach(), dim=-1)
+            video_embeddings = label_enc(video_class).unsqueeze(1).repeat(1, q, 1)
+        else:
+            proposals = None
+            video_embeds = None
 
         # prepare input for decoder
         bs, _, c = memory.shape
