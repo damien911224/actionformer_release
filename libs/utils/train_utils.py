@@ -315,6 +315,7 @@ def train_one_epoch(
         detr_losses.backward()
         torch.nn.utils.clip_grad_norm_(detr.parameters(), 0.1)
         detr_optimizer.step()
+        detr_scheduler.step()
 
         for key, value in detr_losses.items():
             detr_key = "detr_" + key
