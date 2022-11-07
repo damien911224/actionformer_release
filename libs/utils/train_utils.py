@@ -277,7 +277,7 @@ def train_one_epoch(
         # zero out optim
         optimizer.zero_grad(set_to_none=True)
         # forward / backward the model
-        losses, proposals = model(video_list)
+        losses, results = model(video_list)
         losses['final_loss'].backward()
         # gradient cliping (to stabilize training if necessary)
         if clip_grad_l2norm > 0.0:
@@ -289,13 +289,22 @@ def train_one_epoch(
         optimizer.step()
         scheduler.step()
 
-        proposals = torch.stack([p["segments"] / x["duration"] for (p, x) in zip(proposals, video_list)], dim=0)
-        print(proposals.shape)
-        print(torch.max(proposals), torch.min(proposals))
-        exit()
-
         if model_ema is not None:
             model_ema.update(model)
+
+        labels = torch.stack([p["labels"] for p in results], dim=0).float()
+        scores = torch.stack([p["scores"] for p in results], dim=0)
+        segments = torch.stack([p["segments"] / x["duration"] for (p, x) in zip(results, video_list)], dim=0)
+        proposals = torch.cat((labels.unsqueeze(-1), segments.unsqueeze(-1), scores), dim=-1)
+
+        detr_target_dict = list()
+        for b_i in range(len(video_list)):
+            batch_dict = dict()
+            batch_dict["labels"] = video_list[b_i]["labels"]
+            batch_dict["boxes"] = video_list[b_i]["segments"]
+            print(video_list[b_i]["segments"])
+            detr_target_dict.append(batch_dict)
+        exit()
 
         # printing (only check the stats when necessary to avoid extra cost)
         if (iter_idx != 0) and (iter_idx % print_freq) == 0:
