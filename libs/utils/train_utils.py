@@ -269,6 +269,7 @@ def train_one_epoch(
     num_iters = len(train_loader)
     # switch to train mode
     model.train()
+    detr.train()
 
     # main training loop
     print("\n[Train]: Epoch {:d} started".format(curr_epoch))
@@ -305,9 +306,15 @@ def train_one_epoch(
             detr_target_dict.append(batch_dict)
 
         features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
-        print(features.shape)
-        exit()
         detr_predictions = detr([features], proposals, detr_target_dict)
+        loss_dict = detr_criterion(detr_predictions, detr_target_dict)
+        weight_dict = detr_criterion.weight_dict
+        detr_losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
+
+        detr_optimizer.zero_grad()
+        detr_losses.backward()
+        torch.nn.utils.clip_grad_norm_(detr.parameters(), 0.1)
+        detr_optimizer.step()
 
         # printing (only check the stats when necessary to avoid extra cost)
         if (iter_idx != 0) and (iter_idx % print_freq) == 0:
@@ -380,6 +387,7 @@ def train_one_epoch(
 def valid_one_epoch(
     val_loader,
     model,
+    detr,
     curr_epoch,
     ext_score_file = None,
     evaluator = None,
@@ -395,6 +403,7 @@ def valid_one_epoch(
     batch_time = AverageMeter()
     # switch to evaluate mode
     model.eval()
+    detr.eval()
     # dict for results (for our evaluation code)
     results = {
         'video-id': [],
@@ -411,18 +420,46 @@ def valid_one_epoch(
         with torch.no_grad():
             output = model(video_list)
 
+            labels = torch.stack([p["labels"] for p in output], dim=0).float()
+            scores = torch.stack([p["scores"] for p in output], dim=0)
+            segments = torch.stack([p["segments"] / x["duration"] for (p, x) in zip(output, video_list)], dim=0)
+            proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
+
+            features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
+            detr_predictions = detr([features], proposals)
+
+            boxes = detr_predictions["pred_boxes"].detach().cpu().numpy()
+            durations = [x["duration"] for x in video_list]
+            boxes = boxes * durations
+            logits = detr_predictions["pred_logits"].detach().cpu().numpy()
+            labels = np.argmax(logits[..., :-1], axis=-1)
+            scores = np.max(logits[..., :-1], axis=-1)
+
+            # # upack the results into ANet format
+            # num_vids = len(output)
+            # for vid_idx in range(num_vids):
+            #     if output[vid_idx]['segments'].shape[0] > 0:
+            #         results['video-id'].extend(
+            #             [output[vid_idx]['video_id']] *
+            #             output[vid_idx]['segments'].shape[0]
+            #         )
+            #         results['t-start'].append(output[vid_idx]['segments'][:, 0])
+            #         results['t-end'].append(output[vid_idx]['segments'][:, 1])
+            #         results['label'].append(output[vid_idx]['labels'])
+            #         results['score'].append(output[vid_idx]['scores'])
+
             # upack the results into ANet format
-            num_vids = len(output)
+            num_vids = len(detr_predictions)
             for vid_idx in range(num_vids):
-                if output[vid_idx]['segments'].shape[0] > 0:
+                if boxes[vid_idx].shape[0] > 0:
                     results['video-id'].extend(
-                        [output[vid_idx]['video_id']] *
-                        output[vid_idx]['segments'].shape[0]
+                        [video_list[vid_idx]['video_id']] *
+                        boxes[vid_idx].shape[0]
                     )
-                    results['t-start'].append(output[vid_idx]['segments'][:, 0])
-                    results['t-end'].append(output[vid_idx]['segments'][:, 1])
-                    results['label'].append(output[vid_idx]['labels'])
-                    results['score'].append(output[vid_idx]['scores'])
+                    results['t-start'].append(boxes[vid_idx][:, 0])
+                    results['t-end'].append(boxes[vid_idx][:, 1])
+                    results['label'].append(labels[vid_idx])
+                    results['score'].append(scores[vid_idx])
 
         # printing
         if (iter_idx != 0) and iter_idx % (print_freq) == 0:
