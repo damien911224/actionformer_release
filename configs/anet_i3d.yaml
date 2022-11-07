@@ -69,7 +69,7 @@ output_folder: ./ckpt/
 
 # DINO DETR
 detr: {
-  num_classes: 200,
+  num_classes: 1,
   num_queries: 192,
   temporal_length: 192,
   lr: 2.0e-5,
@@ -104,6 +104,6 @@ detr: {
   dn_number: 100,
   dn_box_noise_scale: 0.4,
   dn_label_noise_ratio: 0.5,
-  dn_labelbook_size: 201,
+  dn_labelbook_size: 1,
   focal_alpha: 0.25
 }
