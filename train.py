@@ -83,6 +83,7 @@ def main(args):
 
     """ DETR """
     detr, detr_criterion = build_dino(cfg['detr'])
+    detr = detr.cuda()
     def match_name_keywords(n, name_keywords):
         out = False
         for b in name_keywords:
