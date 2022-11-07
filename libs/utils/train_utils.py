@@ -289,7 +289,9 @@ def train_one_epoch(
         optimizer.step()
         scheduler.step()
 
-        print(proposals[0]["segs"].shape)
+        print(proposals[0]["segments"].shape)
+        print(proposals[1]["segments"].shape)
+        exit()
 
         if model_ema is not None:
             model_ema.update(model)
