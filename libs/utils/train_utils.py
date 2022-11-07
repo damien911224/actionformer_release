@@ -320,7 +320,7 @@ def train_one_epoch(
         detr_optimizer.step()
         detr_scheduler.step()
 
-        for key, value in detr_losses.items():
+        for key, value in loss_dict.items():
             detr_key = "detr_" + key
             losses[detr_key] = value
 
