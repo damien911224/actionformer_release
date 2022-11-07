@@ -222,6 +222,7 @@ class ActivityNetDataset(Dataset):
                         valid_seg_list.append(seg.clamp(max=vid_len))
                         # some weird bug here if not converting to size 1 tensor
                         valid_label_list.append(label.view(1))
+                        print(label)
                 segments = torch.stack(valid_seg_list, dim=0)
                 labels = torch.cat(valid_label_list)
         else:
