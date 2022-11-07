@@ -16,6 +16,7 @@ from libs.core import load_config
 from libs.datasets import make_dataset, make_data_loader
 from libs.modeling import make_meta_arch
 from libs.utils import valid_one_epoch, ANETdetection, fix_random_seed
+from libs.modeling.detr import build_dino
 
 
 ################################################################################
@@ -58,6 +59,9 @@ def main(args):
     # not ideal for multi GPU training, ok for now
     model = nn.DataParallel(model, device_ids=cfg['devices'])
 
+    detr, detr_criterion = build_dino(cfg['detr'])
+    detr = detr.cuda()
+
     """4. load ckpt"""
     print("=> loading checkpoint '{}'".format(ckpt_file))
     # load ckpt, reset epoch / best rmse
@@ -68,6 +72,7 @@ def main(args):
     # load ema model instead
     print("Loading from EMA model ...")
     model.load_state_dict(checkpoint['state_dict_ema'])
+    detr.load_state_dict(checkpoint['detr'])
     del checkpoint
 
     # set up evaluator
@@ -88,6 +93,7 @@ def main(args):
     mAP = valid_one_epoch(
         val_loader,
         model,
+        detr,
         -1,
         evaluator=det_eval,
         output_file=output_file,

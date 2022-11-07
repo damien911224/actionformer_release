@@ -182,6 +182,7 @@ def main(args):
                 'state_dict': model.state_dict(),
                 'scheduler': scheduler.state_dict(),
                 'optimizer': optimizer.state_dict(),
+                'detr': detr.state_dict()
             }
 
             save_states['state_dict_ema'] = model_ema.module.state_dict()
