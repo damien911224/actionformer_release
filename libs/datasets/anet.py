@@ -206,6 +206,7 @@ class ActivityNetDataset(Dataset):
             labels = torch.from_numpy(video_item['labels'])
             # for activity net, we have a few videos with a bunch of missing frames
             # here is a quick fix for training
+            feat_duration = feats.shape[1] + 0.5 * num_frames / feat_stride
             if self.is_training:
                 vid_len = feats.shape[1] + 0.5 * num_frames / feat_stride
                 valid_seg_list, valid_label_list = [], []
@@ -235,7 +236,8 @@ class ActivityNetDataset(Dataset):
                      'fps'             : video_item['fps'],
                      'duration'        : video_item['duration'],
                      'feat_stride'     : feat_stride,
-                     'feat_num_frames' : num_frames}
+                     'feat_num_frames' : num_frames,
+                     'feat_duration' : feat_duration}
 
         # no truncation is needed
         # truncate the features during training
