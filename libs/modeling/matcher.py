@@ -6,7 +6,7 @@ import torch
 from scipy.optimize import linear_sum_assignment
 from torch import nn
 
-from ..util.segment_ops import segment_cw_to_t1t2, segment_iou
+from ..utils.segment_ops import segment_cw_to_t1t2, segment_iou
 
 
 class HungarianMatcher(nn.Module):
