@@ -378,8 +378,13 @@ class PtTransformer(nn.Module):
                 out_cls_logits, out_offsets,
                 gt_cls_labels, gt_offsets
             )
-            return losses
 
+            results = self.inference(
+                video_list, points, fpn_masks,
+                out_cls_logits, out_offsets
+            )
+
+            return losses, results
         else:
             # decode the actions (sigmoid / stride, etc)
             results = self.inference(
@@ -726,18 +731,18 @@ class PtTransformer(nn.Module):
             segs = results_per_vid['segments'].detach().cpu()
             scores = results_per_vid['scores'].detach().cpu()
             labels = results_per_vid['labels'].detach().cpu()
-            if self.test_nms_method != 'none':
-                # 2: batched nms (only implemented on CPU)
-                segs, scores, labels = batched_nms(
-                    segs, scores, labels,
-                    self.test_iou_threshold,
-                    self.test_min_score,
-                    self.test_max_seg_num,
-                    use_soft_nms = (self.test_nms_method == 'soft'),
-                    multiclass = self.test_multiclass_nms,
-                    sigma = self.test_nms_sigma,
-                    voting_thresh = self.test_voting_thresh
-                )
+            # if self.test_nms_method != 'none':
+            #     # 2: batched nms (only implemented on CPU)
+            #     segs, scores, labels = batched_nms(
+            #         segs, scores, labels,
+            #         self.test_iou_threshold,
+            #         self.test_min_score,
+            #         self.test_max_seg_num,
+            #         use_soft_nms = (self.test_nms_method == 'soft'),
+            #         multiclass = self.test_multiclass_nms,
+            #         sigma = self.test_nms_sigma,
+            #         voting_thresh = self.test_voting_thresh
+            #     )
             # 3: convert from feature grids to seconds
             if segs.shape[0] > 0:
                 if to_seconds:

@@ -82,8 +82,33 @@ def main(args):
     scheduler = make_scheduler(optimizer, cfg['opt'], num_iters_per_epoch)
 
     """ DETR """
-    # detr model and criterion
     detr, detr_criterion = build_dino(cfg['detr'])
+    def match_name_keywords(n, name_keywords):
+        out = False
+        for b in name_keywords:
+            if b in n:
+                out = True
+                break
+        return out
+    detr_param_dicts = [
+        # non-backbone, non-offset
+        {
+            "params":
+                [p for n, p in detr.named_parameters()
+                 if not match_name_keywords(n, cfg['detr']["lr_linear_proj_names"]) and p.requires_grad],
+            "lr": cfg['detr']["lr"],
+            "initial_lr": cfg['detr']["lr"]
+        },
+        # offset
+        {
+            "params": [p for n, p in detr.named_parameters() if
+                       match_name_keywords(n, cfg['detr']["lr_linear_proj_names"]) and p.requires_grad],
+            "lr": cfg['detr']["lr"] * cfg['detr']["lr_linear_proj_mult"],
+            "initial_lr": cfg['detr']["lr"] * cfg['detr']["lr_linear_proj_mult"]
+        }
+    ]
+    detr_optimizer = torch.optim.AdamW(detr_param_dicts, lr=cfg['detr']["lr"], weight_decay=cfg['detr']["weight_decay"])
+    detr_scheduler = make_scheduler(detr_optimizer, cfg['opt'], num_iters_per_epoch)
 
     # enable model EMA
     print("Using model EMA ...")
@@ -131,6 +156,10 @@ def main(args):
             model,
             optimizer,
             scheduler,
+            detr,
+            detr_criterion,
+            detr_optimizer,
+            detr_scheduler,
             epoch,
             model_ema = model_ema,
             clip_grad_l2norm = cfg['train_cfg']['clip_grad_l2norm'],

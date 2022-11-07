@@ -251,6 +251,10 @@ def train_one_epoch(
     model,
     optimizer,
     scheduler,
+    detr,
+    detr_criterion,
+    detr_optimizer,
+    detr_scheduler,
     curr_epoch,
     model_ema = None,
     clip_grad_l2norm = -1,
@@ -273,7 +277,7 @@ def train_one_epoch(
         # zero out optim
         optimizer.zero_grad(set_to_none=True)
         # forward / backward the model
-        losses = model(video_list)
+        losses, proposals = model(video_list)
         losses['final_loss'].backward()
         # gradient cliping (to stabilize training if necessary)
         if clip_grad_l2norm > 0.0:
@@ -284,6 +288,8 @@ def train_one_epoch(
         # step optimizer / scheduler
         optimizer.step()
         scheduler.step()
+
+        print(proposals)
 
         if model_ema is not None:
             model_ema.update(model)
