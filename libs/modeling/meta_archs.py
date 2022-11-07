@@ -670,12 +670,14 @@ class PtTransformer(nn.Module):
 
             # Apply filtering to make NMS faster following detectron2
             # 1. Keep seg with confidence score > a threshold
-            keep_idxs1 = (pred_prob > self.test_pre_nms_thresh)
+            # keep_idxs1 = (pred_prob > self.test_pre_nms_thresh)
+            keep_idxs1 = (pred_prob > 0.0)
             pred_prob = pred_prob[keep_idxs1]
             topk_idxs = keep_idxs1.nonzero(as_tuple=True)[0]
 
             # 2. Keep top k top scoring boxes only
-            num_topk = min(self.test_pre_nms_topk, topk_idxs.size(0))
+            # num_topk = min(self.test_pre_nms_topk, topk_idxs.size(0))
+            num_topk = max(self.test_pre_nms_topk, topk_idxs.size(0))
             pred_prob, idxs = pred_prob.sort(descending=True)
             pred_prob = pred_prob[:num_topk].clone()
             topk_idxs = topk_idxs[idxs[:num_topk]].clone()
