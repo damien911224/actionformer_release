@@ -69,6 +69,10 @@ output_folder: ./ckpt/
 
 # DINO DETR
 detr: {
+  num_classes: 200,
+  num_queries: 192,
+  temporal_length: 192,
+  lr: 2.0e-5,
   lr_linear_proj_mult: 0.1,
   lr_linear_proj_names: [ 'reference_points', 'sampling_offsets' ],
   hidden_dim: 256,
