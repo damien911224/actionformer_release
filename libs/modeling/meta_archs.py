@@ -671,7 +671,7 @@ class PtTransformer(nn.Module):
             # Apply filtering to make NMS faster following detectron2
             # 1. Keep seg with confidence score > a threshold
             # keep_idxs1 = (pred_prob > self.test_pre_nms_thresh)
-            keep_idxs1 = (pred_prob > 0.0)
+            keep_idxs1 = (pred_prob >= 0.0)
             pred_prob = pred_prob[keep_idxs1]
             topk_idxs = keep_idxs1.nonzero(as_tuple=True)[0]
 
@@ -700,7 +700,7 @@ class PtTransformer(nn.Module):
             # 5. Keep seg with duration > a threshold (relative to feature grids)
             seg_areas = seg_right - seg_left
             # keep_idxs2 = seg_areas > self.test_duration_thresh
-            keep_idxs2 = seg_areas > 0.0
+            keep_idxs2 = seg_areas >= 0.0
 
             # *_all : N (filtered # of segments) x 2 / 1
             segs_all.append(pred_segs[keep_idxs2])
@@ -746,11 +746,11 @@ class PtTransformer(nn.Module):
             #         voting_thresh = self.test_voting_thresh
             #     )
             # 3: convert from feature grids to seconds
-            # if segs.shape[0] > 0:
-            #     segs = (segs * stride + 0.5 * nframes) / fps
-            #     truncate all boundaries within [0, duration]
-                # segs[segs<=0.0] *= 0.0
-                # segs[segs>=vlen] = segs[segs>=vlen] * 0.0 + vlen
+            if segs.shape[0] > 0:
+                segs = (segs * stride + 0.5 * nframes) / fps
+                # truncate all boundaries within [0, duration]
+                segs[segs<=0.0] *= 0.0
+                segs[segs>=vlen] = segs[segs>=vlen] * 0.0 + vlen
 
             # 4: repack the results
             processed_results.append(
