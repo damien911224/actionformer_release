@@ -183,7 +183,6 @@ class ActivityNetDataset(Dataset):
             feat_stride = video_item['duration'] * video_item['fps'] / seq_len
             # center the features
             num_frames = feat_stride
-            print("case 3")
 
         # T x C -> C x T
         feats = torch.from_numpy(np.ascontiguousarray(feats.transpose()))
@@ -240,9 +239,9 @@ class ActivityNetDataset(Dataset):
 
         # no truncation is needed
         # truncate the features during training
-        if self.is_training and (segments is not None):
-            data_dict = truncate_feats(
-                data_dict, self.max_seq_len, self.trunc_thresh, self.crop_ratio
-            )
+        # if self.is_training and (segments is not None):
+        #     data_dict = truncate_feats(
+        #         data_dict, self.max_seq_len, self.trunc_thresh, self.crop_ratio
+        #     )
 
         return data_dict
