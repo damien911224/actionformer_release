@@ -289,7 +289,7 @@ def train_one_epoch(
         optimizer.step()
         scheduler.step()
 
-        print(proposals)
+        print(proposals[0].shape)
 
         if model_ema is not None:
             model_ema.update(model)
