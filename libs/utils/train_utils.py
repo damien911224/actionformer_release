@@ -291,7 +291,7 @@ def train_one_epoch(
 
         proposals = torch.stack([p["segments"] / x["duration"] for (p, x) in zip(proposals, video_list)], dim=0)
         print(proposals.shape)
-        print(torch.max(proposals)[0], torch.min(proposals)[0])
+        print(torch.max(proposals), torch.min(proposals))
         exit()
 
         if model_ema is not None:
