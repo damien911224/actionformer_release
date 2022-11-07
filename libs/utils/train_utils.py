@@ -295,7 +295,7 @@ def train_one_epoch(
         labels = torch.stack([p["labels"] for p in results], dim=0).float()
         scores = torch.stack([p["scores"] for p in results], dim=0)
         segments = torch.stack([p["segments"] / x["duration"] for (p, x) in zip(results, video_list)], dim=0)
-        proposals = torch.cat((labels.unsqueeze(-1), segments.unsqueeze(-1), scores), dim=-1)
+        proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1)
 
         detr_target_dict = list()
         for b_i in range(len(video_list)):
