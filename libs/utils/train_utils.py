@@ -301,7 +301,8 @@ def train_one_epoch(
         for b_i in range(len(video_list)):
             batch_dict = dict()
             batch_dict["labels"] = video_list[b_i]["labels"]
-            batch_dict["boxes"] = video_list[b_i]["segments"]
+            print(video_list[b_i]["labels"])
+            batch_dict["boxes"] = video_list[b_i]["segments"] / video_list[b_i]["duration"]
             print(video_list[b_i]["segments"])
             detr_target_dict.append(batch_dict)
         exit()
