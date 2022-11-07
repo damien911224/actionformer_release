@@ -606,8 +606,7 @@ class PtTransformer(nn.Module):
         self,
         video_list,
         points, fpn_masks,
-        out_cls_logits, out_offsets,
-        to_seconds=True
+        out_cls_logits, out_offsets
     ):
         # video_list B (list) [dict]
         # points F (list) [T_i, 4]
@@ -644,7 +643,7 @@ class PtTransformer(nn.Module):
             results.append(results_per_vid)
 
         # step 3: postprocssing
-        results = self.postprocessing(results, to_seconds=to_seconds)
+        results = self.postprocessing(results)
 
         return results
 
@@ -716,7 +715,7 @@ class PtTransformer(nn.Module):
         return results
 
     @torch.no_grad()
-    def postprocessing(self, results, to_seconds=True):
+    def postprocessing(self, results):
         # input : list of dictionary items
         # (1) push to CPU; (2) NMS; (3) convert to actual time stamps
         processed_results = []
@@ -745,11 +744,10 @@ class PtTransformer(nn.Module):
             #     )
             # 3: convert from feature grids to seconds
             if segs.shape[0] > 0:
-                if to_seconds:
-                    segs = (segs * stride + 0.5 * nframes) / fps
-                    # truncate all boundaries within [0, duration]
-                    segs[segs<=0.0] *= 0.0
-                    segs[segs>=vlen] = segs[segs>=vlen] * 0.0 + vlen
+                segs = (segs * stride + 0.5 * nframes) / fps
+                # truncate all boundaries within [0, duration]
+                segs[segs<=0.0] *= 0.0
+                segs[segs>=vlen] = segs[segs>=vlen] * 0.0 + vlen
 
             # 4: repack the results
             processed_results.append(
