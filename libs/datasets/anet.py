@@ -206,24 +206,24 @@ class ActivityNetDataset(Dataset):
             labels = torch.from_numpy(video_item['labels'])
             # for activity net, we have a few videos with a bunch of missing frames
             # here is a quick fix for training
-            if self.is_training:
-                vid_len = feats.shape[1] + 0.5 * num_frames / feat_stride
-                valid_seg_list, valid_label_list = [], []
-                for seg, label in zip(segments, labels):
-                    if seg[0] >= vid_len:
-                        # skip an action outside of the feature map
-                        continue
-                    # skip an action that is mostly outside of the feature map
-                    ratio = (
-                        (min(seg[1].item(), vid_len) - seg[0].item())
-                        / (seg[1].item() - seg[0].item())
-                    )
-                    if ratio >= self.trunc_thresh:
-                        valid_seg_list.append(seg.clamp(max=vid_len))
-                        # some weird bug here if not converting to size 1 tensor
-                        valid_label_list.append(label.view(1))
-                segments = torch.stack(valid_seg_list, dim=0)
-                labels = torch.cat(valid_label_list)
+            # if self.is_training:
+            #     vid_len = feats.shape[1] + 0.5 * num_frames / feat_stride
+            #     valid_seg_list, valid_label_list = [], []
+            #     for seg, label in zip(segments, labels):
+            #         if seg[0] >= vid_len:
+            #             # skip an action outside of the feature map
+            #             continue
+            #         # skip an action that is mostly outside of the feature map
+            #         ratio = (
+            #             (min(seg[1].item(), vid_len) - seg[0].item())
+            #             / (seg[1].item() - seg[0].item())
+            #         )
+            #         if ratio >= self.trunc_thresh:
+            #             valid_seg_list.append(seg.clamp(max=vid_len))
+            #             # some weird bug here if not converting to size 1 tensor
+            #             valid_label_list.append(label.view(1))
+            #     segments = torch.stack(valid_seg_list, dim=0)
+            #     labels = torch.cat(valid_label_list)
         else:
             segments, labels = None, None
 
@@ -239,9 +239,9 @@ class ActivityNetDataset(Dataset):
 
         # no truncation is needed
         # truncate the features during training
-        # if self.is_training and (segments is not None):
-        #     data_dict = truncate_feats(
-        #         data_dict, self.max_seq_len, self.trunc_thresh, self.crop_ratio
-        #     )
+        if self.is_training and (segments is not None):
+            data_dict = truncate_feats(
+                data_dict, self.max_seq_len, self.trunc_thresh, self.crop_ratio
+            )
 
         return data_dict
