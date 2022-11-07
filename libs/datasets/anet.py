@@ -132,7 +132,6 @@ class ActivityNetDataset(Dataset):
                          'segments' : segments,
                          'labels' : labels
             }, )
-            print(labels)
 
         return dict_db, label_dict
 
