@@ -436,10 +436,10 @@ def valid_one_epoch(
             features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
             detr_predictions = detr([features], proposals)
 
-            boxes = detr_predictions["pred_boxes"].detach().cpu().numpy()
+            boxes = detr_predictions["pred_boxes"].detach().cpu()
             durations = [x["duration"] for x in video_list]
             boxes = boxes * durations
-            logits = detr_predictions["pred_logits"].detach().cpu().numpy()
+            logits = detr_predictions["pred_logits"].detach().cpu()
             labels = np.argmax(logits, axis=-1)
             scores = np.max(logits, axis=-1)
 
