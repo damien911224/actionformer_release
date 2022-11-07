@@ -291,6 +291,7 @@ class DeformableTransformerEncoderLayer(nn.Module):
         self.norm1 = nn.LayerNorm(d_model)
 
         # ffn
+        print(d_model, d_ffn)
         self.linear1 = nn.Linear(d_model, d_ffn)
         self.activation = _get_activation_fn(activation)
         self.dropout2 = nn.Dropout(dropout)
