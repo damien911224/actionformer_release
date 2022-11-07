@@ -440,6 +440,7 @@ def valid_one_epoch(
             durations = [x["duration"] for x in video_list]
             boxes = boxes * durations
             logits = detr_predictions["pred_logits"].detach().cpu().numpy()
+            print(logits.shape)
             labels = np.argmax(logits[..., :-1], axis=-1)
             scores = np.max(logits[..., :-1], axis=-1)
 
