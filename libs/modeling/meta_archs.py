@@ -699,7 +699,8 @@ class PtTransformer(nn.Module):
 
             # 5. Keep seg with duration > a threshold (relative to feature grids)
             seg_areas = seg_right - seg_left
-            keep_idxs2 = seg_areas > self.test_duration_thresh
+            # keep_idxs2 = seg_areas > self.test_duration_thresh
+            keep_idxs2 = seg_areas > 0.0
 
             # *_all : N (filtered # of segments) x 2 / 1
             segs_all.append(pred_segs[keep_idxs2])
