@@ -183,6 +183,7 @@ class ActivityNetDataset(Dataset):
             feat_stride = video_item['duration'] * video_item['fps'] / seq_len
             # center the features
             num_frames = feat_stride
+            print("case 3")
 
         # T x C -> C x T
         feats = torch.from_numpy(np.ascontiguousarray(feats.transpose()))
