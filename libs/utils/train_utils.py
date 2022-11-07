@@ -438,7 +438,7 @@ def valid_one_epoch(
 
             boxes = detr_predictions["pred_boxes"].detach().cpu()
             durations = [x["duration"] for x in video_list]
-            boxes = boxes * durations
+            boxes = boxes * torch.Tensor(durations)
             logits = detr_predictions["pred_logits"].detach().cpu()
             scores, labels = torch.max(logits, axis=-1)
 
