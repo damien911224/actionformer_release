@@ -440,8 +440,7 @@ def valid_one_epoch(
             durations = [x["duration"] for x in video_list]
             boxes = boxes * durations
             logits = detr_predictions["pred_logits"].detach().cpu()
-            labels = np.argmax(logits, axis=-1)
-            scores = np.max(logits, axis=-1)
+            scores, labels = torch.max(logits, axis=-1)
 
             # # upack the results into ANet format
             # num_vids = len(output)
