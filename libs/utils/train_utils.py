@@ -289,9 +289,9 @@ def train_one_epoch(
         optimizer.step()
         scheduler.step()
 
-        print(proposals[0]["segments"].shape)
-        print(proposals[1]["segments"].shape)
-        exit()
+        proposals = torch.stack([p["segments"] / x["duration"] for (p, x) in zip(proposals, video_list)], dim=0)
+        print(proposals.shape)
+        print(torch.max(proposals)[0], torch.min(proposals)[0])
 
         if model_ema is not None:
             model_ema.update(model)
