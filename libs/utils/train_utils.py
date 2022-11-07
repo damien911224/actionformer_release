@@ -457,7 +457,7 @@ def valid_one_epoch(
             #         results['score'].append(output[vid_idx]['scores'])
 
             # upack the results into ANet format
-            num_vids = len(detr_predictions)
+            num_vids = len(boxes)
             for vid_idx in range(num_vids):
                 if boxes[vid_idx].shape[0] > 0:
                     results['video-id'].extend(
