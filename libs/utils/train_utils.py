@@ -298,9 +298,6 @@ def train_one_epoch(
         segments = torch.stack([p["segments"] / x["duration"] for (p, x) in zip(results, video_list)], dim=0)
         proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
 
-        print(proposals.shape)
-        exit()
-
         detr_target_dict = list()
         for b_i in range(len(video_list)):
             batch_dict = dict()
