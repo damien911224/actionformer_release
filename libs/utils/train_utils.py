@@ -316,6 +316,10 @@ def train_one_epoch(
         torch.nn.utils.clip_grad_norm_(detr.parameters(), 0.1)
         detr_optimizer.step()
 
+        for key, value in detr_losses.items():
+            detr_key = "detr_" + key
+            losses[detr_key] = value
+
         # printing (only check the stats when necessary to avoid extra cost)
         if (iter_idx != 0) and (iter_idx % print_freq) == 0:
             # measure elapsed time (sync all kernels)
