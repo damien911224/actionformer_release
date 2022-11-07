@@ -746,11 +746,11 @@ class PtTransformer(nn.Module):
             #         voting_thresh = self.test_voting_thresh
             #     )
             # 3: convert from feature grids to seconds
-            if segs.shape[0] > 0:
-                segs = (segs * stride + 0.5 * nframes) / fps
-                # truncate all boundaries within [0, duration]
-                segs[segs<=0.0] *= 0.0
-                segs[segs>=vlen] = segs[segs>=vlen] * 0.0 + vlen
+            # if segs.shape[0] > 0:
+            #     segs = (segs * stride + 0.5 * nframes) / fps
+            #     truncate all boundaries within [0, duration]
+                # segs[segs<=0.0] *= 0.0
+                # segs[segs>=vlen] = segs[segs>=vlen] * 0.0 + vlen
 
             # 4: repack the results
             processed_results.append(
