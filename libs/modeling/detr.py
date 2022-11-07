@@ -622,6 +622,8 @@ def build_dino(args):
     pos_1d_embeds = t_embeds.weight.t().unsqueeze(0).to(device)
     pos_2d_embeds = torch.cat((s_embeds, e_embeds), dim=-1).permute(2, 0, 1).unsqueeze(0).to(device)
 
+    print(args)
+
     transformer = build_deforamble_transformer(args)
 
     dn_labelbook_size = num_classes
