@@ -71,7 +71,7 @@ output_folder: ./ckpt/
 detr: {
   num_classes: 1,
   num_queries: 378,
-  temporal_length: 378,
+  temporal_length: 192,
   lr: 2.0e-5,
   lr_linear_proj_mult: 0.1,
   lr_linear_proj_names: [ 'reference_points', 'sampling_offsets' ],
