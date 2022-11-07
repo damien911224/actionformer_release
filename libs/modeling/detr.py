@@ -10,8 +10,8 @@ import numpy as np
 import itertools
 from torch import nn
 
-from util import box_ops, segment_ops
-from util.misc import (NestedTensor, nested_tensor_from_tensor_list,
+from ..utils import box_ops, segment_ops
+from ..utils.misc import (NestedTensor, nested_tensor_from_tensor_list,
                        accuracy, get_world_size, interpolate,
                        is_dist_avail_and_initialized, inverse_sigmoid)
 
