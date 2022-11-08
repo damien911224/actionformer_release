@@ -525,9 +525,9 @@ def valid_one_epoch(
                 nmsed_boxes.append(b)
                 nmsed_labels.append(l)
                 nmsed_scores.append(s)
-            nmsed_boxes = torch.stack(nmsed_boxes, dim=0)
-            nmsed_labels = torch.stack(nmsed_labels, dim=0)
-            nmsed_scores = torch.stack(nmsed_scores, dim=0)
+            boxes = torch.stack(nmsed_boxes, dim=0)
+            labels = torch.stack(nmsed_labels, dim=0)
+            scores = torch.stack(nmsed_scores, dim=0)
 
             # upack the results into ANet format
             num_vids = len(boxes)
