@@ -10,6 +10,7 @@ from copy import deepcopy
 import torch
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
+import torch.nn.functional as F
 
 from .lr_schedulers import LinearWarmupMultiStepLR, LinearWarmupCosineAnnealingLR
 from .postprocessing import postprocess_results
@@ -296,6 +297,14 @@ def train_one_epoch(
         labels = torch.stack([p["labels"] for p in results], dim=0).float()
         scores = torch.stack([p["scores"] for p in results], dim=0)
         segments = torch.stack([p["segments"] / x["duration"] for (p, x) in zip(results, video_list)], dim=0)
+        sorted_indices = torch.argsort(scores, dim=1, descending=True)[:100]
+        labels = labels[np.arange(labels.shape[0]), sorted_indices[np.arange(labels.shape[0])]]
+        scores = scores[np.arange(scores.shape[0]), sorted_indices[np.arange(scores.shape[0])]]
+        segments = segments[np.arange(segments.shape[0]), sorted_indices[np.arange(segments.shape[0])]]
+        if labels.shape[0] < 100:
+            labels = F.pad(labels, (0, 100 - labels.shape[0]))
+            scores = F.pad(labels, (0, 100 - scores.shape[0]))
+            segments = F.pad(labels, (0, 0, 0, 100 - segments.shape[0]))
         proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
 
         detr_target_dict = list()
@@ -451,6 +460,14 @@ def valid_one_epoch(
             labels = torch.stack([p["labels"] for p in output], dim=0).float()
             scores = torch.stack([p["scores"] for p in output], dim=0)
             segments = torch.stack([p["segments"] / x["duration"] for (p, x) in zip(output, video_list)], dim=0)
+            sorted_indices = torch.argsort(scores, dim=1, descending=True)[:100]
+            labels = labels[np.arange(labels.shape[0]), sorted_indices[np.arange(labels.shape[0])]]
+            scores = scores[np.arange(scores.shape[0]), sorted_indices[np.arange(scores.shape[0])]]
+            segments = segments[np.arange(segments.shape[0]), sorted_indices[np.arange(segments.shape[0])]]
+            if labels.shape[0] < 100:
+                labels = F.pad(labels, (0, 100 - labels.shape[0]))
+                scores = F.pad(labels, (0, 100 - scores.shape[0]))
+                segments = F.pad(labels, (0, 0, 0, 100 - segments.shape[0]))
             proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
 
             features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
