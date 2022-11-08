@@ -510,6 +510,10 @@ def valid_one_epoch(
             nmsed_labels = list()
             nmsed_scores = list()
             for b, l, s in zip(boxes, labels, scores):
+                print(b.shape)
+                print(l.shape)
+                print(s.shape)
+                exit()
                 if test_cfg['nms_method'] != 'none':
                     # 2: batched nms (only implemented on CPU)
                     b, s, l = batched_nms(
