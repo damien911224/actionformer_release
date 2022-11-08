@@ -733,6 +733,10 @@ class PtTransformer(nn.Module):
             segs = results_per_vid['segments'].detach().cpu()
             scores = results_per_vid['scores'].detach().cpu()
             labels = results_per_vid['labels'].detach().cpu()
+            print(segs.shape)
+            print(scores.shape)
+            print(labels.shape)
+            exit()
             if self.test_nms_method != 'none':
                 # 2: batched nms (only implemented on CPU)
                 segs, scores, labels = batched_nms(
