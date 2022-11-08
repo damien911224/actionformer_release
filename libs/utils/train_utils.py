@@ -497,8 +497,8 @@ def valid_one_epoch(
             detr_predictions = detr([features], proposals)
 
             boxes = detr_predictions["pred_boxes"].detach().cpu()
-            boxes = (boxes[..., :2] + torch.stack((torch.clamp(boxes[..., 1] - boxes[..., 2], 0.0, 1.0),
-                                                   torch.clamp(boxes[..., 1] + boxes[..., 2], 0.0, 1.0)), dim=-1)) / 2.0
+            boxes = (boxes[..., :2] + torch.stack((torch.clamp(boxes[..., 2] - boxes[..., 3], 0.0, 1.0),
+                                                   torch.clamp(boxes[..., 2] + boxes[..., 3], 0.0, 1.0)), dim=-1)) / 2.0
             durations = [x["duration"] for x in video_list]
             boxes = boxes * torch.Tensor(durations)
             logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
