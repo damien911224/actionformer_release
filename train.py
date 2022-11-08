@@ -168,6 +168,19 @@ def main(args):
         cfg['opt']['epochs'] + cfg['opt']['warmup_epochs']
     )
     for epoch in range(args.start_epoch, max_epochs):
+
+        valid_one_epoch(
+            val_loader,
+            model,
+            detr,
+            epoch,
+            evaluator=det_eval,
+            output_file=output_file,
+            ext_score_file=cfg['test_cfg']['ext_score_file'],
+            tb_writer=tb_writer,
+            print_freq=args.print_freq
+        )
+
         # train for one epoch
         train_one_epoch(
             train_loader,
@@ -181,18 +194,6 @@ def main(args):
             epoch,
             model_ema = model_ema,
             clip_grad_l2norm = cfg['train_cfg']['clip_grad_l2norm'],
-            tb_writer=tb_writer,
-            print_freq=args.print_freq
-        )
-
-        valid_one_epoch(
-            val_loader,
-            model,
-            detr,
-            epoch,
-            evaluator=det_eval,
-            output_file=output_file,
-            ext_score_file=cfg['test_cfg']['ext_score_file'],
             tb_writer=tb_writer,
             print_freq=args.print_freq
         )
