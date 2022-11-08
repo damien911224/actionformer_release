@@ -79,12 +79,10 @@ class DINO(nn.Module):
         if num_feature_levels > 1:
             input_proj_list = []
 
-            input_proj_list.append(nn.Sequential(
-                nn.Conv2d(2048, hidden_dim, kernel_size=1),
-                nn.GroupNorm(32, hidden_dim)))
-            input_proj_list.append(nn.Sequential(
-                nn.Conv2d(2048 // 8, hidden_dim, kernel_size=1),
-                nn.GroupNorm(32, hidden_dim)))
+            for _ in range(num_feature_levels):
+                input_proj_list.append(nn.Sequential(
+                    nn.Conv2d(256, hidden_dim, kernel_size=1),
+                    nn.GroupNorm(32, hidden_dim)))
 
             self.input_proj = nn.ModuleList(input_proj_list)
         else:
