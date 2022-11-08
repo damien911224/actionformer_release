@@ -142,6 +142,18 @@ def main(args):
         pprint(cfg, stream=fid)
         fid.flush()
 
+    # set up evaluator
+    det_eval, output_file = None, None
+    if not args.saveonly:
+        val_db_vars = val_dataset.get_attributes()
+        det_eval = ANETdetection(
+            val_dataset.json_file,
+            val_dataset.split[0],
+            tiou_thresholds=val_db_vars['tiou_thresholds']
+        )
+    else:
+        output_file = os.path.join(os.path.split(ckpt_file)[0], 'eval_results.pkl')
+
     """4. training / validation loop"""
     print("\nStart training model {:s} ...".format(cfg['model_name']))
 
@@ -164,6 +176,18 @@ def main(args):
             epoch,
             model_ema = model_ema,
             clip_grad_l2norm = cfg['train_cfg']['clip_grad_l2norm'],
+            tb_writer=tb_writer,
+            print_freq=args.print_freq
+        )
+
+        valid_one_epoch(
+            val_loader,
+            model,
+            detr,
+            epoch,
+            evaluator=det_eval,
+            output_file=output_file,
+            ext_score_file=cfg['test_cfg']['ext_score_file'],
             tb_writer=tb_writer,
             print_freq=args.print_freq
         )

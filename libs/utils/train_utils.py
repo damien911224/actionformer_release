@@ -468,17 +468,28 @@ def valid_one_epoch(
                     backbone_results['label'].append(output[vid_idx]['labels'])
                     backbone_results['score'].append(output[vid_idx]['scores'])
 
-            labels = torch.stack([p["labels"] for p in output], dim=0).float()
-            scores = torch.stack([p["scores"] for p in output], dim=0)
-            segments = torch.stack([p["segments"] / x["duration"] for (p, x) in zip(output, video_list)], dim=0)
-            sorted_indices = torch.argsort(scores, dim=1, descending=True)[:100]
-            labels = labels[np.arange(labels.shape[0]), sorted_indices[np.arange(labels.shape[0])]]
-            scores = scores[np.arange(scores.shape[0]), sorted_indices[np.arange(scores.shape[0])]]
-            segments = segments[np.arange(segments.shape[0]), sorted_indices[np.arange(segments.shape[0])]]
-            if labels.shape[0] < 100:
-                labels = F.pad(labels, (0, 100 - labels.shape[0]))
-                scores = F.pad(labels, (0, 100 - scores.shape[0]))
-                segments = F.pad(labels, (0, 0, 0, 100 - segments.shape[0]))
+            labels = list()
+            scores = list()
+            segments = list()
+            for p, x in zip(results, video_list):
+                this_labels = p["labels"].float()
+                this_scores = p["scores"].float()
+                this_segments = p["segments"] / x["duration"]
+                if len(this_labels) < 100:
+                    this_labels = F.pad(this_labels, (0, 100 - len(this_labels)))
+                    this_scores = F.pad(this_scores, (0, 100 - len(this_scores)))
+                    this_segments = F.pad(this_segments, (0, 0, 0, 100 - len(this_segments)))
+                elif len(this_labels) > 100:
+                    sorted_indices = torch.argsort(this_scores, dim=1, descending=True)[:100]
+                    this_labels = this_labels[sorted_indices]
+                    this_scores = this_scores[sorted_indices]
+                    this_segments = this_segments[sorted_indices]
+                labels.append(this_labels)
+                scores.append(this_scores)
+                segments.append(this_segments)
+            labels = torch.stack(labels, dim=0)
+            scores = torch.stack(scores, dim=0)
+            segments = torch.stack(segments, dim=0)
             proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
 
             features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
@@ -489,10 +500,10 @@ def valid_one_epoch(
             boxes = boxes * torch.Tensor(durations)
             logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
             scores, labels = torch.max(logits, dim=-1)
-            sorted_indices = torch.argsort(-scores, dim=1)[:, :100]
-            boxes = boxes[torch.arange(boxes.shape[0]), sorted_indices[torch.arange(boxes.shape[0])]]
-            scores = scores[torch.arange(scores.shape[0]), sorted_indices[torch.arange(scores.shape[0])]]
-            labels = labels[torch.arange(labels.shape[0]), sorted_indices[torch.arange(labels.shape[0])]]
+            # sorted_indices = torch.argsort(-scores, dim=1)[:, :100]
+            # boxes = boxes[torch.arange(boxes.shape[0]), sorted_indices[torch.arange(boxes.shape[0])]]
+            # scores = scores[torch.arange(scores.shape[0]), sorted_indices[torch.arange(scores.shape[0])]]
+            # labels = labels[torch.arange(labels.shape[0]), sorted_indices[torch.arange(labels.shape[0])]]
 
             # upack the results into ANet format
             num_vids = len(boxes)
