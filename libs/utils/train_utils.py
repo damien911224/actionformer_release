@@ -465,6 +465,8 @@ def valid_one_epoch(
             boxes = boxes[sorted_indices]
             scores = scores[sorted_indices]
             labels = labels[sorted_indices]
+            print(boxes.shape)
+            exit()
 
             # upack the results into ANet format
             num_vids = len(boxes)
