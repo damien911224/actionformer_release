@@ -459,7 +459,7 @@ def valid_one_epoch(
             boxes = detr_predictions["pred_boxes"].detach().cpu()
             durations = [x["duration"] for x in video_list]
             boxes = boxes * torch.Tensor(durations)
-            logits = detr_predictions["pred_logits"].detach().cpu()
+            logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
             scores, labels = torch.max(logits, dim=-1)
             sorted_indices = torch.argsort(-scores, dim=1)[:, :100]
             boxes = boxes[:, sorted_indices]
