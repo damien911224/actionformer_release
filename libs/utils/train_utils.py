@@ -471,7 +471,7 @@ def valid_one_epoch(
             labels = list()
             scores = list()
             segments = list()
-            for p, x in zip(results, video_list):
+            for p, x in zip(output, video_list):
                 this_labels = p["labels"].float()
                 this_scores = p["scores"].float()
                 this_segments = p["segments"] / x["duration"]
