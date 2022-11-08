@@ -505,7 +505,10 @@ def valid_one_epoch(
             # boxes = boxes[torch.arange(boxes.shape[0]), sorted_indices[torch.arange(boxes.shape[0])]]
             # scores = scores[torch.arange(scores.shape[0]), sorted_indices[torch.arange(scores.shape[0])]]
             # labels = labels[torch.arange(labels.shape[0]), sorted_indices[torch.arange(labels.shape[0])]]
-
+            print(boxes.shape)
+            print(scores.shape)
+            print(labels.shape)
+            exit()
             if test_cfg['nms_method'] != 'none':
                 # 2: batched nms (only implemented on CPU)
                 boxes, scores, labels = batched_nms(
