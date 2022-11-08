@@ -461,13 +461,10 @@ def valid_one_epoch(
             boxes = boxes * torch.Tensor(durations)
             logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
             scores, labels = torch.max(logits, dim=-1)
-            # sorted_indices = torch.argsort(-scores, dim=1)[:, :100]
-            sorted_indices = torch.argsort(-scores, dim=1)
-            print(sorted_indices.shape)
-            exit()
-            boxes = boxes[:, sorted_indices]
-            scores = scores[:, sorted_indices]
-            labels = labels[:, sorted_indices]
+            sorted_indices = torch.argsort(-scores, dim=1)[:, :100]
+            boxes = boxes[sorted_indices]
+            scores = scores[sorted_indices]
+            labels = labels[sorted_indices]
 
             # upack the results into ANet format
             num_vids = len(boxes)
