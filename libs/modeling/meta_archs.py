@@ -339,13 +339,6 @@ class PtTransformer(nn.Module):
         # forward the network (backbone -> neck -> heads)
         feats, masks = self.backbone(batched_inputs, batched_masks)
         fpn_feats, fpn_masks = self.neck(feats, masks)
-        print(len(feats))
-        print(len(fpn_feats))
-        for feat in feats:
-            print(feat.shape)
-        for feat in fpn_feats:
-            print(feat.shape)
-        exit()
 
         # compute the point coordinate along the FPN
         # this is used for computing the GT or decode the final results
@@ -391,14 +384,14 @@ class PtTransformer(nn.Module):
                 out_cls_logits, out_offsets
             )
 
-            return losses, results
+            return losses, results, fpn_feats
         else:
             # decode the actions (sigmoid / stride, etc)
             results = self.inference(
                 video_list, points, fpn_masks,
                 out_cls_logits, out_offsets
             )
-            return results
+            return results, fpn_feats
 
     @torch.no_grad()
     def preprocessing(self, video_list, padding_val=0.0):

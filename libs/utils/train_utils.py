@@ -279,7 +279,7 @@ def train_one_epoch(
         # zero out optim
         optimizer.zero_grad(set_to_none=True)
         # forward / backward the model
-        losses, results = model(video_list)
+        losses, results, features = model(video_list)
         losses['final_loss'].backward()
         # gradient cliping (to stabilize training if necessary)
         if clip_grad_l2norm > 0.0:
@@ -328,8 +328,9 @@ def train_one_epoch(
                                             (boxes[..., 1] - boxes[..., 0]).unsqueeze(-1)), dim=-1).cuda()
             detr_target_dict.append(batch_dict)
 
-        features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
-        detr_predictions = detr([features], proposals, detr_target_dict)
+        # features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
+        features = [feat.detach() for feat in features]
+        detr_predictions = detr(features, proposals, detr_target_dict)
         loss_dict = detr_criterion(detr_predictions, detr_target_dict)
         weight_dict = detr_criterion.weight_dict
         detr_losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
@@ -454,7 +455,7 @@ def valid_one_epoch(
     for iter_idx, video_list in enumerate(val_loader, 0):
         # forward the model (wo. grad)
         with torch.no_grad():
-            output = model(video_list)
+            output, features = model(video_list)
 
             # upack the results into ANet format
             num_vids = len(output)
@@ -493,8 +494,9 @@ def valid_one_epoch(
             segments = torch.stack(segments, dim=0)
             proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
 
-            features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
-            detr_predictions = detr([features], proposals)
+            # features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
+            features = [feat.detach() for feat in features]
+            detr_predictions = detr(features, proposals)
 
             boxes = detr_predictions["pred_boxes"].detach().cpu()
             boxes = (boxes[..., :2] +
