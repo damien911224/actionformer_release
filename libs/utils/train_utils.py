@@ -508,8 +508,8 @@ def valid_one_epoch(
 
             if test_cfg['nms_method'] != 'none':
                 # 2: batched nms (only implemented on CPU)
-                segs, scores, labels = batched_nms(
-                    segs, scores, labels,
+                boxes, scores, labels = batched_nms(
+                    boxes, scores, labels,
                     test_cfg['iou_threshold'],
                     test_cfg['min_score'],
                     test_cfg['max_seg_num'],
