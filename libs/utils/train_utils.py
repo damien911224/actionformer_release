@@ -15,7 +15,7 @@ import torch.nn.functional as F
 from .lr_schedulers import LinearWarmupMultiStepLR, LinearWarmupCosineAnnealingLR
 from .postprocessing import postprocess_results
 from ..modeling import MaskedConv1D, Scale, AffineDropPath, LayerNorm
-
+from ..utils import batched_nms
 
 ################################################################################
 def fix_random_seed(seed, include_cuda=True):
@@ -417,6 +417,7 @@ def valid_one_epoch(
     model,
     detr,
     curr_epoch,
+    test_cfg,
     ext_score_file = None,
     evaluator = None,
     output_file = None,
@@ -504,6 +505,19 @@ def valid_one_epoch(
             # boxes = boxes[torch.arange(boxes.shape[0]), sorted_indices[torch.arange(boxes.shape[0])]]
             # scores = scores[torch.arange(scores.shape[0]), sorted_indices[torch.arange(scores.shape[0])]]
             # labels = labels[torch.arange(labels.shape[0]), sorted_indices[torch.arange(labels.shape[0])]]
+
+            if test_cfg['nms_method'] != 'none':
+                # 2: batched nms (only implemented on CPU)
+                segs, scores, labels = batched_nms(
+                    segs, scores, labels,
+                    test_cfg['iou_threshold'],
+                    test_cfg['min_score'],
+                    test_cfg['max_seg_num'],
+                    use_soft_nms=(test_cfg['nms_method'] == 'soft'),
+                    multiclass=test_cfg['multiclass_nms'],
+                    sigma=test_cfg['nms_sigma'],
+                    voting_thresh=test_cfg['voting_thresh']
+                )
 
             # upack the results into ANet format
             num_vids = len(boxes)
