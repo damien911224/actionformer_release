@@ -413,7 +413,14 @@ def valid_one_epoch(
     model.eval()
     detr.eval()
     # dict for results (for our evaluation code)
-    results = {
+    detr_results = {
+        'video-id': [],
+        't-start' : [],
+        't-end': [],
+        'label': [],
+        'score': []
+    }
+    backbone_results = {
         'video-id': [],
         't-start' : [],
         't-end': [],
@@ -428,6 +435,19 @@ def valid_one_epoch(
         with torch.no_grad():
             output = model(video_list)
 
+            # upack the results into ANet format
+            num_vids = len(output)
+            for vid_idx in range(num_vids):
+                if output[vid_idx]['segments'].shape[0] > 0:
+                    backbone_results['video-id'].extend(
+                        [output[vid_idx]['video_id']] *
+                        output[vid_idx]['segments'].shape[0]
+                    )
+                    backbone_results['t-start'].append(output[vid_idx]['segments'][:, 0])
+                    backbone_results['t-end'].append(output[vid_idx]['segments'][:, 1])
+                    backbone_results['label'].append(output[vid_idx]['labels'])
+                    backbone_results['score'].append(output[vid_idx]['scores'])
+
             labels = torch.stack([p["labels"] for p in output], dim=0).float()
             scores = torch.stack([p["scores"] for p in output], dim=0)
             segments = torch.stack([p["segments"] / x["duration"] for (p, x) in zip(output, video_list)], dim=0)
@@ -440,33 +460,24 @@ def valid_one_epoch(
             durations = [x["duration"] for x in video_list]
             boxes = boxes * torch.Tensor(durations)
             logits = detr_predictions["pred_logits"].detach().cpu()
-            scores, labels = torch.max(logits, axis=-1)
-
-            # # upack the results into ANet format
-            # num_vids = len(output)
-            # for vid_idx in range(num_vids):
-            #     if output[vid_idx]['segments'].shape[0] > 0:
-            #         results['video-id'].extend(
-            #             [output[vid_idx]['video_id']] *
-            #             output[vid_idx]['segments'].shape[0]
-            #         )
-            #         results['t-start'].append(output[vid_idx]['segments'][:, 0])
-            #         results['t-end'].append(output[vid_idx]['segments'][:, 1])
-            #         results['label'].append(output[vid_idx]['labels'])
-            #         results['score'].append(output[vid_idx]['scores'])
+            scores, labels = torch.max(logits, dim=-1)
+            sorted_indices = torch.argsort(-scores, dim=1)[:, :100]
+            boxes = boxes[:, sorted_indices]
+            scores = scores[:, sorted_indices]
+            labels = labels[:, sorted_indices]
 
             # upack the results into ANet format
             num_vids = len(boxes)
             for vid_idx in range(num_vids):
                 if boxes[vid_idx].shape[0] > 0:
-                    results['video-id'].extend(
+                    detr_results['video-id'].extend(
                         [video_list[vid_idx]['video_id']] *
                         boxes[vid_idx].shape[0]
                     )
-                    results['t-start'].append(boxes[vid_idx][:, 0])
-                    results['t-end'].append(boxes[vid_idx][:, 1])
-                    results['label'].append(labels[vid_idx])
-                    results['score'].append(scores[vid_idx])
+                    detr_results['t-start'].append(boxes[vid_idx][:, 0])
+                    detr_results['t-end'].append(boxes[vid_idx][:, 1])
+                    detr_results['label'].append(labels[vid_idx])
+                    detr_results['score'].append(scores[vid_idx])
 
         # printing
         if (iter_idx != 0) and iter_idx % (print_freq) == 0:
