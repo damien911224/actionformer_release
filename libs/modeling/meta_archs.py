@@ -745,8 +745,6 @@ class PtTransformer(nn.Module):
                     sigma = self.test_nms_sigma,
                     voting_thresh = self.test_voting_thresh
                 )
-            print(segs)
-            exit()
             # 3: convert from feature grids to seconds
             if segs.shape[0] > 0:
                 segs = (segs * stride + 0.5 * nframes) / fps
