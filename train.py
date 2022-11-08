@@ -185,7 +185,7 @@ def main(args):
             print_freq=args.print_freq
         )
 
-        if (epoch > 0 and epoch % 5 == 0) or epoch == max_epochs - 1:
+        if (epoch > 0 and epoch % 4 == 0) or epoch == max_epochs - 1:
             valid_one_epoch(
                 val_loader,
                 model,
