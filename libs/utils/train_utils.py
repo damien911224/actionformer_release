@@ -492,24 +492,32 @@ def valid_one_epoch(
                   iter_idx, len(val_loader), batch_time=batch_time))
 
     # gather all stats and evaluate
-    results['t-start'] = torch.cat(results['t-start']).numpy()
-    results['t-end'] = torch.cat(results['t-end']).numpy()
-    results['label'] = torch.cat(results['label']).numpy()
-    results['score'] = torch.cat(results['score']).numpy()
+    backbone_results['t-start'] = torch.cat(backbone_results['t-start']).numpy()
+    backbone_results['t-end'] = torch.cat(backbone_results['t-end']).numpy()
+    backbone_results['label'] = torch.cat(backbone_results['label']).numpy()
+    backbone_results['score'] = torch.cat(backbone_results['score']).numpy()
+
+    detr_results['t-start'] = torch.cat(detr_results['t-start']).numpy()
+    detr_results['t-end'] = torch.cat(detr_results['t-end']).numpy()
+    detr_results['label'] = torch.cat(detr_results['label']).numpy()
+    detr_results['score'] = torch.cat(detr_results['score']).numpy()
 
     if evaluator is not None:
         if (ext_score_file is not None) and isinstance(ext_score_file, str):
-            results = postprocess_results(results, ext_score_file)
+            detr_results = postprocess_results(detr_results, ext_score_file)
+            backbone_results = postprocess_results(backbone_results, ext_score_file)
         # call the evaluator
-        _, mAP = evaluator.evaluate(results, verbose=True)
+        _, detr_mAP = evaluator.evaluate(detr_results, verbose=True)
+        _, backbone_mAP = evaluator.evaluate(backbone_results, verbose=True)
     else:
         # dump to a pickle file that can be directly used for evaluation
         with open(output_file, "wb") as f:
-            pickle.dump(results, f)
+            pickle.dump(detr_results, f)
         mAP = 0.0
 
     # log mAP to tb_writer
     if tb_writer is not None:
-        tb_writer.add_scalar('validation/mAP', mAP, curr_epoch)
+        tb_writer.add_scalar('validation/detr_mAP', detr_mAP, curr_epoch)
+        tb_writer.add_scalar('validation/backbone_mAP', backbone_mAP, curr_epoch)
 
-    return mAP
+    return detr_mAP
