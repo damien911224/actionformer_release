@@ -74,7 +74,7 @@ detr: {
   temporal_length: 192,
   lr: 1.0e-4,
   lr_linear_proj_mult: 0.1,
-  lr_linear_proj_names: [ 'reference_points', 'sampling_offsets' ],
+  lr_linear_proj_names: ['reference_points', 'sampling_offsets'],
   hidden_dim: 256,
   num_feature_levels: 6,
   aux_loss: True,
