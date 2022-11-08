@@ -341,6 +341,8 @@ class PtTransformer(nn.Module):
         fpn_feats, fpn_masks = self.neck(feats, masks)
         print(len(feats))
         print(len(fpn_feats))
+        for feat in feats:
+            print(feat.shape)
         for feat in fpn_feats:
             print(feat.shape)
         exit()
