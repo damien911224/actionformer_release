@@ -339,7 +339,6 @@ class PtTransformer(nn.Module):
         # forward the network (backbone -> neck -> heads)
         feats, masks = self.backbone(batched_inputs, batched_masks)
         fpn_feats, fpn_masks = self.neck(feats, masks)
-        print(feats.shape)
         print(fpn_feats.shape)
         exit()
 
