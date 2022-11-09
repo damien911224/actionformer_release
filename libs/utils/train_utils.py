@@ -301,6 +301,8 @@ def train_one_epoch(
             this_labels = p["labels"].float()
             this_scores = p["scores"].float()
             this_segments = p["segments"] / x["duration"]
+            print(len(this_labels))
+            exit()
             if len(this_labels) < 100:
                 this_labels = F.pad(this_labels, (0, 100 - len(this_labels)))
                 this_scores = F.pad(this_scores, (0, 100 - len(this_scores)))
