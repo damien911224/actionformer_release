@@ -87,9 +87,9 @@ detr: {
   set_cost_class: 6, # 6
   set_cost_bbox: 5, # 5
   set_cost_giou: 2, # 2
-  weight_loss_ce: 1, # 2
-  weight_loss_bbox: 0, # 5
-  weight_loss_giou: 0, # 2
+  weight_loss_ce: 2, # 2
+  weight_loss_bbox: 5, # 5
+  weight_loss_giou: 2, # 2
   weight_decay: 1.0e-4,
   nhead: 8,
   dropout: 0.1,
@@ -100,7 +100,7 @@ detr: {
   box_noise_scale: 0.4,
   num_patterns: 0,
   temperature: 1.0,
-  use_dn: False,
+  use_dn: True,
   dn_number: 100,
   dn_box_noise_scale: 0.4,
   dn_label_noise_ratio: 0.5,
