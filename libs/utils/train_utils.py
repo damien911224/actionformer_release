@@ -511,13 +511,13 @@ def valid_one_epoch(
             segments = torch.stack(segments, dim=0)
             proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
 
-            print(proposals[0][1:3])
+            print(proposals[0][0][1:3])
             # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
             features = [feat for feat in features]
             detr_predictions = detr(features, proposals)
 
             boxes = detr_predictions["pred_boxes"].detach().cpu()
-            print(boxes[0])
+            print(boxes[0][0])
             exit()
             boxes = (boxes[..., :2] +
                      torch.stack((torch.clamp(boxes[..., 2] - boxes[..., 3] / 2.0, 0.0, 1.0),
