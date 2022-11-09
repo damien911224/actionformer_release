@@ -212,7 +212,7 @@ class DINO(nn.Module):
                 reference = init_reference
             else:
                 reference = inter_references[lvl - 1]
-            reference = inverse_sigmoid(reference)
+            # reference = inverse_sigmoid(reference)
             outputs_class = self.class_embed[lvl](hs[lvl])
             # tmp = self.bbox_embed[lvl](hs[lvl])
             # if reference.shape[-1] == 4:
@@ -220,8 +220,8 @@ class DINO(nn.Module):
             # else:
             #     assert reference.shape[-1] == 2
             #     tmp[..., :2] += reference
-            tmp = reference
-            outputs_coord = tmp.sigmoid()
+            outputs_coord = init_reference
+            # outputs_coord = tmp.sigmoid()
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)
         outputs_class = torch.stack(outputs_classes)
