@@ -669,14 +669,14 @@ class PtTransformer(nn.Module):
 
             # Apply filtering to make NMS faster following detectron2
             # 1. Keep seg with confidence score > a threshold
-            # keep_idxs1 = (pred_prob > self.test_pre_nms_thresh)
-            keep_idxs1 = (pred_prob >= 0.0)
+            keep_idxs1 = (pred_prob > self.test_pre_nms_thresh)
+            # keep_idxs1 = (pred_prob >= 0.0)
             pred_prob = pred_prob[keep_idxs1]
             topk_idxs = keep_idxs1.nonzero(as_tuple=True)[0]
 
             # 2. Keep top k top scoring boxes only
-            # num_topk = min(self.test_pre_nms_topk, topk_idxs.size(0))
-            num_topk = max(self.test_pre_nms_topk, topk_idxs.size(0))
+            num_topk = min(self.test_pre_nms_topk, topk_idxs.size(0))
+            # num_topk = max(self.test_pre_nms_topk, topk_idxs.size(0))
             pred_prob, idxs = pred_prob.sort(descending=True)
             pred_prob = pred_prob[:num_topk].clone()
             topk_idxs = topk_idxs[idxs[:num_topk]].clone()
@@ -698,8 +698,8 @@ class PtTransformer(nn.Module):
 
             # 5. Keep seg with duration > a threshold (relative to feature grids)
             seg_areas = seg_right - seg_left
-            # keep_idxs2 = seg_areas > self.test_duration_thresh
-            keep_idxs2 = seg_areas >= 0.0
+            keep_idxs2 = seg_areas > self.test_duration_thresh
+            # keep_idxs2 = seg_areas >= 0.0
 
             # *_all : N (filtered # of segments) x 2 / 1
             segs_all.append(pred_segs[keep_idxs2])
@@ -732,18 +732,18 @@ class PtTransformer(nn.Module):
             segs = results_per_vid['segments'].detach().cpu()
             scores = results_per_vid['scores'].detach().cpu()
             labels = results_per_vid['labels'].detach().cpu()
-            # if self.test_nms_method != 'none':
-            #     # 2: batched nms (only implemented on CPU)
-            #     segs, scores, labels = batched_nms(
-            #         segs, scores, labels,
-            #         self.test_iou_threshold,
-            #         self.test_min_score,
-            #         self.test_max_seg_num,
-            #         use_soft_nms = (self.test_nms_method == 'soft'),
-            #         multiclass = self.test_multiclass_nms,
-            #         sigma = self.test_nms_sigma,
-            #         voting_thresh = self.test_voting_thresh
-            #     )
+            if self.test_nms_method != 'none':
+                # 2: batched nms (only implemented on CPU)
+                segs, scores, labels = batched_nms(
+                    segs, scores, labels,
+                    self.test_iou_threshold,
+                    self.test_min_score,
+                    self.test_max_seg_num,
+                    use_soft_nms = (self.test_nms_method == 'soft'),
+                    multiclass = self.test_multiclass_nms,
+                    sigma = self.test_nms_sigma,
+                    voting_thresh = self.test_voting_thresh
+                )
             # 3: convert from feature grids to seconds
             if segs.shape[0] > 0:
                 segs = (segs * stride + 0.5 * nframes) / fps
