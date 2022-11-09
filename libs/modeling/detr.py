@@ -221,6 +221,7 @@ class DINO(nn.Module):
             #     assert reference.shape[-1] == 2
             #     tmp[..., :2] += reference
             outputs_coord = init_reference
+            print(outputs_coord[0][0])
             # outputs_coord = tmp.sigmoid()
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)
