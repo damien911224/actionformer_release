@@ -328,8 +328,8 @@ def train_one_epoch(
                                             (boxes[..., 1] - boxes[..., 0]).unsqueeze(-1)), dim=-1).cuda()
             detr_target_dict.append(batch_dict)
 
-        features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
-        # features = [feat.detach() for feat in features]
+        # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
+        features = [feat for feat in features]
         detr_predictions = detr(features, proposals, detr_target_dict)
         loss_dict = detr_criterion(detr_predictions, detr_target_dict)
         weight_dict = detr_criterion.weight_dict
@@ -494,8 +494,8 @@ def valid_one_epoch(
             segments = torch.stack(segments, dim=0)
             proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
 
-            features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
-            # features = [feat.detach() for feat in features]
+            # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
+            features = [feat for feat in features]
             detr_predictions = detr(features, proposals)
 
             boxes = detr_predictions["pred_boxes"].detach().cpu()
