@@ -252,8 +252,8 @@ class DeformableTransformer(nn.Module):
         # prepare input for decoder
         bs, _, c = memory.shape
         if self.use_dab:
-            # reference_points = query_embed[..., self.d_model:].sigmoid()
             reference_points = query_embed[..., self.d_model:]
+            # reference_points = query_embed[..., self.d_model:].sigmoid()
             tgt = query_embed[..., :self.d_model]
             if self.two_stage:
                 reference_points = torch.cat((reference_points[:, :-q], topk_references), dim=1)
@@ -480,9 +480,9 @@ class DeformableTransformerDecoder(nn.Module):
             if self.bbox_embed is not None:
                 tmp = self.bbox_embed[lid](output)
                 if reference_points.shape[-1] == 4:
-                    # new_reference_points = tmp + inverse_sigmoid(reference_points)
-                    # new_reference_points = new_reference_points.sigmoid()
-                    new_reference_points = reference_points
+                    new_reference_points = tmp + inverse_sigmoid(reference_points)
+                    new_reference_points = new_reference_points.sigmoid()
+                    # new_reference_points = reference_points
                 else:
                     assert reference_points.shape[-1] == 2
                     new_reference_points = tmp
