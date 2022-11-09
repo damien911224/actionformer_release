@@ -182,6 +182,7 @@ class DINO(nn.Module):
         input_query_bbox = torch.cat([proposals[..., 1:-1],
                                       ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
                                       (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
+        input_query_bbox = inverse_sigmoid(input_query_bbox)
 
         # prepare for dn
         if self.dn_number > 0 and self.training:
