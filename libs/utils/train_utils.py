@@ -280,19 +280,6 @@ def train_one_epoch(
         optimizer.zero_grad(set_to_none=True)
         # forward / backward the model
         losses, results, features = model(video_list)
-        losses['final_loss'].backward()
-        # gradient cliping (to stabilize training if necessary)
-        if clip_grad_l2norm > 0.0:
-            torch.nn.utils.clip_grad_norm_(
-                model.parameters(),
-                clip_grad_l2norm
-            )
-        # step optimizer / scheduler
-        optimizer.step()
-        scheduler.step()
-
-        if model_ema is not None:
-            model_ema.update(model)
 
         labels = list()
         scores = list()
@@ -329,11 +316,26 @@ def train_one_epoch(
             detr_target_dict.append(batch_dict)
 
         # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
-        features = [feat.detach() for feat in features]
+        features = [feat for feat in features]
         detr_predictions = detr(features, proposals, detr_target_dict)
         loss_dict = detr_criterion(detr_predictions, detr_target_dict)
         weight_dict = detr_criterion.weight_dict
         detr_losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
+
+
+        losses['final_loss'].backward()
+        # gradient cliping (to stabilize training if necessary)
+        if clip_grad_l2norm > 0.0:
+            torch.nn.utils.clip_grad_norm_(
+                model.parameters(),
+                clip_grad_l2norm
+            )
+        # step optimizer / scheduler
+        optimizer.step()
+        scheduler.step()
+
+        if model_ema is not None:
+            model_ema.update(model)
 
         detr_optimizer.zero_grad()
         detr_losses.backward()
