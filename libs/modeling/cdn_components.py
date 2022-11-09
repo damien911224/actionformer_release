@@ -125,7 +125,6 @@ def prepare_for_cdn(dn_args, training, num_queries, num_classes, hidden_dim, lab
             'num_dn_group': dn_number,
         }
     else:
-
         input_query_label = None
         input_query_bbox = None
         attn_mask = None
