@@ -481,7 +481,7 @@ class DeformableTransformerDecoder(nn.Module):
                 if reference_points.shape[-1] == 4:
                     # new_reference_points = tmp + inverse_sigmoid(reference_points)
                     # new_reference_points = new_reference_points.sigmoid()
-                    new_reference_points = tmp
+                    new_reference_points = reference_points
                 else:
                     assert reference_points.shape[-1] == 2
                     new_reference_points = tmp
