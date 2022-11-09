@@ -329,7 +329,7 @@ def train_one_epoch(
             detr_target_dict.append(batch_dict)
 
         # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
-        features = [feat for feat in features]
+        features = [feat.detach() for feat in features]
         detr_predictions = detr(features, proposals, detr_target_dict)
         loss_dict = detr_criterion(detr_predictions, detr_target_dict)
         weight_dict = detr_criterion.weight_dict
