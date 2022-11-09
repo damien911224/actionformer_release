@@ -84,9 +84,9 @@ detr: {
   dec_n_points: 4,
   two_stage: False,
   eos_coef: 0.1,
-  set_cost_class: 1, # 6
-  set_cost_bbox: 0, # 5
-  set_cost_giou: 0, # 2
+  set_cost_class: 6, # 6
+  set_cost_bbox: 5, # 5
+  set_cost_giou: 2, # 2
   weight_loss_ce: 1, # 2
   weight_loss_bbox: 0, # 5
   weight_loss_giou: 0, # 2
