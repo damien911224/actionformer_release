@@ -184,7 +184,7 @@ class DINO(nn.Module):
                                       (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
 
         # prepare for dn
-        if self.training and False:
+        if self.dn_number > 0 and self.training:
             dino_query_label, dino_query_bbox, attn_mask, dn_meta = \
                 prepare_for_cdn(dn_args=(targets, self.dn_number, self.dn_label_noise_ratio, self.dn_box_noise_scale),
                                 training=self.training, num_queries=self.num_queries, num_classes=self.num_classes,
@@ -221,7 +221,6 @@ class DINO(nn.Module):
             #     assert reference.shape[-1] == 2
             #     tmp[..., :2] += reference
             outputs_coord = init_reference
-            print(outputs_coord[0][0])
             # outputs_coord = tmp.sigmoid()
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)

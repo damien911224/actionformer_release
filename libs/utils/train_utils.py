@@ -318,7 +318,6 @@ def train_one_epoch(
         scores = torch.stack(scores, dim=0)
         segments = torch.stack(segments, dim=0)
         proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
-        print(proposals[0][0][1:3])
 
         detr_target_dict = list()
         for b_i in range(len(video_list)):
@@ -333,8 +332,6 @@ def train_one_epoch(
         # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
         features = [feat for feat in features]
         detr_predictions = detr(features, proposals, detr_target_dict)
-        print(detr_predictions["pred_boxes"].detach().cpu()[0][0])
-        exit()
 
         loss_dict = detr_criterion(detr_predictions, detr_target_dict)
         weight_dict = detr_criterion.weight_dict
