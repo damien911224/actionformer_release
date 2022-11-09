@@ -302,9 +302,9 @@ def train_one_epoch(
             this_scores = p["scores"].float()
             this_segments = p["segments"] / x["duration"]
             if len(this_labels) < 378:
-                this_labels = F.pad(this_labels, (0, 100 - len(this_labels)))
-                this_scores = F.pad(this_scores, (0, 100 - len(this_scores)))
-                this_segments = F.pad(this_segments, (0, 0, 0, 100 - len(this_segments)))
+                this_labels = F.pad(this_labels, (0, 378 - len(this_labels)))
+                this_scores = F.pad(this_scores, (0, 378 - len(this_scores)))
+                this_segments = F.pad(this_segments, (0, 0, 0, 378 - len(this_segments)))
             elif len(this_labels) > 378:
                 sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:378]
                 this_labels = this_labels[sorted_indices]
@@ -480,9 +480,9 @@ def valid_one_epoch(
                 this_scores = p["scores"]
                 this_segments = p["segments"] / x["duration"]
                 if len(this_labels) < 378:
-                    this_labels = F.pad(this_labels, (0, 100 - len(this_labels)))
-                    this_scores = F.pad(this_scores, (0, 100 - len(this_scores)))
-                    this_segments = F.pad(this_segments, (0, 0, 0, 100 - len(this_segments)))
+                    this_labels = F.pad(this_labels, (0, 378 - len(this_labels)))
+                    this_scores = F.pad(this_scores, (0, 378 - len(this_scores)))
+                    this_segments = F.pad(this_segments, (0, 0, 0, 378 - len(this_segments)))
                 elif len(this_labels) > 378:
                     sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:378]
                     this_labels = this_labels[sorted_indices]
