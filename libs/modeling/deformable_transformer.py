@@ -252,7 +252,6 @@ class DeformableTransformer(nn.Module):
         # prepare input for decoder
         bs, _, c = memory.shape
         if self.use_dab:
-            # reference_points = query_embed[..., self.d_model:]
             reference_points = query_embed[..., self.d_model:].sigmoid()
             tgt = query_embed[..., :self.d_model]
             if self.two_stage:
