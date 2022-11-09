@@ -529,28 +529,28 @@ def valid_one_epoch(
             # scores = scores[torch.arange(scores.shape[0]), sorted_indices[torch.arange(scores.shape[0])]]
             # labels = labels[torch.arange(labels.shape[0]), sorted_indices[torch.arange(labels.shape[0])]]
 
-            # nmsed_boxes = list()
-            # nmsed_labels = list()
-            # nmsed_scores = list()
-            # for b, l, s in zip(boxes, labels, scores):
-            #     if test_cfg['nms_method'] != 'none':
-            #         # 2: batched nms (only implemented on CPU)
-            #         b, s, l = batched_nms(
-            #             b, s, l,
-            #             test_cfg['iou_threshold'],
-            #             test_cfg['min_score'],
-            #             test_cfg['max_seg_num'],
-            #             use_soft_nms=(test_cfg['nms_method'] == 'soft'),
-            #             multiclass=test_cfg['multiclass_nms'],
-            #             sigma=test_cfg['nms_sigma'],
-            #             voting_thresh=test_cfg['voting_thresh']
-            #         )
-            #     nmsed_boxes.append(b)
-            #     nmsed_labels.append(l)
-            #     nmsed_scores.append(s)
-            # boxes = torch.stack(nmsed_boxes, dim=0)
-            # labels = torch.stack(nmsed_labels, dim=0)
-            # scores = torch.stack(nmsed_scores, dim=0)
+            nmsed_boxes = list()
+            nmsed_labels = list()
+            nmsed_scores = list()
+            for b, l, s in zip(boxes, labels, scores):
+                if test_cfg['nms_method'] != 'none':
+                    # 2: batched nms (only implemented on CPU)
+                    b, s, l = batched_nms(
+                        b, s, l,
+                        test_cfg['iou_threshold'],
+                        test_cfg['min_score'],
+                        test_cfg['max_seg_num'],
+                        use_soft_nms=(test_cfg['nms_method'] == 'soft'),
+                        multiclass=test_cfg['multiclass_nms'],
+                        sigma=test_cfg['nms_sigma'],
+                        voting_thresh=test_cfg['voting_thresh']
+                    )
+                nmsed_boxes.append(b)
+                nmsed_labels.append(l)
+                nmsed_scores.append(s)
+            boxes = torch.stack(nmsed_boxes, dim=0)
+            labels = torch.stack(nmsed_labels, dim=0)
+            scores = torch.stack(nmsed_scores, dim=0)
 
             # upack the results into ANet format
             num_vids = len(boxes)
