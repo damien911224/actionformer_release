@@ -334,6 +334,7 @@ def train_one_epoch(
         features = [feat for feat in features]
         detr_predictions = detr(features, proposals, detr_target_dict)
         print(detr_predictions["pred_boxes"].detach().cpu()[0][0])
+        exit()
 
         loss_dict = detr_criterion(detr_predictions, detr_target_dict)
         weight_dict = detr_criterion.weight_dict
