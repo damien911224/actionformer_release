@@ -77,7 +77,11 @@ class DINO(nn.Module):
             self.patterns_embed = nn.Embedding(self.num_patterns, hidden_dim)
 
         if num_feature_levels > 1:
-            input_proj_list = []
+            # input_proj_list = []
+            input_proj_list = [
+                nn.Sequential(
+                    nn.Conv1d(2048, hidden_dim, kernel_size=1),
+                    nn.GroupNorm(32, hidden_dim))]
 
             for _ in range(num_feature_levels):
                 input_proj_list.append(nn.Sequential(
