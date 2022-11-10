@@ -199,34 +199,34 @@ class ActivityNetDataset(Dataset):
 
         # convert time stamp (in second) into temporal feature grids
         # ok to have small negative values here
-        # if video_item['segments'] is not None:
-        #     segments = torch.from_numpy(
-        #         (video_item['segments'] * video_item['fps'] - 0.5 * num_frames) / feat_stride
-        #     )
-        #     labels = torch.from_numpy(video_item['labels'])
-        #     # for activity net, we have a few videos with a bunch of missing frames
-        #     # here is a quick fix for training
-        #     feat_duration = feats.shape[1] + 0.5 * num_frames / feat_stride
-        #     if self.is_training:
-        #         vid_len = feats.shape[1] + 0.5 * num_frames / feat_stride
-        #         valid_seg_list, valid_label_list = [], []
-        #         for seg, label in zip(segments, labels):
-        #             if seg[0] >= vid_len:
-        #                 # skip an action outside of the feature map
-        #                 continue
-        #             # skip an action that is mostly outside of the feature map
-        #             ratio = (
-        #                 (min(seg[1].item(), vid_len) - seg[0].item())
-        #                 / (seg[1].item() - seg[0].item())
-        #             )
-        #             if ratio >= self.trunc_thresh:
-        #                 valid_seg_list.append(seg.clamp(max=vid_len))
-        #                 # some weird bug here if not converting to size 1 tensor
-        #                 valid_label_list.append(label.view(1))
-        #         segments = torch.stack(valid_seg_list, dim=0)
-        #         labels = torch.cat(valid_label_list)
-        # else:
-        #     segments, labels = None, None
+        if video_item['segments'] is not None:
+            segments = torch.from_numpy(
+                (video_item['segments'] * video_item['fps'] - 0.5 * num_frames) / feat_stride
+            )
+            labels = torch.from_numpy(video_item['labels'])
+            # for activity net, we have a few videos with a bunch of missing frames
+            # here is a quick fix for training
+            feat_duration = feats.shape[1] + 0.5 * num_frames / feat_stride
+            if self.is_training and False:
+                vid_len = feats.shape[1] + 0.5 * num_frames / feat_stride
+                valid_seg_list, valid_label_list = [], []
+                for seg, label in zip(segments, labels):
+                    if seg[0] >= vid_len:
+                        # skip an action outside of the feature map
+                        continue
+                    # skip an action that is mostly outside of the feature map
+                    ratio = (
+                        (min(seg[1].item(), vid_len) - seg[0].item())
+                        / (seg[1].item() - seg[0].item())
+                    )
+                    if ratio >= self.trunc_thresh:
+                        valid_seg_list.append(seg.clamp(max=vid_len))
+                        # some weird bug here if not converting to size 1 tensor
+                        valid_label_list.append(label.view(1))
+                segments = torch.stack(valid_seg_list, dim=0)
+                labels = torch.cat(valid_label_list)
+        else:
+            segments, labels = None, None
 
         # return a data dict
         data_dict = {'video_id'        : video_item['id'],
