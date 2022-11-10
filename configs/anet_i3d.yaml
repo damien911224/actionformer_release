@@ -19,7 +19,7 @@ dataset: {
   trunc_thresh: 0.5,
   crop_ratio: [0.9, 1.0],
   # upsample the features to a fixed length of 192
-  max_seq_len: 2048, # 192
+  max_seq_len: 2304, # 192
   force_upsampling: False, # True
 }
 model: {
