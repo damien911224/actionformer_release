@@ -13,7 +13,7 @@ dataset: {
   file_ext: .npy,
   num_classes: 1,
   input_dim: 2048,
-  feat_stride: 4, # 16
+  feat_stride: 16, # 16
   num_frames: 16,
   default_fps: 25,
   trunc_thresh: 0.5,
@@ -24,18 +24,18 @@ dataset: {
 }
 model: {
   fpn_type: identity,
-  max_buffer_len_factor: 6.0, # 1.0
+  max_buffer_len_factor: 1.0, # 1.0
   # 192 - 96 - 48 - 24 - 12 - 6
   n_mha_win_size: 19, # [7, 7, 7, 7, 7, -1]
 #  n_head: 4,
   embd_dim: 256,
   fpn_dim: 256,
   head_dim: 256,
-  use_abs_pe: False, # True
+  use_abs_pe: True, # True
 }
 opt: {
-  learning_rate: 0.0001, # 0.001
-  epochs: 30, # 10
+  learning_rate: 0.001, # 0.001
+  epochs: 10, # 10
   weight_decay: 0.05,
 }
 loader: {
@@ -88,8 +88,8 @@ detr: {
   set_cost_bbox: 5, # 5
   set_cost_giou: 2, # 2
   weight_loss_ce: 2, # 2
-  weight_loss_bbox: 0, # 5
-  weight_loss_giou: 0, # 2
+  weight_loss_bbox: 5, # 5
+  weight_loss_giou: 2, # 2
   weight_decay: 1.0e-3,
   nhead: 8,
   dropout: 0.1,
