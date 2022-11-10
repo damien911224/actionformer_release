@@ -318,7 +318,7 @@ def train_one_epoch(
         scores = torch.stack(scores, dim=0)
         segments = torch.stack(segments, dim=0)
         proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
-        print(proposals)
+        print(proposals.min(), proposals.max())
         exit()
 
         detr_target_dict = list()
