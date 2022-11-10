@@ -35,7 +35,7 @@ model: {
 }
 opt: {
   learning_rate: 0.001,
-  epochs: 10,
+  epochs: 20, # 10
   weight_decay: 0.05,
 }
 loader: {
@@ -78,7 +78,7 @@ detr: {
   hidden_dim: 256,
   num_feature_levels: 7,
   aux_loss: True,
-  enc_layers: 0,
+  enc_layers: 6,
   dec_layers: 6,
   enc_n_points: 4,
   dec_n_points: 4,
