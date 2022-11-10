@@ -280,7 +280,7 @@ def train_one_epoch(
         optimizer.zero_grad(set_to_none=True)
         detr_optimizer.zero_grad(set_to_none=True)
         # forward / backward the model
-        losses, results, features = model(video_list)
+        losses, results, backbone_features = model(video_list)
         # losses['final_loss'].backward()
         # # gradient cliping (to stabilize training if necessary)
         # if clip_grad_l2norm > 0.0:
@@ -331,7 +331,10 @@ def train_one_epoch(
 
         # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
         # features = [feat for feat in features]
-        features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()] + [feat.detach() for feat in features]
+        features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
+        features = F.interpolate(features.unsqueeze(0), size=192, mode='linear', align_corners=False).squeeze(0)
+        features = [features] + [feat.detach() for feat in features]
+
         detr_predictions = detr(features, proposals, detr_target_dict)
 
         loss_dict = detr_criterion(detr_predictions, detr_target_dict)
@@ -515,7 +518,9 @@ def valid_one_epoch(
 
             # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
             # features = [feat for feat in features]
-            features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()] + [feat.detach() for feat in features]
+            features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
+            features = F.interpolate(features.unsqueeze(0), size=192, mode='linear', align_corners=False).squeeze(0)
+            features = [features] + [feat.detach() for feat in features]
             detr_predictions = detr(features, proposals)
 
             boxes = detr_predictions["pred_boxes"].detach().cpu()
@@ -525,8 +530,9 @@ def valid_one_epoch(
             durations = [x["duration"] for x in video_list]
             boxes = boxes * torch.Tensor(durations)
             logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
-            scores, labels = torch.max(logits, dim=-1)
-            sorted_indices = torch.argsort(-scores, dim=1)[:, :100]
+            detr_scores, labels = torch.max(logits, dim=-1)
+            scores = detr_scores * scores
+            sorted_indices = torch.argsort(scores, dim=1, descending=True)[:, :100]
             boxes = boxes[torch.arange(boxes.shape[0]), sorted_indices[torch.arange(boxes.shape[0])]]
             scores = scores[torch.arange(scores.shape[0]), sorted_indices[torch.arange(scores.shape[0])]]
             labels = labels[torch.arange(labels.shape[0]), sorted_indices[torch.arange(labels.shape[0])]]

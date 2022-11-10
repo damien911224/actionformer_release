@@ -13,36 +13,36 @@ dataset: {
   file_ext: .npy,
   num_classes: 1,
   input_dim: 2048,
-  feat_stride: 16,
+  feat_stride: 4, # 16
   num_frames: 16,
   default_fps: 25,
   trunc_thresh: 0.5,
   crop_ratio: [0.9, 1.0],
   # upsample the features to a fixed length of 192
-  max_seq_len: 192,
-  force_upsampling: True,
+  max_seq_len: 2048, # 192
+  force_upsampling: False, # True
 }
 model: {
   fpn_type: identity,
-  max_buffer_len_factor: 1.0,
+  max_buffer_len_factor: 6.0, # 1.0
   # 192 - 96 - 48 - 24 - 12 - 6
-  n_mha_win_size: [7, 7, 7, 7, 7, -1],
-  n_head: 4,
+  n_mha_win_size: 19, # [7, 7, 7, 7, 7, -1]
+#  n_head: 4,
   embd_dim: 256,
   fpn_dim: 256,
   head_dim: 256,
-  use_abs_pe: True,
+  use_abs_pe: False, # True
 }
 opt: {
-  learning_rate: 0.001,
-  epochs: 20, # 10
+  learning_rate: 0.0001, # 0.001
+  epochs: 30, # 10
   weight_decay: 0.05,
 }
 loader: {
-  batch_size: 16,
+  batch_size: 2, # 16
 }
 train_cfg: {
-  init_loss_norm: 200,
+  init_loss_norm: 100, # 200
   clip_grad_l2norm: 1.0,
   cls_prior_prob: 0.01,
   center_sample: radius,
