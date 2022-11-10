@@ -42,7 +42,7 @@ loader: {
   batch_size: 2, # 16
 }
 train_cfg: {
-  init_loss_norm: 100, # 200
+  init_loss_norm: 200, # 200
   clip_grad_l2norm: 1.0,
   cls_prior_prob: 0.01,
   center_sample: radius,
