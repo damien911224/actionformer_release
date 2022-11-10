@@ -333,7 +333,7 @@ def train_one_epoch(
         # features = [feat for feat in features]
         # features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
         features = torch.stack([F.interpolate(x["feats"].unsqueeze(0),
-                                              size=192, mode='linear', align_corners=False).squeeze(-1)
+                                              size=192, mode='linear', align_corners=False).squeeze(0)
                                 for x in video_list], dim=0).cuda()
         features = [features]
         # features = [features] + [feat.detach() for feat in backbone_features]
@@ -523,7 +523,7 @@ def valid_one_epoch(
             # features = [feat for feat in features]
             # features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
             features = torch.stack([F.interpolate(x["feats"].unsqueeze(0),
-                                                  size=192, mode='linear', align_corners=False).squeeze(-1)
+                                                  size=192, mode='linear', align_corners=False).squeeze(0)
                                     for x in video_list], dim=0).cuda()
             features = [features]
             # features = [features] + [feat.detach() for feat in backbone_features]
