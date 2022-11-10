@@ -12,7 +12,7 @@ dataset: {
   num_frames: 16,
   # serve as data augmentation
   trunc_thresh: 0.5,
-  crop_ratio: [1.0, 1.0], # [0.9, 1.0]
+  crop_ratio: [0.9, 1.0], # [0.9, 1.0]
   max_seq_len: 2304,
 }
 model: {
