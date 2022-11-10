@@ -332,8 +332,8 @@ def train_one_epoch(
         # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
         # features = [feat for feat in features]
         features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
-        features = F.interpolate(features, size=192, mode='linear', align_corners=False)
-        features = [features] + [feat.detach() for feat in backbone_features]
+        features = [F.interpolate(features, size=192, mode='linear', align_corners=False)]
+        # features = [features] + [feat.detach() for feat in backbone_features]
 
         detr_predictions = detr(features, proposals, detr_target_dict)
 
@@ -519,8 +519,8 @@ def valid_one_epoch(
             # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
             # features = [feat for feat in features]
             features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
-            features = F.interpolate(features, size=192, mode='linear', align_corners=False)
-            features = [features] + [feat.detach() for feat in backbone_features]
+            features = [F.interpolate(features, size=192, mode='linear', align_corners=False)]
+            # features = [features] + [feat.detach() for feat in backbone_features]
             detr_predictions = detr(features, proposals)
 
             boxes = detr_predictions["pred_boxes"].detach().cpu()
