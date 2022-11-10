@@ -333,7 +333,7 @@ def train_one_epoch(
         # features = [feat for feat in features]
         features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
         features = F.interpolate(features, size=192, mode='linear', align_corners=False)
-        features = [features] + [feat.detach() for feat in features]
+        features = [features] + [feat.detach() for feat in backbone_features]
 
         detr_predictions = detr(features, proposals, detr_target_dict)
 
@@ -477,7 +477,7 @@ def valid_one_epoch(
     for iter_idx, video_list in enumerate(val_loader, 0):
         # forward the model (wo. grad)
         with torch.no_grad():
-            output, features = model(video_list)
+            output, backbone_features = model(video_list)
 
             # upack the results into ANet format
             num_vids = len(output)
@@ -520,7 +520,7 @@ def valid_one_epoch(
             # features = [feat for feat in features]
             features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
             features = F.interpolate(features, size=192, mode='linear', align_corners=False)
-            features = [features] + [feat.detach() for feat in features]
+            features = [features] + [feat.detach() for feat in backbone_features]
             detr_predictions = detr(features, proposals)
 
             boxes = detr_predictions["pred_boxes"].detach().cpu()
