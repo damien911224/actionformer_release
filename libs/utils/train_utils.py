@@ -521,8 +521,11 @@ def valid_one_epoch(
 
             # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
             # features = [feat for feat in features]
-            features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
-            features = [F.interpolate(features, size=192, mode='linear', align_corners=False)]
+            # features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
+            features = torch.stack([F.interpolate(x["feats"].unsqueeze(0),
+                                                  size=192, mode='linear', align_corners=False).squeeze(-1)
+                                    for x in video_list], dim=0).cuda()
+            features = [features]
             # features = [features] + [feat.detach() for feat in backbone_features]
             detr_predictions = detr(features, proposals)
 
