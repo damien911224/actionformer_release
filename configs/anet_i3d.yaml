@@ -19,7 +19,7 @@ dataset: {
   trunc_thresh: 0.5,
   crop_ratio: [0.9, 1.0],
   # upsample the features to a fixed length of 192
-  max_seq_len: 576, # 192, 2304
+  max_seq_len: 2304, # 192, 2304
   force_upsampling: True, # True
 }
 model: {
@@ -39,7 +39,7 @@ opt: {
   weight_decay: 0.05,
 }
 loader: {
-  batch_size: 8, # 16
+  batch_size: 2, # 16
 }
 train_cfg: {
   init_loss_norm: 200, # 200
