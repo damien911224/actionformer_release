@@ -19,7 +19,7 @@ dataset: {
   trunc_thresh: 0.5,
   crop_ratio: [0.9, 1.0],
   # upsample the features to a fixed length of 192
-  max_seq_len: 2304, # 192, 2304
+  max_seq_len: 192, # 192, 2304
   force_upsampling: True, # True
 }
 model: {
@@ -71,7 +71,7 @@ output_folder: ./ckpt/
 detr: {
   num_classes: 1,
   num_queries: 100,
-  temporal_length: 2304,
+  temporal_length: 192,
   lr: 1.0e-3,
   lr_linear_proj_mult: 0.1,
   lr_linear_proj_names: ['reference_points', 'sampling_offsets'],
