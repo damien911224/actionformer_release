@@ -323,10 +323,9 @@ def train_one_epoch(
         for b_i in range(len(video_list)):
             batch_dict = dict()
             batch_dict["labels"] = video_list[b_i]["labels"].cuda()
-            # (video_item['segments'] * video_item['fps'] - 0.5 * num_frames) / feat_stride
             boxes = (video_list[b_i]["segments"] * video_list[b_i]["feat_stride"] +
                      0.5 * video_list[b_i]["feat_num_frames"]) / video_list[b_i]["fps"] / video_list[b_i]["duration"]
-            print(boxes)
+            boxes = torch.clamp(boxes, 0.0, 1.0)
             batch_dict["boxes"] = torch.cat((boxes,
                                              ((boxes[..., 0] + boxes[..., 1]) / 2.0).unsqueeze(-1),
                                             (boxes[..., 1] - boxes[..., 0]).unsqueeze(-1)), dim=-1).cuda()
