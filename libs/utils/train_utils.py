@@ -337,7 +337,7 @@ def train_one_epoch(
         #                                       size=192, mode='linear', align_corners=False).squeeze(0)
         #                         for x in video_list], dim=0).cuda()
         # features = [features]
-        features = [feat for feat in backbone_features]
+        features = [feat.detach() for feat in backbone_features]
 
         detr_predictions = detr(features, proposals, detr_target_dict)
 
