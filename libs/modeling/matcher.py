@@ -64,8 +64,8 @@ class HungarianMatcher(nn.Module):
                 tgt_ids = torch.cat([v["labels"] for v in targets])
                 tgt_bbox = torch.cat([v["boxes"] for v in targets])
             else:
-                tgt_ids = torch.cat([v["labels"].repeat(2 ** (3 - layer)) for v in targets])
-                tgt_bbox = torch.cat([v["boxes"].repeat(2 ** (3 - layer), 1) for v in targets])
+                tgt_ids = torch.cat([v["labels"].repeat(2 ** (5 - layer)) for v in targets])
+                tgt_bbox = torch.cat([v["boxes"].repeat(2 ** (5 - layer), 1) for v in targets])
 
             # tgt_sims = torch.cat([v["similarity"] for v in targets]) # [num_boxes, num_classes]
             # NB, K = tgt_sims.shape
@@ -114,7 +114,7 @@ class HungarianMatcher(nn.Module):
             if layer is None:
                 sizes = [len(v["boxes"]) for v in targets]
             else:
-                sizes = [len(v["boxes"].repeat(2 ** (3 - layer), 1)) for v in targets]
+                sizes = [len(v["boxes"].repeat(2 ** (5 - layer), 1)) for v in targets]
             indices = [linear_sum_assignment(c[i]) for i, c in enumerate(C.split(sizes, -1))]
             return [(torch.as_tensor(i, dtype=torch.int64), torch.as_tensor(j, dtype=torch.int64)) for i, j in indices]
 

@@ -214,19 +214,19 @@ class DINO(nn.Module):
         outputs_classes = []
         outputs_coords = []
         for lvl in range(hs.shape[0]):
-            if lvl == 0:
-                reference = init_reference
-            else:
-                reference = inter_references[lvl - 1]
-            reference = inverse_sigmoid(reference)
-            tmp = self.bbox_embed[lvl](hs[lvl])
-            if reference.shape[-1] == 4:
-                tmp += reference
-            else:
-                assert reference.shape[-1] == 2
-                tmp[..., :2] += reference
-            outputs_coord = tmp.sigmoid()
-            # outputs_coord = init_reference
+            # if lvl == 0:
+            #     reference = init_reference
+            # else:
+            #     reference = inter_references[lvl - 1]
+            # reference = inverse_sigmoid(reference)
+            # tmp = self.bbox_embed[lvl](hs[lvl])
+            # if reference.shape[-1] == 4:
+            #     tmp += reference
+            # else:
+            #     assert reference.shape[-1] == 2
+            #     tmp[..., :2] += reference
+            # outputs_coord = tmp.sigmoid()
+            outputs_coord = init_reference
             outputs_class = self.class_embed[lvl](hs[lvl])
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)
@@ -290,7 +290,7 @@ class SetCriterion_DINO(nn.Module):
             target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
         else:
             target_classes_o = torch.cat(
-                [t["labels"].repeat(2 ** (3 - layer))[J] for t, (_, J) in zip(targets, indices)])
+                [t["labels"].repeat(2 ** (5 - layer))[J] for t, (_, J) in zip(targets, indices)])
         target_classes = torch.full(src_logits.shape[:2], self.num_classes,
                                     dtype=torch.int64, device=src_logits.device)
         target_classes[idx] = target_classes_o
@@ -301,7 +301,7 @@ class SetCriterion_DINO(nn.Module):
 
         target_classes_onehot = target_classes_onehot[:, :, :-1]
         if layer is not None:
-            num_boxes = num_boxes * (2 ** (3 - layer))
+            num_boxes = num_boxes * (2 ** (5 - layer))
         loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2) * \
                   src_logits.shape[1]
         losses = {'loss_ce': loss_ce}
@@ -336,19 +336,19 @@ class SetCriterion_DINO(nn.Module):
         if layer is None:
             target_boxes = torch.cat([t['boxes'][i] for t, (_, i) in zip(targets, indices)], dim=0)
         else:
-            target_boxes = torch.cat([t['boxes'].repeat(2 ** (3 - layer), 1)[i] for t, (_, i) in zip(targets, indices)],
+            target_boxes = torch.cat([t['boxes'].repeat(2 ** (5 - layer), 1)[i] for t, (_, i) in zip(targets, indices)],
                                      dim=0)
 
         loss_bbox = F.l1_loss(src_boxes, target_boxes, reduction='none')
         if layer is not None:
-            num_boxes = num_boxes * (2 ** (3 - layer))
+            num_boxes = num_boxes * (2 ** (5 - layer))
 
         losses = {}
         losses['loss_bbox'] = loss_bbox.sum() / num_boxes
 
         loss_giou = ((1 - torch.diag(segment_ops.segment_iou(
             segment_ops.segment_cw_to_t1t2(src_boxes[..., 2:]),
-            segment_ops.segment_cw_to_t1t2(target_boxes[..., 2:])))) + \
+            segment_ops.segment_cw_to_t1t2(target_boxes[..., 2:])))) +
                      (1 - torch.diag(segment_ops.segment_iou(
                          src_boxes[..., :2], target_boxes[..., :2])))) / 2
         losses['loss_giou'] = loss_giou.sum() / num_boxes
@@ -488,8 +488,8 @@ class SetCriterion_DINO(nn.Module):
         # In case of auxiliary losses, we repeat this process with the output of each intermediate layer.
         if 'aux_outputs' in outputs:
             for idx, aux_outputs in enumerate(outputs['aux_outputs']):
-                indices = self.matcher(aux_outputs, targets)
-                # indices = self.matcher(aux_outputs, targets, layer=idx)
+                # indices = self.matcher(aux_outputs, targets)
+                indices = self.matcher(aux_outputs, targets, layer=idx)
                 if return_indices:
                     indices_list.append(indices)
                 for loss in self.losses:
@@ -500,7 +500,7 @@ class SetCriterion_DINO(nn.Module):
                     if loss == 'labels':
                         # Logging is enabled only for the last layer
                         kwargs = {'log': False}
-                    # kwargs['layer'] = idx
+                    kwargs['layer'] = idx
                     l_dict = self.get_loss(loss, aux_outputs, targets, indices, num_boxes, **kwargs)
                     l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
                     losses.update(l_dict)
