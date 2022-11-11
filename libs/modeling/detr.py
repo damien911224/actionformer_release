@@ -488,8 +488,8 @@ class SetCriterion_DINO(nn.Module):
         # In case of auxiliary losses, we repeat this process with the output of each intermediate layer.
         if 'aux_outputs' in outputs:
             for idx, aux_outputs in enumerate(outputs['aux_outputs']):
-                indices = self.matcher(aux_outputs, targets)
-                # indices = self.matcher(aux_outputs, targets, layer=idx)
+                # indices = self.matcher(aux_outputs, targets)
+                indices = self.matcher(aux_outputs, targets, layer=idx)
                 if return_indices:
                     indices_list.append(indices)
                 for loss in self.losses:
@@ -500,7 +500,7 @@ class SetCriterion_DINO(nn.Module):
                     if loss == 'labels':
                         # Logging is enabled only for the last layer
                         kwargs = {'log': False}
-                    # kwargs['layer'] = idx
+                    kwargs['layer'] = idx
                     l_dict = self.get_loss(loss, aux_outputs, targets, indices, num_boxes, **kwargs)
                     l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
                     losses.update(l_dict)
