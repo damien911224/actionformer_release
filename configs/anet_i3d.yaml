@@ -100,7 +100,7 @@ detr: {
   box_noise_scale: 0.4,
   num_patterns: 0,
   temperature: 1.0,
-  use_dn: False,
+  use_dn: True,
   dn_number: 100,
   dn_box_noise_scale: 0.4,
   dn_label_noise_ratio: 0.5,
