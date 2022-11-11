@@ -236,8 +236,7 @@ class ActivityNetDataset(Dataset):
                      'fps'             : video_item['fps'],
                      'duration'        : video_item['duration'],
                      'feat_stride'     : feat_stride,
-                     'feat_num_frames' : num_frames,
-                     'feat_duration' : feat_duration}
+                     'feat_num_frames' : num_frames}
 
         # no truncation is needed
         # truncate the features during training
