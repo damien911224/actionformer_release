@@ -302,12 +302,12 @@ def train_one_epoch(
             this_labels = p["labels"].float()
             this_scores = p["scores"].float()
             this_segments = p["segments"] / x["duration"]
-            if len(this_labels) < 378:
-                this_labels = F.pad(this_labels, (0, 378 - len(this_labels)))
-                this_scores = F.pad(this_scores, (0, 378 - len(this_scores)))
-                this_segments = F.pad(this_segments, (0, 0, 0, 378 - len(this_segments)))
-            elif len(this_labels) > 378:
-                sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:378]
+            if len(this_labels) < 100:
+                this_labels = F.pad(this_labels, (0, 100 - len(this_labels)))
+                this_scores = F.pad(this_scores, (0, 100 - len(this_scores)))
+                this_segments = F.pad(this_segments, (0, 0, 0, 100 - len(this_segments)))
+            elif len(this_labels) > 100:
+                sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:100]
                 this_labels = this_labels[sorted_indices]
                 this_scores = this_scores[sorted_indices]
                 this_segments = this_segments[sorted_indices]
@@ -337,7 +337,7 @@ def train_one_epoch(
         #                                       size=192, mode='linear', align_corners=False).squeeze(0)
         #                         for x in video_list], dim=0).cuda()
         # features = [features]
-        features = [feat.detach() for feat in backbone_features]
+        features = [feat for feat in backbone_features]
 
         detr_predictions = detr(features, proposals, detr_target_dict)
 
@@ -503,12 +503,12 @@ def valid_one_epoch(
                 this_labels = p["labels"].float()
                 this_scores = p["scores"]
                 this_segments = p["segments"] / x["duration"]
-                if len(this_labels) < 378:
-                    this_labels = F.pad(this_labels, (0, 378 - len(this_labels)))
-                    this_scores = F.pad(this_scores, (0, 378 - len(this_scores)))
-                    this_segments = F.pad(this_segments, (0, 0, 0, 378 - len(this_segments)))
-                elif len(this_labels) > 378:
-                    sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:378]
+                if len(this_labels) < 100:
+                    this_labels = F.pad(this_labels, (0, 100 - len(this_labels)))
+                    this_scores = F.pad(this_scores, (0, 100 - len(this_scores)))
+                    this_segments = F.pad(this_segments, (0, 0, 0, 100 - len(this_segments)))
+                elif len(this_labels) > 100:
+                    sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:100]
                     this_labels = this_labels[sorted_indices]
                     this_scores = this_scores[sorted_indices]
                     this_segments = this_segments[sorted_indices]
