@@ -177,11 +177,12 @@ class DINO(nn.Module):
             assert NotImplementedError
 
         prop_labels = proposals[..., 0]
-        prop_scores = proposals[..., -1].unsqueeze(-1)
-        # prop_label_embeds = self.label_enc(prop_labels.long())
+        # prop_scores = proposals[..., -1].unsqueeze(-1)
+        prop_label_embeds = self.label_enc(prop_labels.long())
         # prop_score_embeds = self.score_enc(prop_scores)
-        input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
+        # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
         # input_query_label = input_query_label + prop_label_embeds + prop_score_embeds
+        input_query_label = prop_label_embeds
 
         # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features.size(0), 1, 1)
         input_query_bbox = torch.cat([proposals[..., 1:-1],
@@ -214,19 +215,19 @@ class DINO(nn.Module):
         outputs_classes = []
         outputs_coords = []
         for lvl in range(hs.shape[0]):
-            # if lvl == 0:
-            #     reference = init_reference
-            # else:
-            #     reference = inter_references[lvl - 1]
-            # reference = inverse_sigmoid(reference)
-            # tmp = self.bbox_embed[lvl](hs[lvl])
-            # if reference.shape[-1] == 4:
-            #     tmp += reference
-            # else:
-            #     assert reference.shape[-1] == 2
-            #     tmp[..., :2] += reference
-            # outputs_coord = tmp.sigmoid()
-            outputs_coord = init_reference
+            if lvl == 0:
+                reference = init_reference
+            else:
+                reference = inter_references[lvl - 1]
+            reference = inverse_sigmoid(reference)
+            tmp = self.bbox_embed[lvl](hs[lvl])
+            if reference.shape[-1] == 4:
+                tmp += reference
+            else:
+                assert reference.shape[-1] == 2
+                tmp[..., :2] += reference
+            outputs_coord = tmp.sigmoid()
+            # outputs_coord = init_reference
             outputs_class = self.class_embed[lvl](hs[lvl])
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)

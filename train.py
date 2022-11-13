@@ -122,7 +122,6 @@ def main(args):
     # enable model EMA
     print("Using model EMA ...")
     model_ema = ModelEma(model)
-    detr_ema = ModelEma(detr)
 
     """4. Resume from model / Misc"""
     # resume from a checkpoint?
@@ -181,7 +180,6 @@ def main(args):
             detr_scheduler,
             epoch,
             model_ema=model_ema,
-            detr_ema=detr_ema,
             clip_grad_l2norm=cfg['train_cfg']['clip_grad_l2norm'],
             tb_writer=tb_writer,
             print_freq=args.print_freq
