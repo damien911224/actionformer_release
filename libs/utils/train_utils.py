@@ -248,19 +248,20 @@ class ModelEma(torch.nn.Module):
 
 ################################################################################
 def train_one_epoch(
-    train_loader,
-    model,
-    optimizer,
-    scheduler,
-    detr,
-    detr_criterion,
-    detr_optimizer,
-    detr_scheduler,
-    curr_epoch,
-    model_ema = None,
-    clip_grad_l2norm = -1,
-    tb_writer = None,
-    print_freq = 20
+        train_loader,
+        model,
+        optimizer,
+        scheduler,
+        detr,
+        detr_criterion,
+        detr_optimizer,
+        detr_scheduler,
+        curr_epoch,
+        model_ema=None,
+        detr_ema=None,
+        clip_grad_l2norm=-1,
+        tb_writer=None,
+        print_freq=20
 ):
     """Training the model for one epoch"""
     # set up meters
@@ -328,7 +329,7 @@ def train_one_epoch(
             boxes = torch.clamp(boxes, 0.0, 1.0)
             batch_dict["boxes"] = torch.cat((boxes,
                                              ((boxes[..., 0] + boxes[..., 1]) / 2.0).unsqueeze(-1),
-                                            (boxes[..., 1] - boxes[..., 0]).unsqueeze(-1)), dim=-1).cuda()
+                                             (boxes[..., 1] - boxes[..., 0]).unsqueeze(-1)), dim=-1).cuda()
             detr_target_dict.append(batch_dict)
         # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
         # features = [feat for feat in features]
@@ -360,12 +361,14 @@ def train_one_epoch(
         optimizer.step()
         scheduler.step()
 
-        if model_ema is not None:
-            model_ema.update(model)
-
         torch.nn.utils.clip_grad_norm_(detr.parameters(), 0.1)
         detr_optimizer.step()
         detr_scheduler.step()
+
+        if model_ema is not None:
+            model_ema.update(model)
+        if detr_ema is not None:
+            detr_ema.update(detr)
 
         for key, value in loss_dict.items():
             detr_key = "detr_" + key
@@ -427,7 +430,7 @@ def train_one_epoch(
             block4 = ''
             for key, value in losses_tracker.items():
                 if key != "final_loss":
-                    block4  += '\t{:s} {:.2f} ({:.2f})'.format(
+                    block4 += '\t{:s} {:.2f} ({:.2f})'.format(
                         key, value.val, value.avg
                     )
 
@@ -440,16 +443,16 @@ def train_one_epoch(
 
 
 def valid_one_epoch(
-    val_loader,
-    model,
-    detr,
-    curr_epoch,
-    test_cfg,
-    ext_score_file = None,
-    evaluator = None,
-    output_file = None,
-    tb_writer = None,
-    print_freq = 20
+        val_loader,
+        model,
+        detr,
+        curr_epoch,
+        test_cfg,
+        ext_score_file=None,
+        evaluator=None,
+        output_file=None,
+        tb_writer=None,
+        print_freq=20
 ):
     """Test the model on the validation set"""
     # either evaluate the results or save the results
@@ -463,14 +466,14 @@ def valid_one_epoch(
     # dict for results (for our evaluation code)
     detr_results = {
         'video-id': [],
-        't-start' : [],
+        't-start': [],
         't-end': [],
         'label': [],
         'score': []
     }
     backbone_results = {
         'video-id': [],
-        't-start' : [],
+        't-start': [],
         't-end': [],
         'label': [],
         'score': []
@@ -590,7 +593,7 @@ def valid_one_epoch(
             # print timing
             print('Test: [{0:05d}/{1:05d}]\t'
                   'Time {batch_time.val:.2f} ({batch_time.avg:.2f})'.format(
-                  iter_idx, len(val_loader), batch_time=batch_time))
+                iter_idx, len(val_loader), batch_time=batch_time))
 
     # gather all stats and evaluate
     backbone_results['t-start'] = torch.cat(backbone_results['t-start']).numpy()
