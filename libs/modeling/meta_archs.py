@@ -378,7 +378,12 @@ class PtTransformer(nn.Module):
                 gt_cls_labels, gt_offsets
             )
 
-            return losses
+            results = self.inference(
+                video_list, points, fpn_masks,
+                out_cls_logits, out_offsets
+            )
+
+            return losses, results, fpn_feats
         else:
             # decode the actions (sigmoid / stride, etc)
             results = self.inference(
