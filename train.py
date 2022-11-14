@@ -247,6 +247,19 @@ def main(args):
     tb_writer = SummaryWriter(os.path.join(ckpt_folder, 'logs'))
 
     for epoch in range(args.start_epoch, max_epochs):
+        valid_one_epoch(
+            val_loader,
+            detr,
+            models,
+            epoch,
+            cfg['test_cfg'],
+            evaluator=det_eval,
+            output_file=output_file,
+            ext_score_file=cfg['test_cfg']['ext_score_file'],
+            tb_writer=tb_writer,
+            print_freq=args.print_freq
+        )
+
         # train for one epoch
         train_one_epoch_phase_2(
             train_loader,
