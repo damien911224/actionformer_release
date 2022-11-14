@@ -444,14 +444,14 @@ def train_one_epoch_phase_2(
         # features = [features]
         # features += [feat.detach() for feat in backbone_features]
 
-        detr_predictions = model(features, proposals, detr_target_dict)
+        detr_predictions = detr(features, proposals, detr_target_dict)
         loss_dict = criterion(detr_predictions, detr_target_dict)
         weight_dict = criterion.weight_dict
         detr_losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
 
         optimizer.zero_grad()
         detr_losses.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
+        torch.nn.utils.clip_grad_norm_(detr.parameters(), 0.1)
         optimizer.step()
         scheduler.step()
 
