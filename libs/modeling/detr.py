@@ -195,9 +195,6 @@ class DINO(nn.Module):
         # input_query_bbox = inverse_sigmoid(input_query_bbox)
 
         # prepare for dn
-
-
-
         if self.dn_number > 0 and self.training:
             dino_query_label, dino_query_bbox, attn_mask, dn_meta = \
                 prepare_for_cdn(dn_args=(targets, self.dn_number, self.dn_label_noise_ratio, self.dn_box_noise_scale),
