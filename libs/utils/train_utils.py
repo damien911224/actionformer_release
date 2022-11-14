@@ -306,7 +306,7 @@ def train_one_epoch_phase_1(
                 losses_tracker[key].update(value.item())
 
             # log to tensor board
-            lr = scheduler[0].get_last_lr()[0]
+            lr = scheduler.get_last_lr()[0]
             global_step = curr_epoch * num_iters + iter_idx
             if tb_writer is not None:
                 # learning rate (after stepping)
@@ -361,7 +361,7 @@ def train_one_epoch_phase_1(
             print('\t'.join([block1, block2, block4]))
 
     # finish up and print
-    lr = scheduler[0].get_last_lr()[0]
+    lr = scheduler.get_last_lr()[0]
     print("[Train]: Epoch {:d} finished with lr={:.8f}\n".format(curr_epoch, lr))
     return
 
