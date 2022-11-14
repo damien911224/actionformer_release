@@ -3,6 +3,7 @@ import argparse
 import os
 import time
 import datetime
+import glob
 from pprint import pprint
 
 # torch imports
@@ -18,7 +19,7 @@ from libs.core import load_config
 from libs.datasets import make_dataset, make_data_loader
 from libs.modeling import make_meta_arch
 from libs.utils import (train_one_epoch_phase_1, train_one_epoch_phase_2,
-                        valid_one_epoch, ANETdetection,
+                        valid_one_epoch_phase_1, valid_one_epoch_phase_2, ANETdetection,
                         save_checkpoint, make_optimizer, make_scheduler,
                         fix_random_seed, ModelEma)
 from libs.modeling.detr import build_dino
@@ -119,7 +120,7 @@ def main(args):
     model_emas = (rgb_model_ema, flow_model_ema)
 
     # """4. Resume from model / Misc"""
-    # # resume from a checkpoint?
+    # resume from a checkpoint?
     # if args.resume:
     #     if os.path.isfile(args.resume):
     #         # load ckpt, reset epoch / best rmse
@@ -182,6 +183,16 @@ def main(args):
         if not os.path.exists(ckpt_folder):
             os.mkdir(ckpt_folder)
 
+        ckpt_file_list = sorted(glob.glob(os.path.join(ckpt_folder, '*.pth.tar')))
+        if len(ckpt_file_list):
+            ckpt_file = ckpt_file_list[-1]
+
+            # load ckpt, reset epoch / best rmse
+            checkpoint = torch.load(ckpt_file, map_location=lambda storage, loc: storage.cuda(cfg['devices'][0]))
+            model.load_state_dict(checkpoint['state_dict_ema'])
+            del checkpoint
+            continue
+
         # tensorboard writer
         tb_writer = SummaryWriter(os.path.join(ckpt_folder, 'logs'))
 
@@ -198,19 +209,6 @@ def main(args):
                 clip_grad_l2norm=cfg['train_cfg']['clip_grad_l2norm'],
                 tb_writer=tb_writer,
                 print_freq=args.print_freq)
-
-            # if (epoch > 0 and epoch % 4 == 0) or epoch == max_epochs - 1:
-            #     valid_one_epoch(
-            #         val_loader,
-            #         models,
-            #         epoch,
-            #         cfg['test_cfg'],
-            #         evaluator=det_eval,
-            #         output_file=output_file,
-            #         ext_score_file=cfg['test_cfg']['ext_score_file'],
-            #         tb_writer=tb_writer,
-            #         print_freq=args.print_freq
-            #     )
 
             # save ckpt once in a while
             if (
@@ -246,6 +244,18 @@ def main(args):
     # tensorboard writer
     tb_writer = SummaryWriter(os.path.join(ckpt_folder, 'logs'))
 
+    valid_one_epoch_phase_1(
+        val_loader,
+        models,
+        -1,
+        cfg['test_cfg'],
+        evaluator=det_eval,
+        output_file=output_file,
+        ext_score_file=cfg['test_cfg']['ext_score_file'],
+        tb_writer=tb_writer,
+        print_freq=args.print_freq
+    )
+
     for epoch in range(args.start_epoch, max_epochs):
         # train for one epoch
         train_one_epoch_phase_2(
@@ -260,7 +270,7 @@ def main(args):
             print_freq=args.print_freq)
 
         if (epoch > 0 and epoch % 3 == 0) or epoch == max_epochs - 1:
-            valid_one_epoch(
+            valid_one_epoch_phase_2(
                 val_loader,
                 detr,
                 models,

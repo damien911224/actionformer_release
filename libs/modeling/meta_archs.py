@@ -332,7 +332,7 @@ class PtTransformer(nn.Module):
         # will throw an error if parameters are on different devices
         return list(set(p.device for p in self.parameters()))[0]
 
-    def forward(self, video_list, data_type="rgb"):
+    def forward(self, video_list, data_type="rgb", nms=False):
         # batch the video list into feats (B, C, T) and masks (B, 1, T)
         batched_inputs, batched_masks = self.preprocessing(video_list, data_type=data_type)
 
@@ -380,7 +380,7 @@ class PtTransformer(nn.Module):
 
             results = self.inference(
                 video_list, points, fpn_masks,
-                out_cls_logits, out_offsets
+                out_cls_logits, out_offsets, nms=nms
             )
 
             return losses, results, fpn_feats
@@ -388,7 +388,7 @@ class PtTransformer(nn.Module):
             # decode the actions (sigmoid / stride, etc)
             results = self.inference(
                 video_list, points, fpn_masks,
-                out_cls_logits, out_offsets
+                out_cls_logits, out_offsets, nms=nms
             )
             return results, fpn_feats
 
@@ -609,7 +609,7 @@ class PtTransformer(nn.Module):
         self,
         video_list,
         points, fpn_masks,
-        out_cls_logits, out_offsets
+        out_cls_logits, out_offsets, nms=False
     ):
         # video_list B (list) [dict]
         # points F (list) [T_i, 4]
@@ -635,7 +635,7 @@ class PtTransformer(nn.Module):
             # inference on a single video (should always be the case)
             results_per_vid = self.inference_single_video(
                 points, fpn_masks_per_vid,
-                cls_logits_per_vid, offsets_per_vid
+                cls_logits_per_vid, offsets_per_vid, nms=nms
             )
             # pass through video meta info
             results_per_vid['video_id'] = vidx
@@ -652,11 +652,12 @@ class PtTransformer(nn.Module):
 
     @torch.no_grad()
     def inference_single_video(
-        self,
-        points,
-        fpn_masks,
-        out_cls_logits,
-        out_offsets,
+            self,
+            points,
+            fpn_masks,
+            out_cls_logits,
+            out_offsets,
+            nms=False
     ):
         # points F (list) [T_i, 4]
         # fpn_masks, out_*: F (List) [T_i, C]
@@ -673,17 +674,19 @@ class PtTransformer(nn.Module):
 
             # Apply filtering to make NMS faster following detectron2
             # 1. Keep seg with confidence score > a threshold
-            # keep_idxs1 = (pred_prob > self.test_pre_nms_thresh)
-            keep_idxs1 = (pred_prob >= 0.0)
+            if nms:
+                keep_idxs1 = (pred_prob > self.test_pre_nms_thresh)
+            else:
+                keep_idxs1 = (pred_prob >= 0.0)
             pred_prob = pred_prob[keep_idxs1]
             topk_idxs = keep_idxs1.nonzero(as_tuple=True)[0]
 
             # 2. Keep top k top scoring boxes only
-            # num_topk = min(self.test_pre_nms_topk, topk_idxs.size(0))
-            # num_topk = max(self.test_pre_nms_topk, topk_idxs.size(0))
-            # pred_prob, idxs = pred_prob.sort(descending=True)
-            # pred_prob = pred_prob[:num_topk].clone()
-            # topk_idxs = topk_idxs[idxs[:num_topk]].clone()
+            if nms:
+                num_topk = min(self.test_pre_nms_topk, topk_idxs.size(0))
+                pred_prob, idxs = pred_prob.sort(descending=True)
+                pred_prob = pred_prob[:num_topk].clone()
+                topk_idxs = topk_idxs[idxs[:num_topk]].clone()
 
             # fix a warning in pytorch 1.9
             pt_idxs =  torch.div(
@@ -702,8 +705,10 @@ class PtTransformer(nn.Module):
 
             # 5. Keep seg with duration > a threshold (relative to feature grids)
             seg_areas = seg_right - seg_left
-            # keep_idxs2 = seg_areas > self.test_duration_thresh
-            keep_idxs2 = seg_areas >= 0.0
+            if nms:
+                keep_idxs2 = seg_areas > self.test_duration_thresh
+            else:
+                keep_idxs2 = seg_areas >= 0.0
 
             # *_all : N (filtered # of segments) x 2 / 1
             segs_all.append(pred_segs[keep_idxs2])
@@ -721,7 +726,7 @@ class PtTransformer(nn.Module):
         return results
 
     @torch.no_grad()
-    def postprocessing(self, results):
+    def postprocessing(self, results, nms=False):
         # input : list of dictionary items
         # (1) push to CPU; (2) NMS; (3) convert to actual time stamps
         processed_results = []
@@ -736,18 +741,18 @@ class PtTransformer(nn.Module):
             segs = results_per_vid['segments'].detach().cpu()
             scores = results_per_vid['scores'].detach().cpu()
             labels = results_per_vid['labels'].detach().cpu()
-            # if self.test_nms_method != 'none':
-            #     # 2: batched nms (only implemented on CPU)
-            #     segs, scores, labels = batched_nms(
-            #         segs, scores, labels,
-            #         self.test_iou_threshold,
-            #         self.test_min_score,
-            #         self.test_max_seg_num,
-            #         use_soft_nms = (self.test_nms_method == 'soft'),
-            #         multiclass = self.test_multiclass_nms,
-            #         sigma = self.test_nms_sigma,
-            #         voting_thresh = self.test_voting_thresh
-            #     )
+            if nms and self.test_nms_method != 'none':
+                # 2: batched nms (only implemented on CPU)
+                segs, scores, labels = batched_nms(
+                    segs, scores, labels,
+                    self.test_iou_threshold,
+                    self.test_min_score,
+                    self.test_max_seg_num,
+                    use_soft_nms = (self.test_nms_method == 'soft'),
+                    multiclass = self.test_multiclass_nms,
+                    sigma = self.test_nms_sigma,
+                    voting_thresh = self.test_voting_thresh
+                )
             # 3: convert from feature grids to seconds
             if segs.shape[0] > 0:
                 segs = (segs * stride + 0.5 * nframes) / fps

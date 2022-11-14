@@ -531,7 +531,149 @@ def train_one_epoch_phase_2(
     print("[Train]: Epoch {:d} finished with lr={:.8f}\n".format(curr_epoch, lr))
     return
 
-def valid_one_epoch(
+def valid_one_epoch_phase_1(
+        val_loader,
+        models,
+        curr_epoch,
+        test_cfg,
+        ext_score_file=None,
+        evaluator=None,
+        output_file=None,
+        tb_writer=None,
+        print_freq=20
+):
+    """Test the model on the validation set"""
+    # either evaluate the results or save the results
+    assert (evaluator is not None) or (output_file is not None)
+
+    # set up meters
+    batch_time = AverageMeter()
+    # switch to evaluate mode
+    for model in models:
+        model.eval()
+    # dict for results (for our evaluation code)
+    results = {
+        'video-id': [],
+        't-start': [],
+        't-end': [],
+        'label': [],
+        'score': []
+    }
+
+    # loop over validation set
+    start = time.time()
+    for iter_idx, video_list in enumerate(val_loader, 0):
+        # forward the model (wo. grad)
+        with torch.no_grad():
+            proposals = list()
+            for m_i, model in enumerate(models):
+                data_type = ["rgb", "flow"][m_i]
+                output, backbone_features = model(video_list, data_type=data_type)
+
+                labels = list()
+                scores = list()
+                segments = list()
+                for p, x in zip(output, video_list):
+                    this_labels = p["labels"].float()
+                    this_scores = p["scores"]
+                    this_segments = p["segments"] / x["duration"]
+                    if len(this_labels) < 378:
+                        this_labels = F.pad(this_labels, (0, 378 - len(this_labels)))
+                        this_scores = F.pad(this_scores, (0, 378 - len(this_scores)))
+                        this_segments = F.pad(this_segments, (0, 0, 0, 378 - len(this_segments)))
+                    elif len(this_labels) > 378:
+                        sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:378]
+                        this_labels = this_labels[sorted_indices]
+                        this_scores = this_scores[sorted_indices]
+                        this_segments = this_segments[sorted_indices]
+                    labels.append(this_labels)
+                    scores.append(this_scores)
+                    segments.append(this_segments)
+                labels = torch.stack(labels, dim=0)
+                scores = torch.stack(scores, dim=0)
+                segments = torch.stack(segments, dim=0)
+                this_proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
+                proposals.append(this_proposals)
+            proposals = torch.mean(torch.stack(proposals, dim=0), dim=0)
+
+            boxes = proposals[..., 1:3]
+            durations = [x["duration"] for x in video_list]
+            boxes = boxes * torch.Tensor(durations)
+            scores = proposals[..., -1]
+            labels = torch.ones_like(scores).long()
+
+            nmsed_boxes = list()
+            nmsed_labels = list()
+            nmsed_scores = list()
+            for b, l, s in zip(boxes, labels, scores):
+                if test_cfg['nms_method'] != 'none':
+                    # 2: batched nms (only implemented on CPU)
+                    b, s, l = batched_nms(
+                        b, s, l,
+                        test_cfg['iou_threshold'],
+                        test_cfg['min_score'],
+                        test_cfg['max_seg_num'],
+                        use_soft_nms=(test_cfg['nms_method'] == 'soft'),
+                        multiclass=test_cfg['multiclass_nms'],
+                        sigma=test_cfg['nms_sigma'],
+                        voting_thresh=test_cfg['voting_thresh']
+                    )
+                nmsed_boxes.append(b)
+                nmsed_labels.append(l)
+                nmsed_scores.append(s)
+            boxes = torch.stack(nmsed_boxes, dim=0)
+            labels = torch.stack(nmsed_labels, dim=0)
+            scores = torch.stack(nmsed_scores, dim=0)
+
+            # upack the results into ANet format
+            num_vids = len(boxes)
+            for vid_idx in range(num_vids):
+                if boxes[vid_idx].shape[0] > 0:
+                    results['video-id'].extend(
+                        [video_list[vid_idx]['video_id']] *
+                        boxes[vid_idx].shape[0]
+                    )
+                    results['t-start'].append(boxes[vid_idx][:, 0])
+                    results['t-end'].append(boxes[vid_idx][:, 1])
+                    results['label'].append(labels[vid_idx])
+                    results['score'].append(scores[vid_idx])
+
+        # printing
+        if (iter_idx != 0) and iter_idx % (print_freq) == 0:
+            # measure elapsed time (sync all kernels)
+            torch.cuda.synchronize()
+            batch_time.update((time.time() - start) / print_freq)
+            start = time.time()
+
+            # print timing
+            print('Test: [{0:05d}/{1:05d}]\t'
+                  'Time {batch_time.val:.2f} ({batch_time.avg:.2f})'.format(
+                iter_idx, len(val_loader), batch_time=batch_time))
+
+    # gather all stats and evaluate
+    results['t-start'] = torch.cat(results['t-start']).numpy()
+    results['t-end'] = torch.cat(results['t-end']).numpy()
+    results['label'] = torch.cat(results['label']).numpy()
+    results['score'] = torch.cat(results['score']).numpy()
+
+    if evaluator is not None:
+        if (ext_score_file is not None) and isinstance(ext_score_file, str):
+            results = postprocess_results(results, ext_score_file)
+        # call the evaluator
+        _, mAP = evaluator.evaluate(results, verbose=True)
+    else:
+        # dump to a pickle file that can be directly used for evaluation
+        with open(output_file, "wb") as f:
+            pickle.dump(results, f)
+        mAP = 0.0
+
+    # log mAP to tb_writer
+    if tb_writer is not None:
+        tb_writer.add_scalar('validation/backbone_mAP', mAP, curr_epoch)
+
+    return mAP
+
+def valid_one_epoch_phase_2(
         val_loader,
         detr,
         proposal_models,
@@ -561,13 +703,6 @@ def valid_one_epoch(
         'label': [],
         'score': []
     }
-    backbone_results = {
-        'video-id': [],
-        't-start': [],
-        't-end': [],
-        'label': [],
-        'score': []
-    }
 
     # loop over validation set
     start = time.time()
@@ -578,19 +713,6 @@ def valid_one_epoch(
             for m_i, model in enumerate(proposal_models):
                 data_type = ["rgb", "flow"][m_i]
                 output, backbone_features = model(video_list, data_type=data_type)
-
-                # upack the results into ANet format
-                num_vids = len(output)
-                for vid_idx in range(num_vids):
-                    if output[vid_idx]['segments'].shape[0] > 0:
-                        backbone_results['video-id'].extend(
-                            [output[vid_idx]['video_id']] *
-                            output[vid_idx]['segments'].shape[0]
-                        )
-                        backbone_results['t-start'].append(output[vid_idx]['segments'][:, 0])
-                        backbone_results['t-end'].append(output[vid_idx]['segments'][:, 1])
-                        backbone_results['label'].append(output[vid_idx]['labels'])
-                        backbone_results['score'].append(output[vid_idx]['scores'])
 
                 labels = list()
                 scores = list()
@@ -637,10 +759,6 @@ def valid_one_epoch(
             logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
             detr_scores, labels = torch.max(logits, dim=-1)
             scores = detr_scores
-            # sorted_indices = torch.argsort(scores, dim=1, descending=True)[:, :200]
-            # boxes = boxes[torch.arange(boxes.shape[0]), sorted_indices[torch.arange(boxes.shape[0])]]
-            # scores = scores[torch.arange(scores.shape[0]), sorted_indices[torch.arange(scores.shape[0])]]
-            # labels = labels[torch.arange(labels.shape[0]), sorted_indices[torch.arange(labels.shape[0])]]
 
             nmsed_boxes = list()
             nmsed_labels = list()
@@ -691,11 +809,6 @@ def valid_one_epoch(
                 iter_idx, len(val_loader), batch_time=batch_time))
 
     # gather all stats and evaluate
-    backbone_results['t-start'] = torch.cat(backbone_results['t-start']).numpy()
-    backbone_results['t-end'] = torch.cat(backbone_results['t-end']).numpy()
-    backbone_results['label'] = torch.cat(backbone_results['label']).numpy()
-    backbone_results['score'] = torch.cat(backbone_results['score']).numpy()
-
     detr_results['t-start'] = torch.cat(detr_results['t-start']).numpy()
     detr_results['t-end'] = torch.cat(detr_results['t-end']).numpy()
     detr_results['label'] = torch.cat(detr_results['label']).numpy()
@@ -704,10 +817,8 @@ def valid_one_epoch(
     if evaluator is not None:
         if (ext_score_file is not None) and isinstance(ext_score_file, str):
             detr_results = postprocess_results(detr_results, ext_score_file)
-            backbone_results = postprocess_results(backbone_results, ext_score_file)
         # call the evaluator
         _, detr_mAP = evaluator.evaluate(detr_results, verbose=True)
-        _, backbone_mAP = evaluator.evaluate(backbone_results, verbose=True)
     else:
         # dump to a pickle file that can be directly used for evaluation
         with open(output_file, "wb") as f:
@@ -717,6 +828,5 @@ def valid_one_epoch(
     # log mAP to tb_writer
     if tb_writer is not None:
         tb_writer.add_scalar('validation/detr_mAP', detr_mAP, curr_epoch)
-        tb_writer.add_scalar('validation/backbone_mAP', backbone_mAP, curr_epoch)
 
     return detr_mAP
