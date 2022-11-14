@@ -618,9 +618,6 @@ def valid_one_epoch(
                 proposals.append(this_proposals)
             proposals = torch.cat(proposals, dim=1)
 
-            print(proposals.shape)
-            exit()
-
             features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
             # features = [feat for feat in features]
             # features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
