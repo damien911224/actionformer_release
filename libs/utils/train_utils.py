@@ -627,7 +627,6 @@ def valid_one_epoch(
             # features = [features]
             # features = [feat for feat in backbone_features]
             detr_predictions = detr(features, proposals)
-            print("!!")
 
             boxes = detr_predictions["pred_boxes"].detach().cpu()
             boxes = (boxes[..., :2] +
@@ -665,6 +664,8 @@ def valid_one_epoch(
             boxes = torch.stack(nmsed_boxes, dim=0)
             labels = torch.stack(nmsed_labels, dim=0)
             scores = torch.stack(nmsed_scores, dim=0)
+
+            print("!!")
 
             # upack the results into ANet format
             num_vids = len(boxes)
