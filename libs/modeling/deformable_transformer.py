@@ -424,13 +424,13 @@ class DeformableTransformerDecoderLayer(nn.Module):
         tgt = tgt + self.dropout1(tgt2)
         tgt = self.norm1(tgt)
 
-        if box_features is not None:
-            tgt2 = self.cross_attn_2(self.with_pos_embed(tgt, query_pos),
-                                   reference_points,
-                                   self.with_pos_embed(box_features, src_pos),
-                                     src_spatial_shapes, level_start_index, src_padding_mask)
-            tgt = tgt + self.dropout1_2(tgt2)
-            tgt = self.norm1_2(tgt)
+        # if box_features is not None:
+        #     tgt2 = self.cross_attn_2(self.with_pos_embed(tgt, query_pos),
+        #                            reference_points,
+        #                            self.with_pos_embed(box_features, src_pos),
+        #                              src_spatial_shapes, level_start_index, src_padding_mask)
+        #     tgt = tgt + self.dropout1_2(tgt2)
+        #     tgt = self.norm1_2(tgt)
 
         # ffn
         tgt = self.forward_ffn(tgt)
