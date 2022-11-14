@@ -665,8 +665,6 @@ def valid_one_epoch(
             labels = torch.stack(nmsed_labels, dim=0)
             scores = torch.stack(nmsed_scores, dim=0)
 
-            print("!!")
-
             # upack the results into ANet format
             num_vids = len(boxes)
             for vid_idx in range(num_vids):
