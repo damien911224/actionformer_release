@@ -493,7 +493,6 @@ class DeformableTransformerDecoder(nn.Module):
                 intermediate.append(output)
                 intermediate_reference_points.append(reference_points)
 
-        print("!!")
         if self.return_intermediate:
             return torch.stack(intermediate), torch.stack(intermediate_reference_points)
 

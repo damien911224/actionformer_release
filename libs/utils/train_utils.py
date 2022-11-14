@@ -627,6 +627,7 @@ def valid_one_epoch(
             # features = [features]
             # features = [feat for feat in backbone_features]
             detr_predictions = detr(features, proposals)
+            print("!!")
 
             boxes = detr_predictions["pred_boxes"].detach().cpu()
             boxes = (boxes[..., :2] +
