@@ -601,9 +601,6 @@ def valid_one_epoch_phase_1(
             boxes = boxes * torch.Tensor(durations)
             scores = proposals[..., -1]
             labels = torch.ones_like(scores).long()
-            print(boxes.shape)
-            print(scores.shape)
-            print(labels.shape)
 
             nmsed_boxes = list()
             nmsed_labels = list()
@@ -612,7 +609,7 @@ def valid_one_epoch_phase_1(
                 if test_cfg['nms_method'] != 'none':
                     # 2: batched nms (only implemented on CPU)
                     b, s, l = batched_nms(
-                        b, s, l,
+                        b.contiguous(), s.contiguous(), l.contiguous(),
                         test_cfg['iou_threshold'],
                         test_cfg['min_score'],
                         test_cfg['max_seg_num'],
