@@ -389,13 +389,13 @@ def train_one_epoch(
                     global_step
                 )
                 # all losses
-                tag_dict = {}
-                for key, value in losses_tracker.items():
+                # tag_dict = {}
+                for key, value in losses.items():
                     # if key != "final_loss":
                     #     tag_dict[key] = value.val
                     tb_writer.add_scalars(
-                        key,
-                        value.val,
+                        "train/" + key,
+                        value,
                         global_step
                     )
 
