@@ -395,7 +395,7 @@ def train_one_epoch(
                     #     tag_dict[key] = value.val
                     tb_writer.add_scalars(
                         "train/" + key,
-                        value,
+                        value.item(),
                         global_step
                     )
 
