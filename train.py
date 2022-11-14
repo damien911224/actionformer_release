@@ -256,11 +256,7 @@ def main(args):
     #     print_freq=args.print_freq
     # )
 
-    max_epochs = cfg['opt'].get(
-        'early_stop_epochs',
-        cfg['detr']['epochs'] + cfg['opt']['warmup_epochs']
-    )
-    for epoch in range(max_epochs):
+    for epoch in range(args.start_epoch, max_epochs):
         # train for one epoch
         train_one_epoch_phase_2(
             train_loader,
