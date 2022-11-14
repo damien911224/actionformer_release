@@ -205,8 +205,6 @@ class DINO(nn.Module):
 
         query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
 
-        print("!!")
-
         hs, init_reference, inter_references, _, _ = \
             self.transformer(srcs, pos_1d, pos_2d, query_embeds, attn_mask, self.label_enc)
 
