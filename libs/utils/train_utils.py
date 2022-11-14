@@ -391,19 +391,25 @@ def train_one_epoch(
                 # all losses
                 tag_dict = {}
                 for key, value in losses_tracker.items():
-                    if key != "final_loss":
-                        tag_dict[key] = value.val
-                tb_writer.add_scalars(
-                    'train/all_losses',
-                    tag_dict,
-                    global_step
-                )
-                # final loss
-                tb_writer.add_scalar(
-                    'train/final_loss',
-                    losses_tracker['final_loss'].val,
-                    global_step
-                )
+                    # if key != "final_loss":
+                    #     tag_dict[key] = value.val
+                    tb_writer.add_scalars(
+                        key,
+                        value.val,
+                        global_step
+                    )
+
+                # tb_writer.add_scalars(
+                #     'train/all_losses',
+                #     tag_dict,
+                #     global_step
+                # )
+                # # final loss
+                # tb_writer.add_scalar(
+                #     'train/final_loss',
+                #     losses_tracker['final_loss'].val,
+                #     global_step
+                # )
 
             # print to terminal
             block1 = 'Epoch: [{:03d}][{:05d}/{:05d}]'.format(
