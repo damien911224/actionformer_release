@@ -636,7 +636,7 @@ def valid_one_epoch(
             boxes = boxes * torch.Tensor(durations)
             logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
             detr_scores, labels = torch.max(logits, dim=-1)
-            # scores = detr_scores * scores
+            scores = detr_scores
             # sorted_indices = torch.argsort(scores, dim=1, descending=True)[:, :200]
             # boxes = boxes[torch.arange(boxes.shape[0]), sorted_indices[torch.arange(boxes.shape[0])]]
             # scores = scores[torch.arange(scores.shape[0]), sorted_indices[torch.arange(scores.shape[0])]]
