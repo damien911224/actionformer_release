@@ -409,18 +409,18 @@ class PtTransformer(nn.Module):
             batched_inputs = feats[0].new_full(batch_shape, padding_val)
             for feat, pad_feat in zip(feats, batched_inputs):
                 pad_feat[..., :feat.shape[-1]].copy_(feat)
-        # else:
-        #     assert len(video_list) == 1, "Only support batch_size = 1 during inference"
-        #     # input length < self.max_seq_len, pad to max_seq_len
-        #     if max_len <= self.max_seq_len:
-        #         max_len = self.max_seq_len
-        #     else:
-        #         # pad the input to the next divisible size
-        #         stride = self.max_div_factor
-        #         max_len = (max_len + (stride - 1)) // stride * stride
-        #     padding_size = [0, max_len - feats_lens[0]]
-        #     batched_inputs = F.pad(
-        #         feats[0], padding_size, value=padding_val).unsqueeze(0)
+        else:
+            assert len(video_list) == 1, "Only support batch_size = 1 during inference"
+            # input length < self.max_seq_len, pad to max_seq_len
+            if max_len <= self.max_seq_len:
+                max_len = self.max_seq_len
+            else:
+                # pad the input to the next divisible size
+                stride = self.max_div_factor
+                max_len = (max_len + (stride - 1)) // stride * stride
+            padding_size = [0, max_len - feats_lens[0]]
+            batched_inputs = F.pad(
+                feats[0], padding_size, value=padding_val).unsqueeze(0)
 
         # generate the mask
         batched_masks = torch.arange(max_len)[None, :] < feats_lens[:, None]

@@ -384,8 +384,8 @@ def train_one_epoch_phase_2(
     num_iters = len(train_loader)
     # switch to train mode
     detr.train()
-    for proposal_model in proposal_models:
-        proposal_model.eval()
+    # for proposal_model in proposal_models:
+    #     proposal_model.eval()
 
     # main training loop
     print("\n[Train|Phase 2]: Epoch {:d} started".format(curr_epoch))
