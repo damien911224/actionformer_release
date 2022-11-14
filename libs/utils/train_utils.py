@@ -418,20 +418,20 @@ def train_one_epoch(
             block2 = 'Time {:.2f} ({:.2f})'.format(
                 batch_time.val, batch_time.avg
             )
-            block3 = 'Loss {:.2f} ({:.2f})\n'.format(
-                losses_tracker['rgb_final_loss'].val,
-                losses_tracker['rgb_final_loss'].avg,
-                losses_tracker['flow_final_loss'].val,
-                losses_tracker['flow_final_loss'].avg,
-            )
+            # block3 = 'Loss {:.2f} ({:.2f})\n'.format(
+            #     losses_tracker['rgb_final_loss'].val,
+            #     losses_tracker['rgb_final_loss'].avg,
+            #     losses_tracker['flow_final_loss'].val,
+            #     losses_tracker['flow_final_loss'].avg,
+            # )
             block4 = ''
             for key, value in losses_tracker.items():
-                if "final_loss" not in key:
+                if "final_loss" in key:
                     block4 += '\t{:s} {:.2f} ({:.2f})'.format(
                         key, value.val, value.avg
                     )
 
-            print('\t'.join([block1, block2, block3, block4]))
+            print('\t'.join([block1, block2, block4]))
 
     # finish up and print
     lr = schedulers[0].get_last_lr()[0]
