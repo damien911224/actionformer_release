@@ -518,7 +518,7 @@ def train_one_epoch_phase_2(
             # )
             block4 = ''
             for key, value in losses_tracker.items():
-                if "final_loss" in key:
+                if key[-2] != "_":
                     block4 += '\t{:s} {:.2f} ({:.2f})'.format(
                         key, value.val, value.avg
                     )
