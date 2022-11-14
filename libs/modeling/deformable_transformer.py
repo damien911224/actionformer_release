@@ -472,7 +472,6 @@ class DeformableTransformerDecoder(nn.Module):
             if self.high_dim_query_update and lid != 0:
                 query_pos = query_pos + self.high_dim_query_proj(output)
 
-            print("!!")
             output = layer(output, query_pos, reference_points_input, src, src_pos,
                            src_spatial_shapes, src_level_start_index, src_padding_mask, self_attn_mask=attn_mask)
 
@@ -494,6 +493,7 @@ class DeformableTransformerDecoder(nn.Module):
                 intermediate.append(output)
                 intermediate_reference_points.append(reference_points)
 
+        print("!!")
         if self.return_intermediate:
             return torch.stack(intermediate), torch.stack(intermediate_reference_points)
 
