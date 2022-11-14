@@ -275,7 +275,7 @@ def train_one_epoch_phase_1(
         # zero out optim
         optimizer.zero_grad(set_to_none=True)
         # forward / backward the model
-        losses, results, backbone_features = model(video_list, data_type=data_type)
+        losses = model(video_list, data_type=data_type)
         losses['final_loss'].backward()
         # gradient cliping (to stabilize training if necessary)
         if clip_grad_l2norm > 0.0:
