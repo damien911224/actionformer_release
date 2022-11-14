@@ -592,7 +592,7 @@ def valid_one_epoch_phase_1(
                 labels = torch.stack(labels, dim=0)
                 scores = torch.stack(scores, dim=0)
                 segments = torch.stack(segments, dim=0)
-                this_proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
+                this_proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1)
                 proposals.append(this_proposals)
             proposals = torch.mean(torch.stack(proposals, dim=0), dim=0)
 
