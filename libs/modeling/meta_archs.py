@@ -332,9 +332,9 @@ class PtTransformer(nn.Module):
         # will throw an error if parameters are on different devices
         return list(set(p.device for p in self.parameters()))[0]
 
-    def forward(self, video_list):
+    def forward(self, video_list, data_type="rgb"):
         # batch the video list into feats (B, C, T) and masks (B, 1, T)
-        batched_inputs, batched_masks = self.preprocessing(video_list)
+        batched_inputs, batched_masks = self.preprocessing(video_list, data_type=data_type)
 
         # forward the network (backbone -> neck -> heads)
         feats, masks = self.backbone(batched_inputs, batched_masks)
@@ -393,11 +393,15 @@ class PtTransformer(nn.Module):
             return results, fpn_feats
 
     @torch.no_grad()
-    def preprocessing(self, video_list, padding_val=0.0):
+    def preprocessing(self, video_list, padding_val=0.0, data_type="rgb"):
         """
             Generate batched features and masks from a list of dict items
         """
-        feats = [x['feats'] for x in video_list]
+        x_c = video_list[0]['feats'].size(0)
+        if data_type == "rgb":
+            feats = [x['feats'][:x_c] for x in video_list]
+        else:
+            feats = [x['feats'][x_c:] for x in video_list]
         feats_lens = torch.as_tensor([feat.shape[-1] for feat in feats])
         max_len = feats_lens.max(0).values.item()
 

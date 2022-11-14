@@ -12,7 +12,7 @@ dataset: {
   file_prefix: v_,
   file_ext: .npy,
   num_classes: 1,
-  input_dim: 2048,
+  input_dim: 1024,
   feat_stride: 16, # 16
   num_frames: 16,
   default_fps: 25,
@@ -70,13 +70,13 @@ output_folder: ./ckpt/
 # DINO DETR
 detr: {
   num_classes: 1,
-  num_queries: 378,
+  num_queries: 378 * 2,
   temporal_length: 192,
   lr: 1.0e-3,
   lr_linear_proj_mult: 0.1,
   lr_linear_proj_names: ['reference_points', 'sampling_offsets'],
   hidden_dim: 256,
-  num_feature_levels: 6,
+  num_feature_levels: 1,
   aux_loss: True,
   enc_layers: 6,
   dec_layers: 6,
@@ -93,7 +93,7 @@ detr: {
   weight_decay: 1.0e-3,
   nhead: 8,
   dropout: 0.1,
-  dim_feedforward: 2048,
+  dim_feedforward: 1024,
   pre_norm: False,
   scalar: 5,
   label_noise_scale: 0.2,

@@ -249,16 +249,12 @@ class ModelEma(torch.nn.Module):
 ################################################################################
 def train_one_epoch(
         train_loader,
-        model,
-        optimizer,
-        scheduler,
-        detr,
+        models,
+        optimizers,
+        schedulers,
         detr_criterion,
-        detr_optimizer,
-        detr_scheduler,
         curr_epoch,
-        model_ema=None,
-        detr_ema=None,
+        model_emas=None,
         clip_grad_l2norm=-1,
         tb_writer=None,
         print_freq=20
@@ -270,55 +266,65 @@ def train_one_epoch(
     # number of iterations per epoch
     num_iters = len(train_loader)
     # switch to train mode
-    model.train()
-    detr.train()
+    for model in models:
+        model.train()
 
     # main training loop
     print("\n[Train]: Epoch {:d} started".format(curr_epoch))
     start = time.time()
     for iter_idx, video_list in enumerate(train_loader, 0):
-        # zero out optim
-        optimizer.zero_grad(set_to_none=True)
-        detr_optimizer.zero_grad(set_to_none=True)
-        # forward / backward the model
-        losses, results, backbone_features = model(video_list)
-        # losses['final_loss'].backward()
-        # # gradient cliping (to stabilize training if necessary)
-        # if clip_grad_l2norm > 0.0:
-        #     torch.nn.utils.clip_grad_norm_(
-        #         model.parameters(),
-        #         clip_grad_l2norm
-        #     )
-        # # step optimizer / scheduler
-        # optimizer.step()
-        # scheduler.step()
-        #
-        # if model_ema is not None:
-        #     model_ema.update(model)
+        losses = dict()
+        proposals = list()
+        for m_i, (model, optimizer, scheduler, model_ema) in \
+                enumerate(zip(models[:-1], optimizers[:-1], schedulers[:-1], model_emas)):
+            data_type = ["rgb", "flow"][m_i]
+            # zero out optim
+            optimizer.zero_grad(set_to_none=True)
+            # forward / backward the model
+            this_losses, results, backbone_features = model(video_list, data_type=data_type)
+            this_losses['final_loss'].backward()
+            # gradient cliping (to stabilize training if necessary)
+            if clip_grad_l2norm > 0.0:
+                torch.nn.utils.clip_grad_norm_(
+                    model.parameters(),
+                    clip_grad_l2norm
+                )
+            # step optimizer / scheduler
+            optimizer.step()
+            scheduler.step()
 
-        labels = list()
-        scores = list()
-        segments = list()
-        for p, x in zip(results, video_list):
-            this_labels = p["labels"].float()
-            this_scores = p["scores"].float()
-            this_segments = p["segments"] / x["duration"]
-            if len(this_labels) < 100:
-                this_labels = F.pad(this_labels, (0, 378 - len(this_labels)))
-                this_scores = F.pad(this_scores, (0, 378 - len(this_scores)))
-                this_segments = F.pad(this_segments, (0, 0, 0, 378 - len(this_segments)))
-            elif len(this_labels) > 100:
-                sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:378]
-                this_labels = this_labels[sorted_indices]
-                this_scores = this_scores[sorted_indices]
-                this_segments = this_segments[sorted_indices]
-            labels.append(this_labels)
-            scores.append(this_scores)
-            segments.append(this_segments)
-        labels = torch.stack(labels, dim=0)
-        scores = torch.stack(scores, dim=0)
-        segments = torch.stack(segments, dim=0)
-        proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
+            if model_ema is not None:
+                model_ema.update(model)
+
+            labels = list()
+            scores = list()
+            segments = list()
+            for p, x in zip(results, video_list):
+                this_labels = p["labels"].float()
+                this_scores = p["scores"].float()
+                this_segments = p["segments"] / x["duration"]
+                if len(this_labels) < 378:
+                    this_labels = F.pad(this_labels, (0, 378 - len(this_labels)))
+                    this_scores = F.pad(this_scores, (0, 378 - len(this_scores)))
+                    this_segments = F.pad(this_segments, (0, 0, 0, 378 - len(this_segments)))
+                elif len(this_labels) > 378:
+                    sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:378]
+                    this_labels = this_labels[sorted_indices]
+                    this_scores = this_scores[sorted_indices]
+                    this_segments = this_segments[sorted_indices]
+                labels.append(this_labels)
+                scores.append(this_scores)
+                segments.append(this_segments)
+            labels = torch.stack(labels, dim=0)
+            scores = torch.stack(scores, dim=0)
+            segments = torch.stack(segments, dim=0)
+            this_proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
+            proposals.append(this_proposals)
+
+            for key, value in this_losses.items():
+                this_key = data_type + " _" + key
+                losses[this_key] = value
+        proposals = torch.cat(proposals, dim=1)
 
         detr_target_dict = list()
         for b_i in range(len(video_list)):
@@ -331,48 +337,31 @@ def train_one_epoch(
                                              ((boxes[..., 0] + boxes[..., 1]) / 2.0).unsqueeze(-1),
                                              (boxes[..., 1] - boxes[..., 0]).unsqueeze(-1)), dim=-1).cuda()
             detr_target_dict.append(batch_dict)
-        # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
+
+        features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
         # features = [feat for feat in features]
         # features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
         # features = torch.stack([F.interpolate(x["feats"].unsqueeze(0),
         #                                       size=192, mode='linear', align_corners=False).squeeze(0)
         #                         for x in video_list], dim=0).cuda()
         # features = [features]
-        features = [feat.detach() for feat in backbone_features]
+        # features = [feat.detach() for feat in backbone_features]
 
-        detr_predictions = detr(features, proposals, detr_target_dict)
-
+        detr_predictions = models[-1](features, proposals, detr_target_dict)
         loss_dict = detr_criterion(detr_predictions, detr_target_dict)
         weight_dict = detr_criterion.weight_dict
         detr_losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
 
-        # detr_losses.backward()
-
-        all_losses = losses['final_loss'] + detr_losses
-        all_losses.backward()
-
-        # gradient cliping (to stabilize training if necessary)
-        if clip_grad_l2norm > 0.0:
-            torch.nn.utils.clip_grad_norm_(
-                model.parameters(),
-                clip_grad_l2norm
-            )
-        # step optimizer / scheduler
-        optimizer.step()
-        scheduler.step()
-
-        torch.nn.utils.clip_grad_norm_(detr.parameters(), 0.1)
-        detr_optimizer.step()
-        detr_scheduler.step()
-
-        if model_ema is not None:
-            model_ema.update(model)
-        if detr_ema is not None:
-            detr_ema.update(detr)
+        optimizers[-1].zero_grad()
+        detr_losses.backward()
+        torch.nn.utils.clip_grad_norm_(models[-1].parameters(), 0.1)
+        optimizers[-1].step()
+        schedulers[-1].step()
 
         for key, value in loss_dict.items():
-            detr_key = "detr_" + key
-            losses[detr_key] = value
+            if key[-2] != "_":
+                detr_key = "detr_" + key
+                losses[detr_key] = value
 
         # printing (only check the stats when necessary to avoid extra cost)
         if (iter_idx != 0) and (iter_idx % print_freq) == 0:
@@ -390,7 +379,7 @@ def train_one_epoch(
                 losses_tracker[key].update(value.item())
 
             # log to tensor board
-            lr = scheduler.get_last_lr()[0]
+            lr = schedulers[0].get_last_lr()[0]
             global_step = curr_epoch * num_iters + iter_idx
             if tb_writer is not None:
                 # learning rate (after stepping)
@@ -437,15 +426,14 @@ def train_one_epoch(
             print('\t'.join([block1, block2, block3, block4]))
 
     # finish up and print
-    lr = scheduler.get_last_lr()[0]
+    lr = schedulers[0].get_last_lr()[0]
     print("[Train]: Epoch {:d} finished with lr={:.8f}\n".format(curr_epoch, lr))
     return
 
 
 def valid_one_epoch(
         val_loader,
-        model,
-        detr,
+        models,
         curr_epoch,
         test_cfg,
         ext_score_file=None,
@@ -461,8 +449,8 @@ def valid_one_epoch(
     # set up meters
     batch_time = AverageMeter()
     # switch to evaluate mode
-    model.eval()
-    detr.eval()
+    for model in models:
+        model.eval()
     # dict for results (for our evaluation code)
     detr_results = {
         'video-id': [],
@@ -484,54 +472,58 @@ def valid_one_epoch(
     for iter_idx, video_list in enumerate(val_loader, 0):
         # forward the model (wo. grad)
         with torch.no_grad():
-            output, backbone_features = model(video_list)
+            proposals = list()
+            for model in models[:-1]:
+                output, backbone_features = model(video_list)
 
-            # upack the results into ANet format
-            num_vids = len(output)
-            for vid_idx in range(num_vids):
-                if output[vid_idx]['segments'].shape[0] > 0:
-                    backbone_results['video-id'].extend(
-                        [output[vid_idx]['video_id']] *
-                        output[vid_idx]['segments'].shape[0]
-                    )
-                    backbone_results['t-start'].append(output[vid_idx]['segments'][:, 0])
-                    backbone_results['t-end'].append(output[vid_idx]['segments'][:, 1])
-                    backbone_results['label'].append(output[vid_idx]['labels'])
-                    backbone_results['score'].append(output[vid_idx]['scores'])
+                # upack the results into ANet format
+                num_vids = len(output)
+                for vid_idx in range(num_vids):
+                    if output[vid_idx]['segments'].shape[0] > 0:
+                        backbone_results['video-id'].extend(
+                            [output[vid_idx]['video_id']] *
+                            output[vid_idx]['segments'].shape[0]
+                        )
+                        backbone_results['t-start'].append(output[vid_idx]['segments'][:, 0])
+                        backbone_results['t-end'].append(output[vid_idx]['segments'][:, 1])
+                        backbone_results['label'].append(output[vid_idx]['labels'])
+                        backbone_results['score'].append(output[vid_idx]['scores'])
 
-            labels = list()
-            scores = list()
-            segments = list()
-            for p, x in zip(output, video_list):
-                this_labels = p["labels"].float()
-                this_scores = p["scores"]
-                this_segments = p["segments"] / x["duration"]
-                if len(this_labels) < 378:
-                    this_labels = F.pad(this_labels, (0, 378 - len(this_labels)))
-                    this_scores = F.pad(this_scores, (0, 378 - len(this_scores)))
-                    this_segments = F.pad(this_segments, (0, 0, 0, 378 - len(this_segments)))
-                elif len(this_labels) > 378:
-                    sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:378]
-                    this_labels = this_labels[sorted_indices]
-                    this_scores = this_scores[sorted_indices]
-                    this_segments = this_segments[sorted_indices]
-                labels.append(this_labels)
-                scores.append(this_scores)
-                segments.append(this_segments)
-            labels = torch.stack(labels, dim=0)
-            scores = torch.stack(scores, dim=0)
-            segments = torch.stack(segments, dim=0)
-            proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
+                labels = list()
+                scores = list()
+                segments = list()
+                for p, x in zip(output, video_list):
+                    this_labels = p["labels"].float()
+                    this_scores = p["scores"]
+                    this_segments = p["segments"] / x["duration"]
+                    if len(this_labels) < 378:
+                        this_labels = F.pad(this_labels, (0, 378 - len(this_labels)))
+                        this_scores = F.pad(this_scores, (0, 378 - len(this_scores)))
+                        this_segments = F.pad(this_segments, (0, 0, 0, 378 - len(this_segments)))
+                    elif len(this_labels) > 378:
+                        sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:378]
+                        this_labels = this_labels[sorted_indices]
+                        this_scores = this_scores[sorted_indices]
+                        this_segments = this_segments[sorted_indices]
+                    labels.append(this_labels)
+                    scores.append(this_scores)
+                    segments.append(this_segments)
+                labels = torch.stack(labels, dim=0)
+                scores = torch.stack(scores, dim=0)
+                segments = torch.stack(segments, dim=0)
+                this_proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
+                proposals.append(this_proposals)
+            proposals = torch.cat(proposals, dim=1)
 
-            # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
+            features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
             # features = [feat for feat in features]
             # features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
             # features = torch.stack([F.interpolate(x["feats"].unsqueeze(0),
             #                                       size=192, mode='linear', align_corners=False).squeeze(0)
             #                         for x in video_list], dim=0).cuda()
             # features = [features]
-            features = [feat for feat in backbone_features]
-            detr_predictions = detr(features, proposals)
+            # features = [feat for feat in backbone_features]
+            detr_predictions = models[-1](features, proposals)
 
             boxes = detr_predictions["pred_boxes"].detach().cpu()
             boxes = (boxes[..., :2] +

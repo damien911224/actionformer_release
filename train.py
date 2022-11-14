@@ -80,14 +80,18 @@ def main(args):
 
     """3. create model, optimizer, and scheduler"""
     # model
-    model = make_meta_arch(cfg['model_name'], **cfg['model'])
+    rgb_model = make_meta_arch(cfg['model_name'], **cfg['model'])
+    flow_model = make_meta_arch(cfg['model_name'], **cfg['model'])
     # not ideal for multi GPU training, ok for now
-    model = nn.DataParallel(model, device_ids=cfg['devices'])
+    rgb_model = nn.DataParallel(rgb_model, device_ids=cfg['devices'])
+    flow_model = nn.DataParallel(flow_model, device_ids=cfg['devices'])
     # optimizer
-    optimizer = make_optimizer(model, cfg['opt'])
+    rgb_optimizer = make_optimizer(rgb_model, cfg['opt'])
+    flow_optimizer = make_optimizer(flow_model, cfg['opt'])
     # schedule
     num_iters_per_epoch = len(train_loader)
-    scheduler = make_scheduler(optimizer, cfg['opt'], num_iters_per_epoch)
+    rgb_scheduler = make_scheduler(rgb_optimizer, cfg['opt'], num_iters_per_epoch)
+    flow_scheduler = make_scheduler(flow_optimizer, cfg['opt'], num_iters_per_epoch)
 
     """ DETR """
     detr, detr_criterion = build_dino(cfg['detr'])
@@ -121,29 +125,35 @@ def main(args):
 
     # enable model EMA
     print("Using model EMA ...")
-    model_ema = ModelEma(model)
+    rgb_model_ema = ModelEma(rgb_model)
+    flow_model_ema = ModelEma(flow_model)
 
-    """4. Resume from model / Misc"""
-    # resume from a checkpoint?
-    if args.resume:
-        if os.path.isfile(args.resume):
-            # load ckpt, reset epoch / best rmse
-            checkpoint = torch.load(args.resume,
-                map_location = lambda storage, loc: storage.cuda(
-                    cfg['devices'][0]))
-            args.start_epoch = checkpoint['epoch'] + 1
-            model.load_state_dict(checkpoint['state_dict'])
-            model_ema.module.load_state_dict(checkpoint['state_dict_ema'])
-            # also load the optimizer / scheduler if necessary
-            optimizer.load_state_dict(checkpoint['optimizer'])
-            scheduler.load_state_dict(checkpoint['scheduler'])
-            print("=> loaded checkpoint '{:s}' (epoch {:d}".format(
-                args.resume, checkpoint['epoch']
-            ))
-            del checkpoint
-        else:
-            print("=> no checkpoint found at '{}'".format(args.resume))
-            return
+    models = (rgb_model, flow_model, detr)
+    optimizers = (rgb_optimizer, flow_optimizer, detr_optimizer)
+    schedulers = (rgb_scheduler, flow_scheduler, detr_scheduler)
+    model_emas = (rgb_model_ema, flow_model_ema)
+
+    # """4. Resume from model / Misc"""
+    # # resume from a checkpoint?
+    # if args.resume:
+    #     if os.path.isfile(args.resume):
+    #         # load ckpt, reset epoch / best rmse
+    #         checkpoint = torch.load(args.resume,
+    #             map_location = lambda storage, loc: storage.cuda(
+    #                 cfg['devices'][0]))
+    #         args.start_epoch = checkpoint['epoch'] + 1
+    #         model.load_state_dict(checkpoint['state_dict'])
+    #         model_ema.module.load_state_dict(checkpoint['state_dict_ema'])
+    #         # also load the optimizer / scheduler if necessary
+    #         optimizer.load_state_dict(checkpoint['optimizer'])
+    #         scheduler.load_state_dict(checkpoint['scheduler'])
+    #         print("=> loaded checkpoint '{:s}' (epoch {:d}".format(
+    #             args.resume, checkpoint['epoch']
+    #         ))
+    #         del checkpoint
+    #     else:
+    #         print("=> no checkpoint found at '{}'".format(args.resume))
+    #         return
 
     # save the current config
     with open(os.path.join(ckpt_folder, 'config.txt'), 'w') as fid:
@@ -171,15 +181,12 @@ def main(args):
         # train for one epoch
         train_one_epoch(
             train_loader,
-            model,
-            optimizer,
-            scheduler,
-            detr,
+            models,
+            optimizers,
+            schedulers,
             detr_criterion,
-            detr_optimizer,
-            detr_scheduler,
             epoch,
-            model_ema=model_ema,
+            model_emas=model_emas,
             clip_grad_l2norm=cfg['train_cfg']['clip_grad_l2norm'],
             tb_writer=tb_writer,
             print_freq=args.print_freq
@@ -188,8 +195,7 @@ def main(args):
         if (epoch > 0 and epoch % 4 == 0) or epoch == max_epochs - 1:
             valid_one_epoch(
                 val_loader,
-                model,
-                detr,
+                models,
                 epoch,
                 cfg['test_cfg'],
                 evaluator=det_eval,
@@ -199,30 +205,30 @@ def main(args):
                 print_freq=args.print_freq
             )
 
-        # save ckpt once in a while
-        if (
-            (epoch == max_epochs - 1) or
-            (
-                (args.ckpt_freq > 0) and
-                (epoch % args.ckpt_freq == 0) and
-                (epoch > 0)
-            )
-        ):
-            save_states = {
-                'epoch': epoch,
-                'state_dict': model.state_dict(),
-                'scheduler': scheduler.state_dict(),
-                'optimizer': optimizer.state_dict(),
-                'detr': detr.state_dict()
-            }
-
-            save_states['state_dict_ema'] = model_ema.module.state_dict()
-            save_checkpoint(
-                save_states,
-                False,
-                file_folder=ckpt_folder,
-                file_name='epoch_{:03d}.pth.tar'.format(epoch)
-            )
+        # # save ckpt once in a while
+        # if (
+        #     (epoch == max_epochs - 1) or
+        #     (
+        #         (args.ckpt_freq > 0) and
+        #         (epoch % args.ckpt_freq == 0) and
+        #         (epoch > 0)
+        #     )
+        # ):
+        #     save_states = {
+        #         'epoch': epoch,
+        #         'state_dict': model.state_dict(),
+        #         'scheduler': scheduler.state_dict(),
+        #         'optimizer': optimizer.state_dict(),
+        #         'detr': detr.state_dict()
+        #     }
+        #
+        #     save_states['state_dict_ema'] = model_ema.module.state_dict()
+        #     save_checkpoint(
+        #         save_states,
+        #         False,
+        #         file_folder=ckpt_folder,
+        #         file_name='epoch_{:03d}.pth.tar'.format(epoch)
+        #     )
 
     # wrap up
     tb_writer.close()
