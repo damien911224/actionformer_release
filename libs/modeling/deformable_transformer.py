@@ -163,7 +163,7 @@ class DeformableTransformer(nn.Module):
         valid_ratio = torch.stack([valid_ratio_w, valid_ratio_h], -1)
         return valid_ratio
 
-    def forward(self, srcs, pos_1d_embeds, pos_2d_embeds, query_embed=None, attn_mask=None, label_enc=None):
+    def forward(self, srcs, pos_1d_embeds, pos_2d_embeds, query_embed=None, attn_mask=None, label_enc=None, box_features=None):
         """
         Input:
             - srcs: List([bs, c, h, w])
@@ -204,6 +204,7 @@ class DeformableTransformer(nn.Module):
         memory = self.encoder(src_flatten, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
 
         memory_2d = list()
+        box_features_2d = list()
         encoder_outputs = list()
         for l_i in range(len(srcs)):
             h, w = spatial_shapes_1d[l_i]
@@ -213,7 +214,11 @@ class DeformableTransformer(nn.Module):
             this_memory_2d = this_memory.unsqueeze(2).repeat(1, 1, h, 1).flatten(1, 2)
             encoder_outputs.append(this_memory)
             memory_2d.append(this_memory_2d)
+            this_box_features = box_features[:, level_start_index:level_end_index]
+            this_box_features_2d = this_box_features.unsqueeze(2).repeat(1, 1, h, 1).flatten(1, 2)
+            box_features_2d.append(this_box_features_2d)
         memory_2d = torch.cat(memory_2d, 1)
+        box_features_2d = torch.cat(box_features_2d, 1)
 
         if self.two_stage:
             target_length = encoder_outputs[-1].shape[1]
@@ -272,7 +277,7 @@ class DeformableTransformer(nn.Module):
         hs, inter_references = self.decoder(tgt, reference_points, memory_2d,
                                             lvl_pos_2d_embed_flatten, spatial_shapes_2d, level_start_index_2d,
                                             query_pos=query_embed if not self.use_dab else None,
-                                            attn_mask=attn_mask)
+                                            attn_mask=attn_mask, box_features=box_features_2d)
 
         inter_references_out = inter_references
         return hs, init_reference_out, inter_references_out, None, None
@@ -374,6 +379,11 @@ class DeformableTransformerDecoderLayer(nn.Module):
         self.dropout1 = nn.Dropout(dropout)
         self.norm1 = nn.LayerNorm(d_model)
 
+        # cross attention
+        self.cross_attn_2 = MSDeformAttn(d_model, n_levels, n_heads, n_points)
+        self.dropout1_2 = nn.Dropout(dropout)
+        self.norm1_2 = nn.LayerNorm(d_model)
+
         # self attention
         self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
         self.dropout2 = nn.Dropout(dropout)
@@ -399,7 +409,7 @@ class DeformableTransformerDecoderLayer(nn.Module):
 
     def forward(self, tgt, query_pos, reference_points, src, src_pos,
                 src_spatial_shapes, level_start_index,
-                src_padding_mask=None, self_attn_mask=None):
+                src_padding_mask=None, self_attn_mask=None, box_features=None):
         # self attention
         q = k = self.with_pos_embed(tgt, query_pos)
         tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1), attn_mask=self_attn_mask)[
@@ -413,6 +423,14 @@ class DeformableTransformerDecoderLayer(nn.Module):
                                self.with_pos_embed(src, src_pos), src_spatial_shapes, level_start_index, src_padding_mask)
         tgt = tgt + self.dropout1(tgt2)
         tgt = self.norm1(tgt)
+
+        if box_features is not None:
+            tgt2 = self.cross_attn_2(self.with_pos_embed(tgt, query_pos),
+                                   reference_points,
+                                   self.with_pos_embed(box_features, src_pos),
+                                     src_spatial_shapes, level_start_index, src_padding_mask)
+            tgt = tgt + self.dropout1_2(tgt2)
+            tgt = self.norm1_2(tgt)
 
         # ffn
         tgt = self.forward_ffn(tgt)
@@ -445,7 +463,8 @@ class DeformableTransformerDecoder(nn.Module):
 
     def forward(self, tgt, reference_points, src, src_pos,
                 src_spatial_shapes, src_level_start_index,
-                query_pos=None, src_padding_mask=None, attn_mask=None):
+                query_pos=None, src_padding_mask=None, attn_mask=None,
+                box_features=None):
         output = tgt
         if self.use_dab:
             assert query_pos is None
@@ -474,7 +493,8 @@ class DeformableTransformerDecoder(nn.Module):
                 query_pos = query_pos + self.high_dim_query_proj(output)
 
             output = layer(output, query_pos, reference_points_input, src, src_pos,
-                           src_spatial_shapes, src_level_start_index, src_padding_mask, self_attn_mask=attn_mask)
+                           src_spatial_shapes, src_level_start_index, src_padding_mask,
+                           self_attn_mask=attn_mask, box_features=box_features)
 
             # hack implementation for iterative bounding box refinement
             if self.bbox_embed is not None:

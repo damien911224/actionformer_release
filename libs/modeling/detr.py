@@ -62,6 +62,7 @@ class DINO(nn.Module):
         self.random_refpoints_xy = random_refpoints_xy
         self.label_enc = nn.Embedding(dn_labelbook_size + 1, hidden_dim)
         self.score_enc = nn.Linear(1, hidden_dim)
+        self.box_enc = MLP(4, hidden_dim, hidden_dim, 3)
         if not use_dab:
             self.query_embed = nn.Embedding(num_queries, hidden_dim * 2)
         else:
@@ -176,20 +177,27 @@ class DINO(nn.Module):
         else:
             assert NotImplementedError
 
+        # prop_boxes = proposals[..., 1:3]
         # prop_labels = proposals[..., 0]
         # prop_scores = proposals[..., -1].unsqueeze(-1)
         # prop_label_embeds = self.label_enc(prop_labels.long())
         # prop_score_embeds = self.score_enc(prop_scores)
+        # prop_box_embeds = self.box_enc(prop_boxes)
+        box_features = self.box_enc(proposals)
+
         input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
         # input_query_label = input_query_label + prop_label_embeds + prop_score_embeds
 
-        # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features.size(0), 1, 1)
-        input_query_bbox = torch.cat([proposals[..., 1:-1],
-                                      ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
-                                      (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
-        input_query_bbox = inverse_sigmoid(input_query_bbox)
+        input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features.size(0), 1, 1)
+        # input_query_bbox = torch.cat([proposals[..., 1:-1],
+        #                               ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
+        #                               (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
+        # input_query_bbox = inverse_sigmoid(input_query_bbox)
 
         # prepare for dn
+
+
+
         if self.dn_number > 0 and self.training:
             dino_query_label, dino_query_bbox, attn_mask, dn_meta = \
                 prepare_for_cdn(dn_args=(targets, self.dn_number, self.dn_label_noise_ratio, self.dn_box_noise_scale),
@@ -206,7 +214,7 @@ class DINO(nn.Module):
         query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
 
         hs, init_reference, inter_references, _, _ = \
-            self.transformer(srcs, pos_1d, pos_2d, query_embeds, attn_mask, self.label_enc)
+            self.transformer(srcs, pos_1d, pos_2d, query_embeds, attn_mask, self.label_enc, box_features)
 
         # In case num object=0
         hs[0] += self.label_enc.weight[0, 0] * 0.0

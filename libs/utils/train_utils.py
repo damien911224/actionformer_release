@@ -436,14 +436,14 @@ def train_one_epoch_phase_2(
                                              (boxes[..., 1] - boxes[..., 0]).unsqueeze(-1)), dim=-1).cuda()
             detr_target_dict.append(batch_dict)
 
-        features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
+        # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
         # features = [feat for feat in features]
         # features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
         # features = torch.stack([F.interpolate(x["feats"].unsqueeze(0),
         #                                       size=192, mode='linear', align_corners=False).squeeze(0)
         #                         for x in video_list], dim=0).cuda()
         # features = [features]
-        # features += [feat.detach() for feat in backbone_features]
+        features = [feat.detach() for feat in backbone_features]
 
         detr_predictions = detr(features, proposals, detr_target_dict)
         loss_dict = criterion(detr_predictions, detr_target_dict)
@@ -710,9 +710,11 @@ def valid_one_epoch_phase_2(
         # forward the model (wo. grad)
         with torch.no_grad():
             proposals = list()
+            backbone_features = list()
             for m_i, model in enumerate(proposal_models):
                 data_type = ["rgb", "flow"][m_i]
-                output, backbone_features = model(video_list, data_type=data_type)
+                output, this_backbone_features = model(video_list, data_type=data_type)
+                backbone_features.extend(this_backbone_features)
 
                 labels = list()
                 scores = list()
@@ -740,14 +742,14 @@ def valid_one_epoch_phase_2(
                 proposals.append(this_proposals)
             proposals = torch.cat(proposals, dim=1)
 
-            features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
+            # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
             # features = [feat for feat in features]
             # features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
             # features = torch.stack([F.interpolate(x["feats"].unsqueeze(0),
             #                                       size=192, mode='linear', align_corners=False).squeeze(0)
             #                         for x in video_list], dim=0).cuda()
             # features = [features]
-            # features = [feat for feat in backbone_features]
+            features = [feat.detach() for feat in backbone_features]
             detr_predictions = detr(features, proposals)
 
             boxes = detr_predictions["pred_boxes"].detach().cpu()
