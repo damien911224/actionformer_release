@@ -397,7 +397,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
         tgt = self.norm3(tgt)
         return tgt
 
-    def forward(self, tgt, query_pos, reference_points, src, src_pos, src_spatial_shapes, level_start_index,
+    def forward(self, tgt, query_pos, reference_points, src, src_pos,
+                src_spatial_shapes, level_start_index,
                 src_padding_mask=None, self_attn_mask=None):
         # self attention
         q = k = self.with_pos_embed(tgt, query_pos)
@@ -479,9 +480,9 @@ class DeformableTransformerDecoder(nn.Module):
             if self.bbox_embed is not None:
                 tmp = self.bbox_embed[lid](output)
                 if reference_points.shape[-1] == 4:
-                    # new_reference_points = tmp + inverse_sigmoid(reference_points)
-                    # new_reference_points = new_reference_points.sigmoid()
-                    new_reference_points = reference_points
+                    new_reference_points = tmp + inverse_sigmoid(reference_points)
+                    new_reference_points = new_reference_points.sigmoid()
+                    # new_reference_points = reference_points
                 else:
                     assert reference_points.shape[-1] == 2
                     new_reference_points = tmp
