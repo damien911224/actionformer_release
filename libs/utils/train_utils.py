@@ -473,8 +473,9 @@ def valid_one_epoch(
         # forward the model (wo. grad)
         with torch.no_grad():
             proposals = list()
-            for model in models[:-1]:
-                output, backbone_features = model(video_list)
+            for m_i, model in enumerate(models[:-1]):
+                data_type = ["rgb", "flow"][m_i]
+                output, backbone_features = model(video_list, data_type=data_type)
 
                 # upack the results into ANet format
                 num_vids = len(output)
