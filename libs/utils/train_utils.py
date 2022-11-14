@@ -413,12 +413,14 @@ def train_one_epoch(
                 batch_time.val, batch_time.avg
             )
             block3 = 'Loss {:.2f} ({:.2f})\n'.format(
-                losses_tracker['final_loss'].val,
-                losses_tracker['final_loss'].avg
+                losses_tracker['rgb_final_loss'].val,
+                losses_tracker['rgb_final_loss'].avg,
+                losses_tracker['flow_final_loss'].val,
+                losses_tracker['flow_final_loss'].avg,
             )
             block4 = ''
             for key, value in losses_tracker.items():
-                if key != "final_loss":
+                if "final_loss" not in key:
                     block4 += '\t{:s} {:.2f} ({:.2f})'.format(
                         key, value.val, value.avg
                     )
