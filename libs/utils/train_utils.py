@@ -367,7 +367,7 @@ def train_one_epoch_phase_1(
 
 def train_one_epoch_phase_2(
         train_loader,
-        model,
+        detr,
         criterion,
         optimizer,
         scheduler,
@@ -383,7 +383,7 @@ def train_one_epoch_phase_2(
     # number of iterations per epoch
     num_iters = len(train_loader)
     # switch to train mode
-    model.train()
+    detr.train()
     for proposal_model in proposal_models:
         proposal_model.eval()
 
@@ -396,7 +396,7 @@ def train_one_epoch_phase_2(
         backbone_features = list()
         with torch.no_grad():
             for m_i, proposal_model in enumerate(proposal_models):
-                results, this_backbone_features = model(video_list, data_type=data_types[m_i])
+                results, this_backbone_features = proposal_model(video_list, data_type=data_types[m_i])
                 backbone_features.extend(this_backbone_features)
                 labels = list()
                 scores = list()
