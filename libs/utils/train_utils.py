@@ -601,6 +601,9 @@ def valid_one_epoch_phase_1(
             boxes = boxes * torch.Tensor(durations)
             scores = proposals[..., -1]
             labels = torch.ones_like(scores).long()
+            print(boxes.shape)
+            print(scores.shape)
+            print(labels.shape)
 
             nmsed_boxes = list()
             nmsed_labels = list()
