@@ -398,6 +398,8 @@ class PtTransformer(nn.Module):
             Generate batched features and masks from a list of dict items
         """
         x_c = video_list[0]['feats'].size(0)
+        print(video_list[0]['feats'].shape)
+        exit()
         if data_type == "rgb":
             feats = [x['feats'][:x_c] for x in video_list]
         else:
