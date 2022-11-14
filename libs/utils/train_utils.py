@@ -420,7 +420,8 @@ def train_one_epoch_phase_2(
                 labels = torch.stack(labels, dim=0)
                 scores = torch.stack(scores, dim=0)
                 segments = torch.stack(segments, dim=0)
-                proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
+                this_proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
+                proposals.append(this_proposals)
             proposals = torch.cat(proposals, dim=1)
 
         detr_target_dict = list()
