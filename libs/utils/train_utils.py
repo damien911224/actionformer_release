@@ -247,14 +247,14 @@ class ModelEma(torch.nn.Module):
 
 
 ################################################################################
-def train_one_epoch(
+def train_one_epoch_phase_1(
         train_loader,
-        models,
-        optimizers,
-        schedulers,
-        detr_criterion,
+        model,
+        optimizer,
+        scheduler,
         curr_epoch,
-        model_emas=None,
+        data_type="rgb",
+        model_ema=None,
         clip_grad_l2norm=-1,
         tb_writer=None,
         print_freq=20
@@ -266,65 +266,162 @@ def train_one_epoch(
     # number of iterations per epoch
     num_iters = len(train_loader)
     # switch to train mode
-    for model in models:
-        model.train()
+    model.train()
 
     # main training loop
-    print("\n[Train]: Epoch {:d} started".format(curr_epoch))
+    print("\n[Train|Phase 1]: Epoch {:d} started".format(curr_epoch))
     start = time.time()
     for iter_idx, video_list in enumerate(train_loader, 0):
-        losses = dict()
-        proposals = list()
-        for m_i, (model, optimizer, scheduler, model_ema) in \
-                enumerate(zip(models[:-1], optimizers[:-1], schedulers[:-1], model_emas)):
-            data_type = ["rgb", "flow"][m_i]
-            # zero out optim
-            optimizer.zero_grad(set_to_none=True)
-            # forward / backward the model
-            this_losses, results, backbone_features = model(video_list, data_type=data_type)
-            this_losses['final_loss'].backward()
-            # gradient cliping (to stabilize training if necessary)
-            if clip_grad_l2norm > 0.0:
-                torch.nn.utils.clip_grad_norm_(
-                    model.parameters(),
-                    clip_grad_l2norm
+        # zero out optim
+        optimizer.zero_grad(set_to_none=True)
+        # forward / backward the model
+        losses, results, backbone_features = model(video_list, data_type=data_type)
+        losses['final_loss'].backward()
+        # gradient cliping (to stabilize training if necessary)
+        if clip_grad_l2norm > 0.0:
+            torch.nn.utils.clip_grad_norm_(
+                model.parameters(),
+                clip_grad_l2norm
+            )
+        # step optimizer / scheduler
+        optimizer.step()
+        scheduler.step()
+
+        if model_ema is not None:
+            model_ema.update(model)
+
+        # printing (only check the stats when necessary to avoid extra cost)
+        if (iter_idx != 0) and (iter_idx % print_freq) == 0:
+            # measure elapsed time (sync all kernels)
+            torch.cuda.synchronize()
+            batch_time.update((time.time() - start) / print_freq)
+            start = time.time()
+
+            # track all losses
+            for key, value in losses.items():
+                # init meter if necessary
+                if key not in losses_tracker:
+                    losses_tracker[key] = AverageMeter()
+                # update
+                losses_tracker[key].update(value.item())
+
+            # log to tensor board
+            lr = scheduler[0].get_last_lr()[0]
+            global_step = curr_epoch * num_iters + iter_idx
+            if tb_writer is not None:
+                # learning rate (after stepping)
+                tb_writer.add_scalar(
+                    'train/learning_rate',
+                    lr,
+                    global_step
                 )
-            # step optimizer / scheduler
-            optimizer.step()
-            scheduler.step()
+                # all losses
+                # tag_dict = {}
+                for key, value in losses.items():
+                    # if key != "final_loss":
+                    #     tag_dict[key] = value.val
+                    tb_writer.add_scalar(
+                        "train/" + key,
+                        value.item(),
+                        global_step
+                    )
 
-            if model_ema is not None:
-                model_ema.update(model)
+                # tb_writer.add_scalars(
+                #     'train/all_losses',
+                #     tag_dict,
+                #     global_step
+                # )
+                # # final loss
+                # tb_writer.add_scalar(
+                #     'train/final_loss',
+                #     losses_tracker['final_loss'].val,
+                #     global_step
+                # )
 
-            labels = list()
-            scores = list()
-            segments = list()
-            for p, x in zip(results, video_list):
-                this_labels = p["labels"].float()
-                this_scores = p["scores"].float()
-                this_segments = p["segments"] / x["duration"]
-                if len(this_labels) < 378:
-                    this_labels = F.pad(this_labels, (0, 378 - len(this_labels)))
-                    this_scores = F.pad(this_scores, (0, 378 - len(this_scores)))
-                    this_segments = F.pad(this_segments, (0, 0, 0, 378 - len(this_segments)))
-                elif len(this_labels) > 378:
-                    sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:378]
-                    this_labels = this_labels[sorted_indices]
-                    this_scores = this_scores[sorted_indices]
-                    this_segments = this_segments[sorted_indices]
-                labels.append(this_labels)
-                scores.append(this_scores)
-                segments.append(this_segments)
-            labels = torch.stack(labels, dim=0)
-            scores = torch.stack(scores, dim=0)
-            segments = torch.stack(segments, dim=0)
-            this_proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
-            proposals.append(this_proposals)
+            # print to terminal
+            block1 = 'Phase 1|{}|Epoch: [{:03d}][{:05d}/{:05d}]'.format(
+                data_type.upper(), curr_epoch, iter_idx, num_iters
+            )
+            block2 = 'Time {:.2f} ({:.2f})'.format(
+                batch_time.val, batch_time.avg
+            )
+            # block3 = 'Loss {:.2f} ({:.2f})\n'.format(
+            #     losses_tracker['rgb_final_loss'].val,
+            #     losses_tracker['rgb_final_loss'].avg,
+            #     losses_tracker['flow_final_loss'].val,
+            #     losses_tracker['flow_final_loss'].avg,
+            # )
+            block4 = ''
+            for key, value in losses_tracker.items():
+                if "final_loss" in key:
+                    block4 += '\t{:s} {:.2f} ({:.2f})'.format(
+                        key, value.val, value.avg
+                    )
 
-            for key, value in this_losses.items():
-                this_key = data_type + " _" + key
-                losses[this_key] = value
-        proposals = torch.cat(proposals, dim=1)
+            print('\t'.join([block1, block2, block4]))
+
+    # finish up and print
+    lr = scheduler[0].get_last_lr()[0]
+    print("[Train]: Epoch {:d} finished with lr={:.8f}\n".format(curr_epoch, lr))
+    return
+
+def train_one_epoch_phase_2(
+        train_loader,
+        model,
+        criterion,
+        optimizer,
+        scheduler,
+        proposal_models,
+        curr_epoch,
+        tb_writer=None,
+        print_freq=20
+):
+    """Training the model for one epoch"""
+    # set up meters
+    batch_time = AverageMeter()
+    losses_tracker = {}
+    # number of iterations per epoch
+    num_iters = len(train_loader)
+    # switch to train mode
+    model.train()
+    for proposal_model in proposal_models:
+        proposal_model.eval()
+
+    # main training loop
+    print("\n[Train|Phase 2]: Epoch {:d} started".format(curr_epoch))
+    start = time.time()
+    data_types = ["rgb", "flow"]
+    for iter_idx, video_list in enumerate(train_loader, 0):
+        proposals = list()
+        backbone_features = list()
+        with torch.no_grad():
+            for m_i, proposal_model in enumerate(proposal_models):
+                results, this_backbone_features = model(video_list, data_type=data_types[m_i])
+                backbone_features.extend(this_backbone_features)
+                labels = list()
+                scores = list()
+                segments = list()
+                for p, x in zip(results, video_list):
+                    this_labels = p["labels"].float()
+                    this_scores = p["scores"].float()
+                    this_segments = p["segments"] / x["duration"]
+                    if len(this_labels) < 378:
+                        this_labels = F.pad(this_labels, (0, 378 - len(this_labels)))
+                        this_scores = F.pad(this_scores, (0, 378 - len(this_scores)))
+                        this_segments = F.pad(this_segments, (0, 0, 0, 378 - len(this_segments)))
+                    elif len(this_labels) > 378:
+                        sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:378]
+                        this_labels = this_labels[sorted_indices]
+                        this_scores = this_scores[sorted_indices]
+                        this_segments = this_segments[sorted_indices]
+                    labels.append(this_labels)
+                    scores.append(this_scores)
+                    segments.append(this_segments)
+                labels = torch.stack(labels, dim=0)
+                scores = torch.stack(scores, dim=0)
+                segments = torch.stack(segments, dim=0)
+                proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
+            proposals = torch.cat(proposals, dim=1)
 
         detr_target_dict = list()
         for b_i in range(len(video_list)):
@@ -345,23 +442,18 @@ def train_one_epoch(
         #                                       size=192, mode='linear', align_corners=False).squeeze(0)
         #                         for x in video_list], dim=0).cuda()
         # features = [features]
-        # features = [feat.detach() for feat in backbone_features]
+        features += [feat.detach() for feat in backbone_features]
 
-        detr_predictions = models[-1](features, proposals, detr_target_dict)
-        loss_dict = detr_criterion(detr_predictions, detr_target_dict)
-        weight_dict = detr_criterion.weight_dict
+        detr_predictions = model(features, proposals, detr_target_dict)
+        loss_dict = criterion(detr_predictions, detr_target_dict)
+        weight_dict = criterion.weight_dict
         detr_losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
 
-        optimizers[-1].zero_grad()
+        optimizer.zero_grad()
         detr_losses.backward()
-        torch.nn.utils.clip_grad_norm_(models[-1].parameters(), 0.1)
-        optimizers[-1].step()
-        schedulers[-1].step()
-
-        for key, value in loss_dict.items():
-            if key[-2] != "_":
-                detr_key = "detr_" + key
-                losses[detr_key] = value
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
+        optimizer.step()
+        scheduler.step()
 
         # printing (only check the stats when necessary to avoid extra cost)
         if (iter_idx != 0) and (iter_idx % print_freq) == 0:
@@ -371,7 +463,7 @@ def train_one_epoch(
             start = time.time()
 
             # track all losses
-            for key, value in losses.items():
+            for key, value in loss_dict.items():
                 # init meter if necessary
                 if key not in losses_tracker:
                     losses_tracker[key] = AverageMeter()
@@ -379,7 +471,7 @@ def train_one_epoch(
                 losses_tracker[key].update(value.item())
 
             # log to tensor board
-            lr = schedulers[0].get_last_lr()[0]
+            lr = scheduler.get_last_lr()[0]
             global_step = curr_epoch * num_iters + iter_idx
             if tb_writer is not None:
                 # learning rate (after stepping)
@@ -390,7 +482,7 @@ def train_one_epoch(
                 )
                 # all losses
                 # tag_dict = {}
-                for key, value in losses.items():
+                for key, value in loss_dict.items():
                     # if key != "final_loss":
                     #     tag_dict[key] = value.val
                     tb_writer.add_scalar(
@@ -434,14 +526,14 @@ def train_one_epoch(
             print('\t'.join([block1, block2, block4]))
 
     # finish up and print
-    lr = schedulers[0].get_last_lr()[0]
+    lr = scheduler.get_last_lr()[0]
     print("[Train]: Epoch {:d} finished with lr={:.8f}\n".format(curr_epoch, lr))
     return
 
-
 def valid_one_epoch(
         val_loader,
-        models,
+        detr,
+        proposal_models,
         curr_epoch,
         test_cfg,
         ext_score_file=None,
@@ -457,7 +549,8 @@ def valid_one_epoch(
     # set up meters
     batch_time = AverageMeter()
     # switch to evaluate mode
-    for model in models:
+    detr.eval()
+    for model in proposal_models:
         model.eval()
     # dict for results (for our evaluation code)
     detr_results = {
@@ -481,7 +574,7 @@ def valid_one_epoch(
         # forward the model (wo. grad)
         with torch.no_grad():
             proposals = list()
-            for m_i, model in enumerate(models[:-1]):
+            for m_i, model in enumerate(proposal_models):
                 data_type = ["rgb", "flow"][m_i]
                 output, backbone_features = model(video_list, data_type=data_type)
 
@@ -532,7 +625,7 @@ def valid_one_epoch(
             #                         for x in video_list], dim=0).cuda()
             # features = [features]
             # features = [feat for feat in backbone_features]
-            detr_predictions = models[-1](features, proposals)
+            detr_predictions = detr(features, proposals)
 
             boxes = detr_predictions["pred_boxes"].detach().cpu()
             boxes = (boxes[..., :2] +

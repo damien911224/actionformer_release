@@ -17,7 +17,8 @@ from tensorboardX import SummaryWriter
 from libs.core import load_config
 from libs.datasets import make_dataset, make_data_loader
 from libs.modeling import make_meta_arch
-from libs.utils import (train_one_epoch, valid_one_epoch, ANETdetection,
+from libs.utils import (train_one_epoch_phase_1, train_one_epoch_phase_2,
+                        valid_one_epoch, ANETdetection,
                         save_checkpoint, make_optimizer, make_scheduler,
                         fix_random_seed, ModelEma)
 from libs.modeling.detr import build_dino
@@ -34,22 +35,6 @@ def main(args):
     else:
         raise ValueError("Config file does not exist.")
     pprint(cfg)
-
-    # prep for output folder (based on time stamp)
-    if not os.path.exists(cfg['output_folder']):
-        os.mkdir(cfg['output_folder'])
-    cfg_filename = os.path.basename(args.config).replace('.yaml', '')
-    if len(args.output) == 0:
-        ts = datetime.datetime.fromtimestamp(int(time.time()))
-        ckpt_folder = os.path.join(
-            cfg['output_folder'], cfg_filename + '_' + str(ts))
-    else:
-        ckpt_folder = os.path.join(
-            cfg['output_folder'], cfg_filename + '_' + str(args.output))
-    if not os.path.exists(ckpt_folder):
-        os.mkdir(ckpt_folder)
-    # tensorboard writer
-    tb_writer = SummaryWriter(os.path.join(ckpt_folder, 'logs'))
 
     # fix the random seeds (this will fix everything)
     rng_generator = fix_random_seed(cfg['init_rand_seed'], include_cuda=True)
@@ -128,9 +113,9 @@ def main(args):
     rgb_model_ema = ModelEma(rgb_model)
     flow_model_ema = ModelEma(flow_model)
 
-    models = (rgb_model, flow_model, detr)
-    optimizers = (rgb_optimizer, flow_optimizer, detr_optimizer)
-    schedulers = (rgb_scheduler, flow_scheduler, detr_scheduler)
+    models = (rgb_model, flow_model)
+    optimizers = (rgb_optimizer, flow_optimizer)
+    schedulers = (rgb_scheduler, flow_scheduler)
     model_emas = (rgb_model_ema, flow_model_ema)
 
     # """4. Resume from model / Misc"""
@@ -155,10 +140,24 @@ def main(args):
     #         print("=> no checkpoint found at '{}'".format(args.resume))
     #         return
 
+    # prep for output folder (based on time stamp)
+    if not os.path.exists(cfg['output_folder']):
+        os.mkdir(cfg['output_folder'])
+    cfg_filename = os.path.basename(args.config).replace('.yaml', '')
+    if len(args.output) == 0:
+        ts = datetime.datetime.fromtimestamp(int(time.time()))
+        ckpt_root_folder = os.path.join(
+            cfg['output_folder'], cfg_filename + '_' + str(ts))
+    else:
+        ckpt_root_folder = os.path.join(
+            cfg['output_folder'], cfg_filename + '_' + str(args.output))
+    if not os.path.exists(ckpt_root_folder):
+        os.mkdir(ckpt_root_folder)
+
     # save the current config
-    with open(os.path.join(ckpt_folder, 'config.txt'), 'w') as fid:
-        pprint(cfg, stream=fid)
-        fid.flush()
+    # with open(os.path.join(ckpt_folder, 'config.txt'), 'w') as fid:
+    #     pprint(cfg, stream=fid)
+    #     fid.flush()
 
     # set up evaluator
     output_file = None
@@ -177,24 +176,93 @@ def main(args):
         'early_stop_epochs',
         cfg['opt']['epochs'] + cfg['opt']['warmup_epochs']
     )
+    for m_i, (model, optimizer, scheduler, model_ema) in enumerate(zip(models, optimizers, schedulers, model_emas)):
+        data_type = ["rgb", "flow"][m_i]
+        ckpt_folder = os.path.join(ckpt_root_folder, data_type)
+        if not os.path.exists(ckpt_folder):
+            os.mkdir(ckpt_folder)
+
+        # tensorboard writer
+        tb_writer = SummaryWriter(os.path.join(ckpt_folder, 'logs'))
+
+        for epoch in range(args.start_epoch, max_epochs):
+            # train for one epoch
+            train_one_epoch_phase_1(
+                train_loader,
+                model,
+                optimizer,
+                scheduler,
+                epoch,
+                data_type=data_type,
+                model_ema=model_ema,
+                clip_grad_l2norm=cfg['train_cfg']['clip_grad_l2norm'],
+                tb_writer=tb_writer,
+                print_freq=args.print_freq)
+
+            # if (epoch > 0 and epoch % 4 == 0) or epoch == max_epochs - 1:
+            #     valid_one_epoch(
+            #         val_loader,
+            #         models,
+            #         epoch,
+            #         cfg['test_cfg'],
+            #         evaluator=det_eval,
+            #         output_file=output_file,
+            #         ext_score_file=cfg['test_cfg']['ext_score_file'],
+            #         tb_writer=tb_writer,
+            #         print_freq=args.print_freq
+            #     )
+
+            # save ckpt once in a while
+            if (
+                (epoch == max_epochs - 1) or
+                (
+                    (args.ckpt_freq > 0) and
+                    (epoch % args.ckpt_freq == 0) and
+                    (epoch > 0)
+                )
+            ):
+                save_states = {
+                    'epoch': epoch,
+                    'state_dict': model.state_dict(),
+                    'scheduler': scheduler.state_dict(),
+                    'optimizer': optimizer.state_dict(),
+                    'detr': detr.state_dict()
+                }
+
+                save_states['state_dict_ema'] = model_ema.module.state_dict()
+                save_checkpoint(
+                    save_states,
+                    False,
+                    file_folder=ckpt_folder,
+                    file_name='epoch_{:03d}.pth.tar'.format(epoch)
+                )
+
+        # wrap up
+        tb_writer.close()
+
+    ckpt_folder = os.path.join(ckpt_root_folder, "detr")
+    if not os.path.exists(ckpt_folder):
+        os.mkdir(ckpt_folder)
+    # tensorboard writer
+    tb_writer = SummaryWriter(os.path.join(ckpt_folder, 'logs'))
+
     for epoch in range(args.start_epoch, max_epochs):
         # train for one epoch
-        train_one_epoch(
+        train_one_epoch_phase_2(
             train_loader,
-            models,
-            optimizers,
-            schedulers,
+            detr,
             detr_criterion,
+            detr_optimizer,
+            detr_scheduler,
+            models,
             epoch,
-            model_emas=model_emas,
-            clip_grad_l2norm=cfg['train_cfg']['clip_grad_l2norm'],
             tb_writer=tb_writer,
-            print_freq=args.print_freq
-        )
+            print_freq=args.print_freq)
 
         if (epoch > 0 and epoch % 4 == 0) or epoch == max_epochs - 1:
             valid_one_epoch(
                 val_loader,
+                detr,
                 models,
                 epoch,
                 cfg['test_cfg'],
@@ -205,34 +273,33 @@ def main(args):
                 print_freq=args.print_freq
             )
 
-        # # save ckpt once in a while
-        # if (
-        #     (epoch == max_epochs - 1) or
-        #     (
-        #         (args.ckpt_freq > 0) and
-        #         (epoch % args.ckpt_freq == 0) and
-        #         (epoch > 0)
-        #     )
-        # ):
-        #     save_states = {
-        #         'epoch': epoch,
-        #         'state_dict': model.state_dict(),
-        #         'scheduler': scheduler.state_dict(),
-        #         'optimizer': optimizer.state_dict(),
-        #         'detr': detr.state_dict()
-        #     }
-        #
-        #     save_states['state_dict_ema'] = model_ema.module.state_dict()
-        #     save_checkpoint(
-        #         save_states,
-        #         False,
-        #         file_folder=ckpt_folder,
-        #         file_name='epoch_{:03d}.pth.tar'.format(epoch)
-        #     )
+        # save ckpt once in a while
+        if (
+                (epoch == max_epochs - 1) or
+                (
+                        (args.ckpt_freq > 0) and
+                        (epoch % args.ckpt_freq == 0) and
+                        (epoch > 0)
+                )
+        ):
+            save_states = {
+                'epoch': epoch,
+                'state_dict': detr.state_dict(),
+                'scheduler': detr_scheduler.state_dict(),
+                'optimizer': detr_optimizer.state_dict(),
+                'detr': detr.state_dict()
+            }
+
+            save_checkpoint(
+                save_states,
+                False,
+                file_folder=ckpt_folder,
+                file_name='epoch_{:03d}.pth.tar'.format(epoch)
+            )
 
     # wrap up
     tb_writer.close()
-    print("All done!")
+
     return
 
 ################################################################################
