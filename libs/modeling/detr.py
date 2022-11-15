@@ -10,7 +10,7 @@ import numpy as np
 import itertools
 from torch import nn
 
-from ..utils import box_ops, segment_ops, ModelEma
+from ..utils import box_ops, segment_ops
 from ..utils.misc import (NestedTensor, nested_tensor_from_tensor_list,
                        accuracy, get_world_size, interpolate,
                        is_dist_avail_and_initialized, inverse_sigmoid)
@@ -650,8 +650,6 @@ def build_dino(args):
         dn_label_noise_ratio=args["dn_label_noise_ratio"],
         dn_labelbook_size=dn_labelbook_size
     )
-
-    detr_ema = ModelEma(model)
 
     matcher = build_matcher(args)
     weight_dict = {'loss_ce': args["weight_loss_ce"],
