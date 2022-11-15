@@ -86,7 +86,7 @@ class DINO(nn.Module):
 
             for _ in range(num_feature_levels):
                 input_proj_list.append(nn.Sequential(
-                    nn.Conv1d(256, hidden_dim, kernel_size=1),
+                    nn.Conv1d(512, hidden_dim, kernel_size=1),
                     nn.GroupNorm(32, hidden_dim)))
 
             self.input_proj = nn.ModuleList(input_proj_list)
@@ -211,7 +211,7 @@ class DINO(nn.Module):
         query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
 
         hs, init_reference, inter_references, _, _ = \
-            self.transformer(srcs, pos_1d, pos_2d, query_embeds, attn_mask, self.label_enc)
+            self.transformer(srcs, pos_1d, pos_2d, query_embeds, attn_mask, self.label_enc, box_features=box_features)
 
         # In case num object=0
         hs[0] += self.label_enc.weight[0, 0] * 0.0
