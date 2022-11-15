@@ -568,7 +568,7 @@ def valid_one_epoch_phase_1(
             proposals = list()
             for m_i, model in enumerate(models):
                 data_type = ["rgb", "flow"][m_i]
-                output, backbone_features = model(video_list, data_type=data_type)
+                output, backbone_features = model(video_list, data_type=data_type, nms=True)
 
                 labels = list()
                 scores = list()

@@ -7,12 +7,12 @@ dataset: {
   file_prefix: ~,
   file_ext: .npy,
   num_classes: 20,
-  input_dim: 1024,
+  input_dim: 2048,
   feat_stride: 4,
   num_frames: 16,
   # serve as data augmentation
   trunc_thresh: 0.5,
-  crop_ratio: [0.9, 1.0], # [0.9, 1.0]
+  crop_ratio: [0.9, 1.0],
   max_seq_len: 2304,
 }
 model: {
@@ -26,7 +26,7 @@ opt: {
   weight_decay: 0.05,
 }
 loader: {
-  batch_size: 4,
+  batch_size: 2,
 }
 train_cfg: {
   init_loss_norm: 100,

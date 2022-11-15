@@ -178,15 +178,15 @@ class DINO(nn.Module):
             assert NotImplementedError
 
         # prop_boxes = proposals[..., 1:3]
-        # prop_labels = proposals[..., 0]
-        # prop_scores = proposals[..., -1].unsqueeze(-1)
+        prop_labels = proposals[..., 0]
+        prop_scores = proposals[..., -1].unsqueeze(-1)
         # prop_box_embeds = self.box_enc(prop_boxes)
-        # prop_label_embeds = self.label_enc(prop_labels.long())
-        # prop_score_embeds = self.score_enc(prop_scores)
+        prop_label_embeds = self.label_enc(prop_labels.long())
+        prop_score_embeds = self.score_enc(prop_scores)
         # box_features = prop_box_embeds + prop_label_embeds + prop_score_embeds
 
         input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
-        # input_query_label = input_query_label + prop_label_embeds + prop_score_embeds
+        input_query_label = input_query_label + prop_label_embeds + prop_score_embeds
 
         # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
         input_query_bbox = torch.cat([proposals[..., 1:-1],
