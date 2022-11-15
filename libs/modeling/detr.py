@@ -62,7 +62,7 @@ class DINO(nn.Module):
         self.random_refpoints_xy = random_refpoints_xy
         self.label_enc = nn.Embedding(dn_labelbook_size + 1, hidden_dim)
         self.score_enc = nn.Linear(1, hidden_dim)
-        self.box_enc = MLP(4, hidden_dim, hidden_dim, 3)
+        self.box_enc = nn.Linear(2, hidden_dim)
         if not use_dab:
             self.query_embed = nn.Embedding(num_queries, hidden_dim * 2)
         else:
@@ -177,13 +177,13 @@ class DINO(nn.Module):
         else:
             assert NotImplementedError
 
-        # prop_boxes = proposals[..., 1:3]
-        # prop_labels = proposals[..., 0]
-        # prop_scores = proposals[..., -1].unsqueeze(-1)
-        # prop_label_embeds = self.label_enc(prop_labels.long())
-        # prop_score_embeds = self.score_enc(prop_scores)
-        # prop_box_embeds = self.box_enc(prop_boxes)
-        box_features = self.box_enc(proposals)
+        prop_boxes = proposals[..., 1:3]
+        prop_labels = proposals[..., 0]
+        prop_scores = proposals[..., -1].unsqueeze(-1)
+        prop_box_embeds = self.box_enc(prop_boxes)
+        prop_label_embeds = self.label_enc(prop_labels.long())
+        prop_score_embeds = self.score_enc(prop_scores)
+        box_features = prop_box_embeds + prop_label_embeds + prop_score_embeds
 
         input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
         # input_query_label = input_query_label + prop_label_embeds + prop_score_embeds
