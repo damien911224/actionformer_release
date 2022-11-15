@@ -39,7 +39,7 @@ opt: {
   weight_decay: 0.05,
 }
 loader: {
-  batch_size: 8, # 16
+  batch_size: 16, # 16
 }
 train_cfg: {
   init_loss_norm: 200, # 200
@@ -71,7 +71,7 @@ output_folder: ./ckpt/
 detr: {
   epochs: 30, # 10
   num_classes: 1,
-  num_queries: 756,
+  num_queries: 100,
   temporal_length: 192,
   lr: 1.0e-4,
   lr_linear_proj_mult: 0.1,
