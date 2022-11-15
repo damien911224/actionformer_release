@@ -81,6 +81,7 @@ def main(args):
 
     """ DETR """
     detr, detr_criterion = build_dino(cfg['detr'])
+    detr_ema = ModelEma(detr)
     detr = detr.cuda()
     def match_name_keywords(n, name_keywords):
         out = False
@@ -113,7 +114,6 @@ def main(args):
     print("Using model EMA ...")
     rgb_model_ema = ModelEma(rgb_model)
     flow_model_ema = ModelEma(flow_model)
-    detr_ema = ModelEma(detr)
 
     models = (rgb_model, flow_model)
     optimizers = (rgb_optimizer, flow_optimizer)
