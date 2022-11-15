@@ -153,6 +153,14 @@ class DINO(nn.Module):
         raw_pos_1d = self.pos_1d_embeds.repeat(features[0].size(0), 1, 1)
         raw_pos_2d = self.pos_2d_embeds.repeat(features[0].size(0), 1, 1, 1)
 
+        prop_boxes = proposals[..., 1:3]
+        prop_labels = proposals[..., 0]
+        prop_scores = proposals[..., -1].unsqueeze(-1)
+        prop_box_embeds = self.box_enc(prop_boxes)
+        prop_label_embeds = self.label_enc(prop_labels.long())
+        prop_score_embeds = self.score_enc(prop_scores)
+        box_features = prop_box_embeds + prop_label_embeds + prop_score_embeds
+
         srcs = []
         pos_1d = []
         pos_2d = []
@@ -176,14 +184,6 @@ class DINO(nn.Module):
                 assert NotImplementedError
         else:
             assert NotImplementedError
-
-        prop_boxes = proposals[..., 1:3]
-        prop_labels = proposals[..., 0]
-        prop_scores = proposals[..., -1].unsqueeze(-1)
-        prop_box_embeds = self.box_enc(prop_boxes)
-        prop_label_embeds = self.label_enc(prop_labels.long())
-        prop_score_embeds = self.score_enc(prop_scores)
-        box_features = prop_box_embeds + prop_label_embeds + prop_score_embeds
 
         input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
         # input_query_label = input_query_label + prop_label_embeds + prop_score_embeds
@@ -493,8 +493,8 @@ class SetCriterion_DINO(nn.Module):
         # In case of auxiliary losses, we repeat this process with the output of each intermediate layer.
         if 'aux_outputs' in outputs:
             for idx, aux_outputs in enumerate(outputs['aux_outputs']):
-                indices = self.matcher(aux_outputs, targets)
-                # indices = self.matcher(aux_outputs, targets, layer=idx)
+                # indices = self.matcher(aux_outputs, targets)
+                indices = self.matcher(aux_outputs, targets, layer=idx)
                 if return_indices:
                     indices_list.append(indices)
                 for loss in self.losses:
@@ -505,7 +505,7 @@ class SetCriterion_DINO(nn.Module):
                     if loss == 'labels':
                         # Logging is enabled only for the last layer
                         kwargs = {'log': False}
-                    # kwargs['layer'] = idx
+                    kwargs['layer'] = idx
                     l_dict = self.get_loss(loss, aux_outputs, targets, indices, num_boxes, **kwargs)
                     l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
                     losses.update(l_dict)
