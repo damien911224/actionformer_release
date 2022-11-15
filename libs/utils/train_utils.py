@@ -444,6 +444,7 @@ def train_one_epoch_phase_2(
         #                         for x in video_list], dim=0).cuda()
         # features = [features]
         features = [feat.detach() for feat in backbone_features]
+        print(len(features))
 
         detr_predictions = detr(features, proposals, detr_target_dict)
         loss_dict = criterion(detr_predictions, detr_target_dict)
