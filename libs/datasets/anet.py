@@ -194,7 +194,7 @@ class ActivityNetDataset(Dataset):
                 size=self.max_seq_len * 2 ** 3,
                 mode='linear',
                 align_corners=False
-            )
+            ).squeeze(0)
             fixed_feats = F.interpolate(
                 feats.unsqueeze(0),
                 size=self.max_seq_len,
