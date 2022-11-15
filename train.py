@@ -114,12 +114,7 @@ def main(args):
     print("Using model EMA ...")
     rgb_model_ema = ModelEma(rgb_model)
     flow_model_ema = ModelEma(flow_model)
-    detr_ema = EMA(
-        detr,
-        beta=0.999,  # exponential moving average factor
-        update_after_step=0,  # only after this number of .update() calls will it start updating
-        update_every=1,  # how often to actually update, to save on compute (updates every 10th .update() call)
-    )
+    detr_ema = ModelEma(detr)
 
     models = (rgb_model, flow_model)
     optimizers = (rgb_optimizer, flow_optimizer)
