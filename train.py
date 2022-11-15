@@ -23,6 +23,7 @@ from libs.utils import (train_one_epoch_phase_1, train_one_epoch_phase_2,
                         save_checkpoint, make_optimizer, make_scheduler,
                         fix_random_seed, ModelEma)
 from libs.modeling.detr import build_dino
+from ema_pytorch import EMA
 
 ################################################################################
 def main(args):
@@ -81,7 +82,6 @@ def main(args):
 
     """ DETR """
     detr, detr_criterion = build_dino(cfg['detr'])
-    detr_ema = ModelEma(detr)
     detr = detr.cuda()
     def match_name_keywords(n, name_keywords):
         out = False
@@ -114,6 +114,12 @@ def main(args):
     print("Using model EMA ...")
     rgb_model_ema = ModelEma(rgb_model)
     flow_model_ema = ModelEma(flow_model)
+    detr_ema = EMA(
+        detr,
+        beta=0.999,  # exponential moving average factor
+        update_after_step=0,  # only after this number of .update() calls will it start updating
+        update_every=1,  # how often to actually update, to save on compute (updates every 10th .update() call)
+    )
 
     models = (rgb_model, flow_model)
     optimizers = (rgb_optimizer, flow_optimizer)
