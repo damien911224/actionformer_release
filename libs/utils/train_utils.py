@@ -368,7 +368,6 @@ def train_one_epoch_phase_1(
 def train_one_epoch_phase_2(
         train_loader,
         detr,
-        detr_ema,
         criterion,
         optimizer,
         scheduler,
@@ -456,8 +455,6 @@ def train_one_epoch_phase_2(
         torch.nn.utils.clip_grad_norm_(detr.parameters(), 0.1)
         optimizer.step()
         scheduler.step()
-
-        detr_ema.update()
 
         # printing (only check the stats when necessary to avoid extra cost)
         if (iter_idx != 0) and (iter_idx % print_freq) == 0:
