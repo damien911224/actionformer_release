@@ -268,6 +268,7 @@ def main(args):
         train_one_epoch_phase_2(
             train_loader,
             detr,
+            detr_ema,
             detr_criterion,
             detr_optimizer,
             detr_scheduler,
