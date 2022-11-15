@@ -189,19 +189,19 @@ class ActivityNetDataset(Dataset):
 
         # resize the features if needed
         if (feats.shape[-1] != self.max_seq_len) and self.force_upsampling:
-            resize_feats = F.interpolate(
-                feats.unsqueeze(0),
-                size=self.max_seq_len * 2 ** 3,
-                mode='linear',
-                align_corners=False
-            ).squeeze(0)
-            fixed_feats = F.interpolate(
-                feats.unsqueeze(0),
-                size=self.max_seq_len,
-                mode='linear',
-                align_corners=False
-            )
-            feats = fixed_feats.squeeze(0)
+        resize_feats = F.interpolate(
+            feats.unsqueeze(0),
+            size=self.max_seq_len * 2 ** 3,
+            mode='linear',
+            align_corners=False
+        ).squeeze(0)
+        fixed_feats = F.interpolate(
+            feats.unsqueeze(0),
+            size=self.max_seq_len,
+            mode='linear',
+            align_corners=False
+        )
+        feats = fixed_feats.squeeze(0)
 
 
         # convert time stamp (in second) into temporal feature grids
