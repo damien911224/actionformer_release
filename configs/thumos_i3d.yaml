@@ -26,7 +26,7 @@ opt: {
   weight_decay: 0.05,
 }
 loader: {
-  batch_size: 2,
+  batch_size: 16,
 }
 train_cfg: {
   init_loss_norm: 100,
@@ -53,28 +53,28 @@ detr: {
   num_classes: 20,
   num_queries: 2000,
   temporal_length: 2304,
-  lr: 1.0e-3,
+  lr: 1.0e-4,
   lr_linear_proj_mult: 0.1,
   lr_linear_proj_names: ['reference_points', 'sampling_offsets'],
   hidden_dim: 256,
   num_feature_levels: 1,
   aux_loss: True,
-  enc_layers: 6,
-  dec_layers: 6,
+  enc_layers: 2,
+  dec_layers: 4,
   enc_n_points: 4,
   dec_n_points: 4,
   two_stage: False,
   eos_coef: 0.1,
-  set_cost_class: 6, # 6
+  set_cost_class: 2, # 6
   set_cost_bbox: 5, # 5
   set_cost_giou: 2, # 2
   weight_loss_ce: 2, # 2
   weight_loss_bbox: 5, # 5
   weight_loss_giou: 2, # 2
-  weight_decay: 1.0e-3,
+  weight_decay: 1.0e-4,
   nhead: 8,
   dropout: 0.1,
-  dim_feedforward: 2048,
+  dim_feedforward: 1024,
   pre_norm: False,
   scalar: 5,
   label_noise_scale: 0.2,
