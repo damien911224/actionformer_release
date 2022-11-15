@@ -49,7 +49,7 @@ class DINO(nn.Module):
         """
         super().__init__()
         self.num_queries = num_queries
-        # self.transformer = transformer
+        self.transformer = transformer
         self.hidden_dim = hidden_dim = transformer.d_model
         self.num_classes = num_classes
         self.pos_1d_embeds = pos_1d_embeds
@@ -117,18 +117,24 @@ class DINO(nn.Module):
             nn.init.constant_(proj[0].bias, 0)
 
         # if two-stage, the last class_embed and bbox_embed is for region proposal generation
-        # num_pred = transformer.decoder.num_layers
-        # if with_box_refine:
-        #     self.class_embed = _get_clones(self.class_embed, num_pred)
-        #     self.bbox_embed = _get_clones(self.bbox_embed, num_pred)
-        #     nn.init.constant_(self.bbox_embed[0].layers[-1].bias.data[2:], -2.0)
-        #     # hack implementation for iterative bounding box refinement
-        #     self.transformer.decoder.bbox_embed = self.bbox_embed
-        # else:
-        #     nn.init.constant_(self.bbox_embed.layers[-1].bias.data[2:], -2.0)
-        #     self.class_embed = nn.ModuleList([self.class_embed for _ in range(num_pred)])
-        #     self.bbox_embed = nn.ModuleList([self.bbox_embed for _ in range(num_pred)])
-        #     self.transformer.decoder.bbox_embed = None
+        num_pred = transformer.decoder.num_layers
+        if with_box_refine:
+            self.class_embed = _get_clones(self.class_embed, num_pred)
+            self.bbox_embed = _get_clones(self.bbox_embed, num_pred)
+            nn.init.constant_(self.bbox_embed[0].layers[-1].bias.data[2:], -2.0)
+            # hack implementation for iterative bounding box refinement
+            self.transformer.decoder.bbox_embed = self.bbox_embed
+        else:
+            nn.init.constant_(self.bbox_embed.layers[-1].bias.data[2:], -2.0)
+            self.class_embed = nn.ModuleList([self.class_embed for _ in range(num_pred)])
+            self.bbox_embed = nn.ModuleList([self.bbox_embed for _ in range(num_pred)])
+            self.transformer.decoder.bbox_embed = None
+
+    @property
+    def device(self):
+        # a hacky way to get the device type
+        # will throw an error if parameters are on different devices
+        return list(set(p.device for p in self.parameters()))[0]
 
     def forward(self, features, proposals, targets=None):
         """ The forward expects a NestedTensor, which consists of:
