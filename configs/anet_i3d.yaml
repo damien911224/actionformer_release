@@ -39,7 +39,7 @@ opt: {
   weight_decay: 0.05,
 }
 loader: {
-  batch_size: 16, # 16
+  batch_size: 8, # 16
 }
 train_cfg: {
   init_loss_norm: 200, # 200
@@ -76,7 +76,7 @@ detr: {
   lr: 1.0e-4,
   lr_linear_proj_mult: 0.1,
   lr_linear_proj_names: ['reference_points', 'sampling_offsets'],
-  hidden_dim: 256,
+  hidden_dim: 128,
   num_feature_levels: 1,
   aux_loss: True,
   enc_layers: 0,
@@ -94,7 +94,7 @@ detr: {
   weight_decay: 1.0e-4,
   nhead: 8,
   dropout: 0.1,
-  dim_feedforward: 1024,
+  dim_feedforward: 512,
   pre_norm: False,
   scalar: 5,
   label_noise_scale: 0.2,
