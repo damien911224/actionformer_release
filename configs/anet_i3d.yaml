@@ -71,15 +71,15 @@ output_folder: ./ckpt/
 detr: {
   epochs: 30, # 10
   num_classes: 1,
-  num_queries: 20,
-  temporal_length: 192,
+  num_queries: 100,
+  temporal_length: 1024,
   lr: 1.0e-4,
   lr_linear_proj_mult: 0.1,
   lr_linear_proj_names: ['reference_points', 'sampling_offsets'],
   hidden_dim: 256,
   num_feature_levels: 12,
   aux_loss: True,
-  enc_layers: 2,
+  enc_layers: 0,
   dec_layers: 4,
   enc_n_points: 4,
   dec_n_points: 4,
