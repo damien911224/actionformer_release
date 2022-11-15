@@ -71,7 +71,7 @@ output_folder: ./ckpt/
 detr: {
   epochs: 30, # 10
   num_classes: 1,
-  num_queries: 100,
+  num_queries: 20,
   temporal_length: 192,
   lr: 1.0e-4,
   lr_linear_proj_mult: 0.1,
