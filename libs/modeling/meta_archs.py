@@ -738,12 +738,9 @@ class PtTransformer(nn.Module):
             stride = results_per_vid['feat_stride']
             nframes = results_per_vid['feat_num_frames']
             # 1: unpack the results and move to CPU
-            # segs = results_per_vid['segments'].detach().cpu()
-            # scores = results_per_vid['scores'].detach().cpu()
-            # labels = results_per_vid['labels'].detach().cpu()
-            segs = results_per_vid['segments']
-            scores = results_per_vid['scores']
-            labels = results_per_vid['labels']
+            segs = results_per_vid['segments'].detach().cpu()
+            scores = results_per_vid['scores'].detach().cpu()
+            labels = results_per_vid['labels'].detach().cpu()
             if nms and self.test_nms_method != 'none':
                 # 2: batched nms (only implemented on CPU)
                 segs, scores, labels = batched_nms(
