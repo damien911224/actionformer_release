@@ -39,7 +39,7 @@ opt: {
   weight_decay: 0.05,
 }
 loader: {
-  batch_size: 2, # 16
+  batch_size: 8, # 16
 }
 train_cfg: {
   init_loss_norm: 200, # 200
@@ -80,7 +80,7 @@ detr: {
   num_feature_levels: 1,
   aux_loss: True,
   enc_layers: 0,
-  dec_layers: 4,
+  dec_layers: 1,
   enc_n_points: 4,
   dec_n_points: 4,
   two_stage: False,
