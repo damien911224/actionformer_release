@@ -394,35 +394,35 @@ def train_one_epoch_phase_2(
     for iter_idx, video_list in enumerate(train_loader, 0):
         proposals = list()
         backbone_features = list()
-        with torch.no_grad():
-            for m_i, proposal_model in enumerate(proposal_models):
-                backbone_losses, results, this_backbone_features = proposal_model(video_list, data_type=data_types[m_i])
-                backbone_features.extend(this_backbone_features)
-                labels = list()
-                scores = list()
-                segments = list()
-                for p, x in zip(results, video_list):
-                    this_labels = p["labels"].float()
-                    this_scores = p["scores"].float()
-                    this_segments = p["segments"] / x["duration"]
-                    if len(this_labels) < 378:
-                        this_labels = F.pad(this_labels, (0, 378 - len(this_labels)))
-                        this_scores = F.pad(this_scores, (0, 378 - len(this_scores)))
-                        this_segments = F.pad(this_segments, (0, 0, 0, 378 - len(this_segments)))
-                    elif len(this_labels) > 378:
-                        sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:378]
-                        this_labels = this_labels[sorted_indices]
-                        this_scores = this_scores[sorted_indices]
-                        this_segments = this_segments[sorted_indices]
-                    labels.append(this_labels)
-                    scores.append(this_scores)
-                    segments.append(this_segments)
-                labels = torch.stack(labels, dim=0)
-                scores = torch.stack(scores, dim=0)
-                segments = torch.stack(segments, dim=0)
-                this_proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
-                proposals.append(this_proposals)
-            proposals = torch.cat(proposals, dim=1)
+        # with torch.no_grad():
+        for m_i, proposal_model in enumerate(proposal_models):
+            backbone_losses, results, this_backbone_features = proposal_model(video_list, data_type=data_types[m_i])
+            backbone_features.extend(this_backbone_features)
+            labels = list()
+            scores = list()
+            segments = list()
+            for p, x in zip(results, video_list):
+                this_labels = p["labels"].float()
+                this_scores = p["scores"].float()
+                this_segments = p["segments"] / x["duration"]
+                if len(this_labels) < 378:
+                    this_labels = F.pad(this_labels, (0, 378 - len(this_labels)))
+                    this_scores = F.pad(this_scores, (0, 378 - len(this_scores)))
+                    this_segments = F.pad(this_segments, (0, 0, 0, 378 - len(this_segments)))
+                elif len(this_labels) > 378:
+                    sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:378]
+                    this_labels = this_labels[sorted_indices]
+                    this_scores = this_scores[sorted_indices]
+                    this_segments = this_segments[sorted_indices]
+                labels.append(this_labels)
+                scores.append(this_scores)
+                segments.append(this_segments)
+            labels = torch.stack(labels, dim=0)
+            scores = torch.stack(scores, dim=0)
+            segments = torch.stack(segments, dim=0)
+            this_proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
+            proposals.append(this_proposals)
+        proposals = torch.cat(proposals, dim=1)
 
         detr_target_dict = list()
         for b_i in range(len(video_list)):
