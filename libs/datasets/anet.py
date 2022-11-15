@@ -188,7 +188,7 @@ class ActivityNetDataset(Dataset):
         feats = torch.from_numpy(np.ascontiguousarray(feats.transpose()))
 
         # resize the features if needed
-        if (feats.shape[-1] != self.max_seq_len) and self.force_upsampling:
+        # if (feats.shape[-1] != self.max_seq_len) and self.force_upsampling:
         resize_feats = F.interpolate(
             feats.unsqueeze(0),
             size=self.max_seq_len * 2 ** 3,
