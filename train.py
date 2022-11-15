@@ -158,7 +158,7 @@ def main(args):
     folder_names = ["rgb", "flow", "detr"]
     tb_writers = list()
     for folder_name in folder_names:
-        ckpt_folder = os.path.join(ckpt_root_folder, data_type)
+        ckpt_folder = os.path.join(ckpt_root_folder, folder_name)
         if not os.path.exists(ckpt_folder):
             os.mkdir(ckpt_folder)
 
