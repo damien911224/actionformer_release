@@ -191,11 +191,18 @@ class ActivityNetDataset(Dataset):
         if (feats.shape[-1] != self.max_seq_len) and self.force_upsampling:
             resize_feats = F.interpolate(
                 feats.unsqueeze(0),
+                size=self.max_seq_len * 2 ** 3,
+                mode='linear',
+                align_corners=False
+            )
+            fixed_feats = F.interpolate(
+                feats.unsqueeze(0),
                 size=self.max_seq_len,
                 mode='linear',
                 align_corners=False
             )
-            feats = resize_feats.squeeze(0)
+            feats = fixed_feats.squeeze(0)
+
 
         # convert time stamp (in second) into temporal feature grids
         # ok to have small negative values here
@@ -230,6 +237,7 @@ class ActivityNetDataset(Dataset):
         # return a data dict
         data_dict = {'video_id'        : video_item['id'],
                      'feats'           : feats,      # C x T
+                     'resize_feats'    : resize_feats,      # C x T
                      'segments'        : segments,   # N x 2
                      'labels'          : labels,     # N
                      'fps'             : video_item['fps'],

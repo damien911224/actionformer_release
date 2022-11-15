@@ -207,7 +207,7 @@ class DeformableTransformer(nn.Module):
 
         # encoder
         memory = self.encoder(src_flatten, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
-        box_memory = self.encoder(box_features, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
+        # box_memory = self.encoder(box_features, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
 
         memory_2d = list()
         box_memory_2d = list()
@@ -220,11 +220,11 @@ class DeformableTransformer(nn.Module):
             this_memory_2d = this_memory.unsqueeze(2).repeat(1, 1, h, 1).flatten(1, 2)
             encoder_outputs.append(this_memory)
             memory_2d.append(this_memory_2d)
-            this_box_memory = box_memory[:, level_start_index:level_end_index]
-            this_box_memory_2d = this_box_memory.unsqueeze(2).repeat(1, 1, h, 1).flatten(1, 2)
-            box_memory_2d.append(this_box_memory_2d)
+            # this_box_memory = box_memory[:, level_start_index:level_end_index]
+            # this_box_memory_2d = this_box_memory.unsqueeze(2).repeat(1, 1, h, 1).flatten(1, 2)
+            # box_memory_2d.append(this_box_memory_2d)
         memory_2d = torch.cat(memory_2d, 1)
-        box_memory_2d = torch.cat(box_memory_2d, 1)
+        # box_memory_2d = torch.cat(box_memory_2d, 1)
 
         if self.two_stage:
             target_length = encoder_outputs[-1].shape[1]
@@ -417,13 +417,13 @@ class DeformableTransformerDecoderLayer(nn.Module):
                 src_spatial_shapes, level_start_index,
                 src_padding_mask=None, self_attn_mask=None, box_features=None):
 
-        if box_features is not None:
-            tgt2 = self.cross_attn_2(self.with_pos_embed(tgt, query_pos),
-                                   reference_points,
-                                   self.with_pos_embed(box_features, src_pos),
-                                     src_spatial_shapes, level_start_index, src_padding_mask)
-            tgt = tgt + self.dropout1_2(tgt2)
-            tgt = self.norm1_2(tgt)
+        # if box_features is not None:
+        #     tgt2 = self.cross_attn_2(self.with_pos_embed(tgt, query_pos),
+        #                            reference_points,
+        #                            self.with_pos_embed(box_features, src_pos),
+        #                              src_spatial_shapes, level_start_index, src_padding_mask)
+        #     tgt = tgt + self.dropout1_2(tgt2)
+        #     tgt = self.norm1_2(tgt)
 
         # self attention
         q = k = self.with_pos_embed(tgt, query_pos)
@@ -507,9 +507,9 @@ class DeformableTransformerDecoder(nn.Module):
             if self.bbox_embed is not None:
                 tmp = self.bbox_embed[lid](output)
                 if reference_points.shape[-1] == 4:
-                    new_reference_points = tmp + inverse_sigmoid(reference_points)
-                    new_reference_points = new_reference_points.sigmoid()
-                    # new_reference_points = reference_points
+                    # new_reference_points = tmp + inverse_sigmoid(reference_points)
+                    # new_reference_points = new_reference_points.sigmoid()
+                    new_reference_points = reference_points
                 else:
                     assert reference_points.shape[-1] == 2
                     new_reference_points = tmp

@@ -177,22 +177,22 @@ class DINO(nn.Module):
         else:
             assert NotImplementedError
 
-        prop_boxes = proposals[..., 1:3]
-        prop_labels = proposals[..., 0]
-        prop_scores = proposals[..., -1].unsqueeze(-1)
-        prop_box_embeds = self.box_enc(prop_boxes)
-        prop_label_embeds = self.label_enc(prop_labels.long())
-        prop_score_embeds = self.score_enc(prop_scores)
-        box_features = prop_box_embeds + prop_label_embeds + prop_score_embeds
+        # prop_boxes = proposals[..., 1:3]
+        # prop_labels = proposals[..., 0]
+        # prop_scores = proposals[..., -1].unsqueeze(-1)
+        # prop_box_embeds = self.box_enc(prop_boxes)
+        # prop_label_embeds = self.label_enc(prop_labels.long())
+        # prop_score_embeds = self.score_enc(prop_scores)
+        # box_features = prop_box_embeds + prop_label_embeds + prop_score_embeds
 
         input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
         # input_query_label = input_query_label + prop_label_embeds + prop_score_embeds
 
-        input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
-        # input_query_bbox = torch.cat([proposals[..., 1:-1],
-        #                               ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
-        #                               (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
-        # input_query_bbox = inverse_sigmoid(input_query_bbox)
+        # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
+        input_query_bbox = torch.cat([proposals[..., 1:-1],
+                                      ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
+                                      (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
+        input_query_bbox = inverse_sigmoid(input_query_bbox)
 
         # prepare for dn
         if self.dn_number > 0 and self.training:
@@ -211,7 +211,7 @@ class DINO(nn.Module):
         query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
 
         hs, init_reference, inter_references, _, _ = \
-            self.transformer(srcs, pos_1d, pos_2d, query_embeds, attn_mask, self.label_enc, box_features)
+            self.transformer(srcs, pos_1d, pos_2d, query_embeds, attn_mask, self.label_enc)
 
         # In case num object=0
         hs[0] += self.label_enc.weight[0, 0] * 0.0
@@ -219,19 +219,19 @@ class DINO(nn.Module):
         outputs_classes = []
         outputs_coords = []
         for lvl in range(hs.shape[0]):
-            if lvl == 0:
-                reference = init_reference
-            else:
-                reference = inter_references[lvl - 1]
-            reference = inverse_sigmoid(reference)
-            tmp = self.bbox_embed[lvl](hs[lvl])
-            if reference.shape[-1] == 4:
-                tmp += reference
-            else:
-                assert reference.shape[-1] == 2
-                tmp[..., :2] += reference
-            outputs_coord = tmp.sigmoid()
-            # outputs_coord = init_reference
+            # if lvl == 0:
+            #     reference = init_reference
+            # else:
+            #     reference = inter_references[lvl - 1]
+            # reference = inverse_sigmoid(reference)
+            # tmp = self.bbox_embed[lvl](hs[lvl])
+            # if reference.shape[-1] == 4:
+            #     tmp += reference
+            # else:
+            #     assert reference.shape[-1] == 2
+            #     tmp[..., :2] += reference
+            # outputs_coord = tmp.sigmoid()
+            outputs_coord = init_reference
             outputs_class = self.class_embed[lvl](hs[lvl])
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)

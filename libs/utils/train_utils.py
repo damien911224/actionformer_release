@@ -436,14 +436,14 @@ def train_one_epoch_phase_2(
                                              (boxes[..., 1] - boxes[..., 0]).unsqueeze(-1)), dim=-1).cuda()
             detr_target_dict.append(batch_dict)
 
-        # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
+        features = [torch.stack([x["resize_feats"] for x in video_list], dim=0).cuda()]
         # features = [feat for feat in features]
         # features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
         # features = torch.stack([F.interpolate(x["feats"].unsqueeze(0),
         #                                       size=192, mode='linear', align_corners=False).squeeze(0)
         #                         for x in video_list], dim=0).cuda()
         # features = [features]
-        features = [feat.detach() for feat in backbone_features]
+        # features = [feat.detach() for feat in backbone_features]
 
         detr_predictions = detr(features, proposals, detr_target_dict)
         loss_dict = criterion(detr_predictions, detr_target_dict)

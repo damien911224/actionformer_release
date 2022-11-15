@@ -72,7 +72,7 @@ detr: {
   epochs: 30, # 10
   num_classes: 1,
   num_queries: 100,
-  temporal_length: 1024,
+  temporal_length: 1000,
   lr: 1.0e-4,
   lr_linear_proj_mult: 0.1,
   lr_linear_proj_names: ['reference_points', 'sampling_offsets'],
@@ -89,8 +89,8 @@ detr: {
   set_cost_bbox: 5, # 5
   set_cost_giou: 2, # 2
   weight_loss_ce: 2, # 2
-  weight_loss_bbox: 5, # 5
-  weight_loss_giou: 2, # 2
+  weight_loss_bbox: 0, # 5
+  weight_loss_giou: 0, # 2
   weight_decay: 1.0e-4,
   nhead: 8,
   dropout: 0.1,
