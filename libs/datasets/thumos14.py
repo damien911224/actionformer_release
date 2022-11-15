@@ -166,7 +166,6 @@ class THUMOS14Dataset(Dataset):
             labels = torch.from_numpy(video_item['labels'])
         else:
             segments, labels = None, None
-        feat_duration = feats.shape[1] + 0.5 * self.num_frames / feat_stride
 
         # return a data dict
         data_dict = {'video_id'        : video_item['id'],
@@ -176,8 +175,7 @@ class THUMOS14Dataset(Dataset):
                      'fps'             : video_item['fps'],
                      'duration'        : video_item['duration'],
                      'feat_stride'     : feat_stride,
-                     'feat_num_frames' : self.num_frames,
-                     'feat_duration': feat_duration}
+                     'feat_num_frames' : self.num_frames}
 
         # truncate the features during training
         if self.is_training and (segments is not None):
