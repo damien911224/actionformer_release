@@ -49,7 +49,7 @@ class DINO(nn.Module):
         """
         super().__init__()
         self.num_queries = num_queries
-        self.transformer = transformer
+        # self.transformer = transformer
         self.hidden_dim = hidden_dim = transformer.d_model
         self.num_classes = num_classes
         self.pos_1d_embeds = pos_1d_embeds
