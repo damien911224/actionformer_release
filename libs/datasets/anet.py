@@ -191,17 +191,11 @@ class ActivityNetDataset(Dataset):
         # if (feats.shape[-1] != self.max_seq_len) and self.force_upsampling:
         resize_feats = F.interpolate(
             feats.unsqueeze(0),
-            size=self.max_seq_len * 2 ** 3,
-            mode='linear',
-            align_corners=False
-        ).squeeze(0)
-        fixed_feats = F.interpolate(
-            feats.unsqueeze(0),
             size=self.max_seq_len,
             mode='linear',
             align_corners=False
         )
-        feats = fixed_feats.squeeze(0)
+        feats = resize_feats.squeeze(0)
 
 
         # convert time stamp (in second) into temporal feature grids
@@ -237,7 +231,6 @@ class ActivityNetDataset(Dataset):
         # return a data dict
         data_dict = {'video_id'        : video_item['id'],
                      'feats'           : feats,      # C x T
-                     'resize_feats'    : resize_feats,      # C x T
                      'segments'        : segments,   # N x 2
                      'labels'          : labels,     # N
                      'fps'             : video_item['fps'],
@@ -247,9 +240,9 @@ class ActivityNetDataset(Dataset):
 
         # no truncation is needed
         # truncate the features during training
-        # if self.is_training and (segments is not None):
-        #     data_dict = truncate_feats(
-        #         data_dict, self.max_seq_len, self.trunc_thresh, self.crop_ratio
-        #     )
+        if self.is_training and (segments is not None):
+            data_dict = truncate_feats(
+                data_dict, self.max_seq_len, self.trunc_thresh, self.crop_ratio
+            )
 
         return data_dict
