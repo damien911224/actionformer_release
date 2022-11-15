@@ -10,7 +10,7 @@ import numpy as np
 import itertools
 from torch import nn
 
-from ..utils import box_ops, segment_ops
+from ..utils import box_ops, segment_ops, ModelEma
 from ..utils.misc import (NestedTensor, nested_tensor_from_tensor_list,
                        accuracy, get_world_size, interpolate,
                        is_dist_avail_and_initialized, inverse_sigmoid)
@@ -130,11 +130,6 @@ class DINO(nn.Module):
             self.bbox_embed = nn.ModuleList([self.bbox_embed for _ in range(num_pred)])
             self.transformer.decoder.bbox_embed = None
 
-    @property
-    def device(self):
-        # a hacky way to get the device type
-        # will throw an error if parameters are on different devices
-        return list(set(p.device for p in self.parameters()))[0]
 
     def forward(self, features, proposals, targets=None):
         """ The forward expects a NestedTensor, which consists of:
@@ -655,6 +650,8 @@ def build_dino(args):
         dn_label_noise_ratio=args["dn_label_noise_ratio"],
         dn_labelbook_size=dn_labelbook_size
     )
+
+    detr_ema = ModelEma(model)
 
     matcher = build_matcher(args)
     weight_dict = {'loss_ce': args["weight_loss_ce"],

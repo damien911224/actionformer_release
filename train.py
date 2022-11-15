@@ -23,7 +23,6 @@ from libs.utils import (train_one_epoch_phase_1, train_one_epoch_phase_2,
                         save_checkpoint, make_optimizer, make_scheduler,
                         fix_random_seed, ModelEma)
 from libs.modeling.detr import build_dino
-from ema_pytorch import EMA
 
 ################################################################################
 def main(args):
@@ -114,7 +113,6 @@ def main(args):
     print("Using model EMA ...")
     rgb_model_ema = ModelEma(rgb_model)
     flow_model_ema = ModelEma(flow_model)
-    detr_ema = ModelEma(detr)
 
     models = (rgb_model, flow_model)
     optimizers = (rgb_optimizer, flow_optimizer)
