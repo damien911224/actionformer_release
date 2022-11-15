@@ -716,7 +716,7 @@ def valid_one_epoch_phase_2(
             backbone_features = list()
             for m_i, model in enumerate(proposal_models):
                 data_type = ["rgb", "flow"][m_i]
-                output, this_backbone_features = model(video_list, data_type=data_type)
+                output, this_backbone_features = model(video_list, data_type=data_type, nms=True)
                 backbone_features.extend(this_backbone_features)
 
                 labels = list()
