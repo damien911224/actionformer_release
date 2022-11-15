@@ -396,7 +396,7 @@ def train_one_epoch_phase_2(
         backbone_features = list()
         with torch.no_grad():
             for m_i, proposal_model in enumerate(proposal_models):
-                backbone_losses, results, this_backbone_features = proposal_model(video_list, data_type=data_types[m_i], nms=True)
+                backbone_losses, results, this_backbone_features = proposal_model(video_list, data_type=data_types[m_i])
                 backbone_features.extend(this_backbone_features)
                 labels = list()
                 scores = list()
@@ -405,12 +405,12 @@ def train_one_epoch_phase_2(
                     this_labels = p["labels"].float()
                     this_scores = p["scores"].float()
                     this_segments = p["segments"] / x["duration"]
-                    if len(this_labels) < 756:
-                        this_labels = F.pad(this_labels, (0, 756 - len(this_labels)))
-                        this_scores = F.pad(this_scores, (0, 756 - len(this_scores)))
-                        this_segments = F.pad(this_segments, (0, 0, 0, 756 - len(this_segments)))
-                    elif len(this_labels) > 756:
-                        sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:756]
+                    if len(this_labels) < 378:
+                        this_labels = F.pad(this_labels, (0, 378 - len(this_labels)))
+                        this_scores = F.pad(this_scores, (0, 378 - len(this_scores)))
+                        this_segments = F.pad(this_segments, (0, 0, 0, 378 - len(this_segments)))
+                    elif len(this_labels) > 378:
+                        sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:378]
                         this_labels = this_labels[sorted_indices]
                         this_scores = this_scores[sorted_indices]
                         this_segments = this_segments[sorted_indices]
@@ -713,7 +713,7 @@ def valid_one_epoch_phase_2(
             backbone_features = list()
             for m_i, model in enumerate(proposal_models):
                 data_type = ["rgb", "flow"][m_i]
-                output, this_backbone_features = model(video_list, data_type=data_type, nms=True)
+                output, this_backbone_features = model(video_list, data_type=data_type)
                 backbone_features.extend(this_backbone_features)
 
                 labels = list()
@@ -723,12 +723,12 @@ def valid_one_epoch_phase_2(
                     this_labels = p["labels"].float()
                     this_scores = p["scores"]
                     this_segments = p["segments"] / x["duration"]
-                    if len(this_labels) < 756:
-                        this_labels = F.pad(this_labels, (0, 756 - len(this_labels)))
-                        this_scores = F.pad(this_scores, (0, 756 - len(this_scores)))
-                        this_segments = F.pad(this_segments, (0, 0, 0, 756 - len(this_segments)))
-                    elif len(this_labels) > 756:
-                        sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:756]
+                    if len(this_labels) < 378:
+                        this_labels = F.pad(this_labels, (0, 378 - len(this_labels)))
+                        this_scores = F.pad(this_scores, (0, 378 - len(this_scores)))
+                        this_segments = F.pad(this_segments, (0, 0, 0, 378 - len(this_segments)))
+                    elif len(this_labels) > 378:
+                        sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:378]
                         this_labels = this_labels[sorted_indices]
                         this_scores = this_scores[sorted_indices]
                         this_segments = this_segments[sorted_indices]
