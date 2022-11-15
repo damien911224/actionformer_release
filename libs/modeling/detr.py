@@ -185,8 +185,9 @@ class DINO(nn.Module):
         prop_score_embeds = self.score_enc(prop_scores)
         # box_features = prop_box_embeds + prop_label_embeds + prop_score_embeds
 
-        input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
-        input_query_label = input_query_label + prop_label_embeds + prop_score_embeds
+        # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
+        # input_query_label = input_query_label + prop_label_embeds + prop_score_embeds
+        input_query_label = prop_label_embeds
 
         # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
         input_query_bbox = torch.cat([proposals[..., 1:-1],
@@ -219,19 +220,19 @@ class DINO(nn.Module):
         outputs_classes = []
         outputs_coords = []
         for lvl in range(hs.shape[0]):
-            # if lvl == 0:
-            #     reference = init_reference
-            # else:
-            #     reference = inter_references[lvl - 1]
-            # reference = inverse_sigmoid(reference)
-            # tmp = self.bbox_embed[lvl](hs[lvl])
-            # if reference.shape[-1] == 4:
-            #     tmp += reference
-            # else:
-            #     assert reference.shape[-1] == 2
-            #     tmp[..., :2] += reference
-            # outputs_coord = tmp.sigmoid()
-            outputs_coord = init_reference
+            if lvl == 0:
+                reference = init_reference
+            else:
+                reference = inter_references[lvl - 1]
+            reference = inverse_sigmoid(reference)
+            tmp = self.bbox_embed[lvl](hs[lvl])
+            if reference.shape[-1] == 4:
+                tmp += reference
+            else:
+                assert reference.shape[-1] == 2
+                tmp[..., :2] += reference
+            outputs_coord = tmp.sigmoid()
+            # outputs_coord = init_reference
             outputs_class = self.class_embed[lvl](hs[lvl])
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)
@@ -487,8 +488,8 @@ class SetCriterion_DINO(nn.Module):
             l_dict['cardinality_error_dn'] = torch.as_tensor(0.).to('cuda')
             losses.update(l_dict)
 
-        for loss in self.losses:
-            losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
+        # for loss in self.losses:
+        #     losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
 
         # In case of auxiliary losses, we repeat this process with the output of each intermediate layer.
         if 'aux_outputs' in outputs:
@@ -497,18 +498,18 @@ class SetCriterion_DINO(nn.Module):
                 # indices = self.matcher(aux_outputs, targets, layer=idx)
                 if return_indices:
                     indices_list.append(indices)
-                for loss in self.losses:
-                    if loss == 'masks':
-                        # Intermediate masks losses are too costly to compute, we ignore them.
-                        continue
-                    kwargs = {}
-                    if loss == 'labels':
-                        # Logging is enabled only for the last layer
-                        kwargs = {'log': False}
-                    # kwargs['layer'] = idx
-                    l_dict = self.get_loss(loss, aux_outputs, targets, indices, num_boxes, **kwargs)
-                    l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
-                    losses.update(l_dict)
+                # for loss in self.losses:
+                #     if loss == 'masks':
+                #         # Intermediate masks losses are too costly to compute, we ignore them.
+                #         continue
+                #     kwargs = {}
+                #     if loss == 'labels':
+                #         # Logging is enabled only for the last layer
+                #         kwargs = {'log': False}
+                #     # kwargs['layer'] = idx
+                #     l_dict = self.get_loss(loss, aux_outputs, targets, indices, num_boxes, **kwargs)
+                #     l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
+                #     losses.update(l_dict)
 
                 if self.training and dn_meta and 'output_known_lbs_bboxes' in dn_meta:
                     aux_outputs_known = output_known_lbs_bboxes['aux_outputs'][idx]
