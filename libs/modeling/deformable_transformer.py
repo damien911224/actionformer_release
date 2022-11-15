@@ -210,7 +210,7 @@ class DeformableTransformer(nn.Module):
         # box_memory = self.encoder(box_features, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
 
         memory_2d = list()
-        box_memory_2d = list()
+        # box_memory_2d = list()
         encoder_outputs = list()
         for l_i in range(len(srcs)):
             h, w = spatial_shapes_1d[l_i]
@@ -283,7 +283,7 @@ class DeformableTransformer(nn.Module):
         hs, inter_references = self.decoder(tgt, reference_points, memory_2d,
                                             lvl_pos_2d_embed_flatten, spatial_shapes_2d, level_start_index_2d,
                                             query_pos=query_embed if not self.use_dab else None,
-                                            attn_mask=attn_mask, box_features=box_memory_2d)
+                                            attn_mask=attn_mask)
 
         inter_references_out = inter_references
         return hs, init_reference_out, inter_references_out, None, None
