@@ -244,17 +244,17 @@ def main(args):
     # tensorboard writer
     tb_writer = SummaryWriter(os.path.join(ckpt_folder, 'logs'))
 
-    valid_one_epoch_phase_1(
-        val_loader,
-        models,
-        -1,
-        cfg['test_cfg'],
-        evaluator=det_eval,
-        output_file=output_file,
-        ext_score_file=cfg['test_cfg']['ext_score_file'],
-        tb_writer=tb_writer,
-        print_freq=args.print_freq
-    )
+    # valid_one_epoch_phase_1(
+    #     val_loader,
+    #     models,
+    #     -1,
+    #     cfg['test_cfg'],
+    #     evaluator=det_eval,
+    #     output_file=output_file,
+    #     ext_score_file=cfg['test_cfg']['ext_score_file'],
+    #     tb_writer=tb_writer,
+    #     print_freq=args.print_freq
+    # )
 
     for epoch in range(args.start_epoch, max_epochs):
         # train for one epoch
