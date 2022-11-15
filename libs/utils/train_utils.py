@@ -405,11 +405,13 @@ def train_one_epoch_phase_2(
                     this_labels = p["labels"].float()
                     this_scores = p["scores"].float()
                     this_segments = p["segments"] / x["duration"]
-                    if len(this_labels) < 1000:
+                    print(len(this_labels))
+                    exit()
+                    if len(this_labels) < 4536:
                         this_labels = F.pad(this_labels, (0, 1000 - len(this_labels)))
                         this_scores = F.pad(this_scores, (0, 1000 - len(this_scores)))
                         this_segments = F.pad(this_segments, (0, 0, 0, 1000 - len(this_segments)))
-                    elif len(this_labels) > 1000:
+                    elif len(this_labels) > 4536:
                         sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:1000]
                         this_labels = this_labels[sorted_indices]
                         this_scores = this_scores[sorted_indices]
@@ -439,11 +441,11 @@ def train_one_epoch_phase_2(
         # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
         # features = [feat for feat in features]
         # features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
-        features = torch.stack([F.interpolate(x["feats"].unsqueeze(0),
-                                              size=192, mode='linear', align_corners=False).squeeze(0)
-                                for x in video_list], dim=0).cuda()
-        features = [features]
-        # features = [feat.detach() for feat in backbone_features]
+        # features = torch.stack([F.interpolate(x["feats"].unsqueeze(0),
+        #                                       size=192, mode='linear', align_corners=False).squeeze(0)
+        #                         for x in video_list], dim=0).cuda()
+        # features = [features]
+        features = [feat.detach() for feat in backbone_features]
 
         detr_predictions = detr(features, proposals, detr_target_dict)
         loss_dict = criterion(detr_predictions, detr_target_dict)
