@@ -159,17 +159,6 @@ def main(args):
     if not os.path.exists(ckpt_root_folder):
         os.mkdir(ckpt_root_folder)
 
-    folder_names = ["rgb", "flow", "detr"]
-    tb_writers = list()
-    for folder_name in folder_names:
-        ckpt_folder = os.path.join(ckpt_root_folder, folder_name)
-        if not os.path.exists(ckpt_folder):
-            os.mkdir(ckpt_folder)
-
-        # tensorboard writer
-        tb_writer = SummaryWriter(os.path.join(ckpt_folder, 'logs'))
-        tb_writers.append(tb_writer)
-
     # save the current config
     # with open(os.path.join(ckpt_folder, 'config.txt'), 'w') as fid:
     #     pprint(cfg, stream=fid)
@@ -192,9 +181,26 @@ def main(args):
         'early_stop_epochs',
         cfg['opt']['epochs'] + cfg['opt']['warmup_epochs']
     )
-    for epoch in range(args.start_epoch, max_epochs):
-        for m_i, (model, optimizer, scheduler, model_ema) in enumerate(zip(models, optimizers, schedulers, model_emas)):
-            data_type = ["rgb", "flow"][m_i]
+    for m_i, (model, optimizer, scheduler, model_ema) in enumerate(zip(models, optimizers, schedulers, model_emas)):
+        data_type = ["rgb", "flow"][m_i]
+        ckpt_folder = os.path.join(ckpt_root_folder, data_type)
+        if not os.path.exists(ckpt_folder):
+            os.mkdir(ckpt_folder)
+
+        ckpt_file_list = sorted(glob.glob(os.path.join(ckpt_folder, '*.pth.tar')))
+        if len(ckpt_file_list):
+            ckpt_file = ckpt_file_list[-1]
+
+            # load ckpt, reset epoch / best rmse
+            checkpoint = torch.load(ckpt_file, map_location=lambda storage, loc: storage.cuda(cfg['devices'][0]))
+            model.load_state_dict(checkpoint['state_dict_ema'])
+            del checkpoint
+            continue
+
+        # tensorboard writer
+        tb_writer = SummaryWriter(os.path.join(ckpt_folder, 'logs'))
+
+        for epoch in range(args.start_epoch, max_epochs):
             # train for one epoch
             train_one_epoch_phase_1(
                 train_loader,
@@ -205,7 +211,7 @@ def main(args):
                 data_type=data_type,
                 model_ema=model_ema,
                 clip_grad_l2norm=cfg['train_cfg']['clip_grad_l2norm'],
-                tb_writer=tb_writers[m_i],
+                tb_writer=tb_writer,
                 print_freq=args.print_freq)
 
             # save ckpt once in a while
@@ -233,19 +239,29 @@ def main(args):
                     file_name='epoch_{:03d}.pth.tar'.format(epoch)
                 )
 
-        if (epoch >= 0 and epoch % 1 == 0) or epoch == max_epochs - 1:
-            valid_one_epoch_phase_1(
-                val_loader,
-                [m.module for m in model_emas],
-                epoch,
-                cfg['test_cfg'],
-                evaluator=det_eval,
-                output_file=output_file,
-                ext_score_file=cfg['test_cfg']['ext_score_file'],
-                tb_writer=tb_writers[-1],
-                print_freq=args.print_freq
-            )
+        # wrap up
+        tb_writer.close()
 
+    ckpt_folder = os.path.join(ckpt_root_folder, "detr")
+    if not os.path.exists(ckpt_folder):
+        os.mkdir(ckpt_folder)
+    # tensorboard writer
+    tb_writer = SummaryWriter(os.path.join(ckpt_folder, 'logs'))
+
+    # valid_one_epoch_phase_1(
+    #     val_loader,
+    #     [m.module for m in model_emas],
+    #     -1,
+    #     cfg['test_cfg'],
+    #     evaluator=det_eval,
+    #     output_file=output_file,
+    #     ext_score_file=cfg['test_cfg']['ext_score_file'],
+    #     tb_writer=tb_writer,
+    #     print_freq=args.print_freq
+    # )
+
+    for epoch in range(args.start_epoch, max_epochs):
+        # detr.load_state_dict(detr_model_ema.module.state_dict())
         # train for one epoch
         train_one_epoch_phase_2(
             train_loader,
@@ -254,22 +270,23 @@ def main(args):
             detr_criterion,
             detr_optimizer,
             detr_scheduler,
-            [m.module for m in model_emas],
+            models,
             epoch,
-            tb_writer=tb_writers[-1],
+            tb_writer=tb_writer,
             print_freq=args.print_freq)
 
         if (epoch >= 0 and epoch % 1 == 0) or epoch == max_epochs - 1:
             valid_one_epoch_phase_2(
                 val_loader,
-                detr_model_ema.module,
+                # detr_model_ema.module,
+                detr,
                 models,
                 epoch,
                 cfg['test_cfg'],
                 evaluator=det_eval,
                 output_file=output_file,
                 ext_score_file=cfg['test_cfg']['ext_score_file'],
-                tb_writer=tb_writers[-1],
+                tb_writer=tb_writer,
                 print_freq=args.print_freq
             )
 
@@ -297,9 +314,8 @@ def main(args):
                 file_name='epoch_{:03d}.pth.tar'.format(epoch)
             )
 
-        for tb_writer in tb_writers:
-            # wrap up
-            tb_writer.close()
+    # wrap up
+    tb_writer.close()
 
     return
 
