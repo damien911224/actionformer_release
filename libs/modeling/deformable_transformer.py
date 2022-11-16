@@ -424,12 +424,12 @@ class DeformableTransformerDecoderLayer(nn.Module):
         tgt = tgt + self.dropout2(tgt2)
         tgt = self.norm2(tgt)
 
-        # # cross attention
-        # tgt2 = self.cross_attn(self.with_pos_embed(tgt, query_pos),
-        #                        reference_points,
-        #                        self.with_pos_embed(src, src_pos), src_spatial_shapes, level_start_index, src_padding_mask)
-        # tgt = tgt + self.dropout1(tgt2)
-        # tgt = self.norm1(tgt)
+        # cross attention
+        box_features = self.cross_attn(self.with_pos_embed(box_features, src_pos),
+                               reference_points,
+                               self.with_pos_embed(src, src_pos), src_spatial_shapes, level_start_index, src_padding_mask)
+        box_features = box_features + self.dropout1(box_features)
+        box_features = self.norm1(box_features)
 
         if box_features is not None:
             tgt2 = self.cross_attn_2(self.with_pos_embed(tgt, query_pos),
@@ -442,7 +442,7 @@ class DeformableTransformerDecoderLayer(nn.Module):
         # ffn
         tgt = self.forward_ffn(tgt)
 
-        return tgt
+        return tgt, box_features
 
 
 class DeformableTransformerDecoder(nn.Module):
@@ -499,7 +499,7 @@ class DeformableTransformerDecoder(nn.Module):
             if self.high_dim_query_update and lid != 0:
                 query_pos = query_pos + self.high_dim_query_proj(output)
 
-            output = layer(output, query_pos, reference_points_input, src, src_pos,
+            output, box_features = layer(output, query_pos, reference_points_input, src, src_pos,
                            src_spatial_shapes, src_level_start_index, src_padding_mask,
                            self_attn_mask=attn_mask, box_features=box_features)
 
