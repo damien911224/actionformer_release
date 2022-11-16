@@ -189,11 +189,11 @@ class DINO(nn.Module):
         input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
         # input_query_label = input_query_label + prop_label_embeds + prop_score_embeds
 
-        input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
-        # input_query_bbox = torch.cat([proposals[..., 1:-1],
-        #                               ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
-        #                               (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
-        # input_query_bbox = inverse_sigmoid(input_query_bbox)
+        # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
+        input_query_bbox = torch.cat([proposals[..., 1:-1],
+                                      ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
+                                      (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
+        input_query_bbox = inverse_sigmoid(input_query_bbox)
 
         # prepare for dn
         if self.dn_number > 0 and self.training:
