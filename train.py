@@ -193,58 +193,58 @@ def main(args):
         cfg['opt']['epochs'] + cfg['opt']['warmup_epochs']
     )
     for epoch in range(args.start_epoch, max_epochs):
-        # for m_i, (model, optimizer, scheduler, model_ema) in enumerate(zip(models, optimizers, schedulers, model_emas)):
-        #     data_type = ["rgb", "flow"][m_i]
-        #     # train for one epoch
-        #     train_one_epoch_phase_1(
-        #         train_loader,
-        #         model,
-        #         optimizer,
-        #         scheduler,
-        #         epoch,
-        #         data_type=data_type,
-        #         model_ema=model_ema,
-        #         clip_grad_l2norm=cfg['train_cfg']['clip_grad_l2norm'],
-        #         tb_writer=tb_writers[m_i],
-        #         print_freq=args.print_freq)
-        #
-        #     # save ckpt once in a while
-        #     if (
-        #         (epoch == max_epochs - 1) or
-        #         (
-        #             (args.ckpt_freq > 0) and
-        #             (epoch % args.ckpt_freq == 0) and
-        #             (epoch > 0)
-        #         )
-        #     ):
-        #         save_states = {
-        #             'epoch': epoch,
-        #             'state_dict': model.state_dict(),
-        #             'scheduler': scheduler.state_dict(),
-        #             'optimizer': optimizer.state_dict(),
-        #             'detr': detr.state_dict()
-        #         }
-        #
-        #         save_states['state_dict_ema'] = model_ema.module.state_dict()
-        #         save_checkpoint(
-        #             save_states,
-        #             False,
-        #             file_folder=ckpt_folder,
-        #             file_name='epoch_{:03d}.pth.tar'.format(epoch)
-        #         )
-        #
-        # if (epoch >= 0 and epoch % 1 == 0) or epoch == max_epochs - 1:
-        #     valid_one_epoch_phase_1(
-        #         val_loader,
-        #         models,
-        #         epoch,
-        #         cfg['test_cfg'],
-        #         evaluator=det_eval,
-        #         output_file=output_file,
-        #         ext_score_file=cfg['test_cfg']['ext_score_file'],
-        #         tb_writer=tb_writers[-1],
-        #         print_freq=args.print_freq
-        #     )
+        for m_i, (model, optimizer, scheduler, model_ema) in enumerate(zip(models, optimizers, schedulers, model_emas)):
+            data_type = ["rgb", "flow"][m_i]
+            # train for one epoch
+            train_one_epoch_phase_1(
+                train_loader,
+                model,
+                optimizer,
+                scheduler,
+                epoch,
+                data_type=data_type,
+                model_ema=model_ema,
+                clip_grad_l2norm=cfg['train_cfg']['clip_grad_l2norm'],
+                tb_writer=tb_writers[m_i],
+                print_freq=args.print_freq)
+
+            # save ckpt once in a while
+            if (
+                (epoch == max_epochs - 1) or
+                (
+                    (args.ckpt_freq > 0) and
+                    (epoch % args.ckpt_freq == 0) and
+                    (epoch > 0)
+                )
+            ):
+                save_states = {
+                    'epoch': epoch,
+                    'state_dict': model.state_dict(),
+                    'scheduler': scheduler.state_dict(),
+                    'optimizer': optimizer.state_dict(),
+                    'detr': detr.state_dict()
+                }
+
+                save_states['state_dict_ema'] = model_ema.module.state_dict()
+                save_checkpoint(
+                    save_states,
+                    False,
+                    file_folder=ckpt_folder,
+                    file_name='epoch_{:03d}.pth.tar'.format(epoch)
+                )
+
+        if (epoch >= 0 and epoch % 1 == 0) or epoch == max_epochs - 1:
+            valid_one_epoch_phase_1(
+                val_loader,
+                models,
+                epoch,
+                cfg['test_cfg'],
+                evaluator=det_eval,
+                output_file=output_file,
+                ext_score_file=cfg['test_cfg']['ext_score_file'],
+                tb_writer=tb_writers[-1],
+                print_freq=args.print_freq
+            )
 
         # train for one epoch
         train_one_epoch_phase_2(
