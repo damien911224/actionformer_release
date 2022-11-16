@@ -54,6 +54,11 @@ class DeformableTransformer(nn.Module):
                                                           num_feature_levels, nhead, enc_n_points)
         self.box_encoder = DeformableTransformerEncoder(encoder_layer, num_encoder_layers)
 
+        encoder_layer = DeformableTransformerCrossEncoderLayer(d_model, dim_feedforward,
+                                                               dropout, activation,
+                                                               num_feature_levels, nhead, enc_n_points)
+        self.box_cross_encoder = DeformableTransformerCrossEncoder(encoder_layer, num_encoder_layers)
+
         decoder_layer = DeformableTransformerDecoderLayer(d_model, dim_feedforward,
                                                           dropout, activation,
                                                           num_feature_levels, nhead, dec_n_points)
@@ -206,8 +211,10 @@ class DeformableTransformer(nn.Module):
         level_start_index_2d = torch.cat((spatial_shapes_2d.new_zeros((1,)), spatial_shapes_2d.prod(1).cumsum(0)[:-1]))
 
         # encoder
-        memory = self.encoder(src_flatten, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
-        box_memory = self.encoder(box_features, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
+        # memory = self.encoder(src_flatten, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
+        # box_memory = self.encoder(box_features, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
+        memory = src_flatten
+        box_memory = self.box_cross_encoder(box_features, memory, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
 
         memory_2d = list()
         box_memory_2d = list()
@@ -370,6 +377,102 @@ class DeformableTransformerEncoder(nn.Module):
         reference_points = self.get_reference_points(spatial_shapes, device=src.device)
         for _, layer in enumerate(self.layers):
             output = layer(output, pos, reference_points, spatial_shapes, level_start_index, padding_mask)
+
+        return output
+
+
+class DeformableTransformerCrossEncoderLayer(nn.Module):
+    def __init__(self,
+                 d_model=256, d_ffn=1024,
+                 dropout=0.1, activation="relu",
+                 n_levels=4, n_heads=8, n_points=4):
+        super().__init__()
+
+        # self attention
+        self.self_attn = MSDeformAttn(d_model, n_levels, n_heads, n_points)
+        self.dropout1 = nn.Dropout(dropout)
+        self.norm1 = nn.LayerNorm(d_model)
+
+        # cross attention
+        self.cross_attn = MSDeformAttn(d_model, n_levels, n_heads, n_points)
+        self.dropout2 = nn.Dropout(dropout)
+        self.norm2 = nn.LayerNorm(d_model)
+
+        # ffn
+        self.linear1 = nn.Linear(d_model, d_ffn)
+        self.activation = _get_activation_fn(activation)
+        self.dropout2 = nn.Dropout(dropout)
+        self.linear2 = nn.Linear(d_ffn, d_model)
+        self.dropout3 = nn.Dropout(dropout)
+        self.norm2 = nn.LayerNorm(d_model)
+
+    @staticmethod
+    def with_pos_embed(tensor, pos):
+        return tensor if pos is None else tensor + pos
+
+    def forward_ffn(self, src):
+        src2 = self.linear2(self.dropout2(self.activation(self.linear1(src))))
+        src = src + self.dropout3(src2)
+        src = self.norm2(src)
+        return src
+
+    def forward(self, src, src2, pos, reference_points, spatial_shapes, level_start_index, padding_mask=None):
+        # self attention
+        src2 = self.self_attn(self.with_pos_embed(src, pos), reference_points, src, spatial_shapes, level_start_index,
+                              padding_mask)
+        src = src + self.dropout1(src2)
+        src = self.norm1(src)
+
+        # cross attention
+        src2 = self.cross_attn(self.with_pos_embed(src, pos), reference_points, src2, spatial_shapes, level_start_index,
+                              padding_mask)
+        src = src + self.dropout2(src2)
+        src = self.norm2(src)
+
+        # ffn
+        src = self.forward_ffn(src)
+
+        return src
+
+
+class DeformableTransformerCrossEncoder(nn.Module):
+    def __init__(self, encoder_layer, num_layers):
+        super().__init__()
+        self.layers = _get_clones(encoder_layer, num_layers)
+        self.num_layers = num_layers
+
+    @staticmethod
+    def get_reference_points(spatial_shapes, device):
+        reference_points_list = []
+        for lvl, (H_, W_) in enumerate(spatial_shapes):
+            ref_y, ref_x = torch.meshgrid(torch.linspace(0.5, H_ - 0.5, H_, dtype=torch.float32, device=device),
+                                          torch.linspace(0.5, W_ - 0.5, W_, dtype=torch.float32, device=device))
+            ref_y = ref_y.reshape(-1)[None] / (H_)
+            ref_x = ref_x.reshape(-1)[None] / (W_)
+            ref = torch.stack((ref_x, ref_y), -1)
+            reference_points_list.append(ref)
+        reference_points = torch.cat(reference_points_list, 1)
+        reference_points = reference_points[:, :, None]
+        return reference_points
+
+    def forward(self, src, src2, spatial_shapes, level_start_index, pos=None, padding_mask=None):
+        """
+        Input:
+            - src: [bs, sum(hi*wi), 256]
+            - spatial_shapes: h,w of each level [num_level, 2]
+            - level_start_index: [num_level] start point of level in sum(hi*wi).
+            - valid_ratios: [bs, num_level, 2]
+            - pos: pos embed for src. [bs, sum(hi*wi), 256]
+            - padding_mask: [bs, sum(hi*wi)]
+        Intermedia:
+            - reference_points: [bs, sum(hi*wi), num_lebel, 2]
+        """
+        output = src
+        # bs, sum(hi*wi), 256
+        # import ipdb; ipdb.set_trace()
+        reference_points = self.get_reference_points(spatial_shapes, device=src.device)
+        for _, layer in enumerate(self.layers):
+            output = layer(output, src2, pos, reference_points, spatial_shapes, level_start_index, padding_mask)
 
         return output
 
