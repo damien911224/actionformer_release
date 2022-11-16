@@ -250,7 +250,7 @@ def main(args):
 
     valid_one_epoch_phase_1(
         val_loader,
-        models,
+        [m.module for m in model_emas],
         -1,
         cfg['test_cfg'],
         evaluator=det_eval,
@@ -269,7 +269,7 @@ def main(args):
             detr_criterion,
             detr_optimizer,
             detr_scheduler,
-            models,
+            [m.module for m in model_emas],
             epoch,
             tb_writer=tb_writer,
             print_freq=args.print_freq)
