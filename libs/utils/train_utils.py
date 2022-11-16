@@ -743,9 +743,9 @@ def valid_one_epoch_phase_2(
                 labels = torch.stack(labels, dim=0)
                 scores = torch.stack(scores, dim=0)
                 segments = torch.stack(segments, dim=0)
-                this_proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
+                this_proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1)
                 proposals.append(this_proposals)
-            cat_proposals = torch.cat(proposals, dim=1)
+            cat_proposals = torch.cat(proposals, dim=1).cuda()
 
             # features = [torch.stack([x["resize_feats"] for x in video_list], dim=0).cuda()]
             # features = [feat for feat in features]
@@ -767,16 +767,16 @@ def valid_one_epoch_phase_2(
             detr_scores, labels = torch.max(logits, dim=-1)
             scores = detr_scores
 
-            mean_proposals = torch.mean(torch.stack(proposals, dim=0), dim=0)
-            dense_boxes = mean_proposals[..., 1:3]
-            durations = [x["duration"] for x in video_list]
-            dense_boxes = dense_boxes * torch.Tensor(durations)
-            dense_scores = mean_proposals[..., -1]
-            dense_labels = mean_proposals[..., 0].long()
-
-            boxes = torch.cat((boxes, dense_boxes), dim=1)
-            scores = torch.cat((scores, dense_scores), dim=1)
-            labels = torch.cat((labels, dense_labels), dim=1)
+            # mean_proposals = torch.mean(torch.stack(proposals, dim=0), dim=0)
+            # dense_boxes = mean_proposals[..., 1:3]
+            # durations = [x["duration"] for x in video_list]
+            # dense_boxes = dense_boxes * torch.Tensor(durations)
+            # dense_scores = mean_proposals[..., -1]
+            # dense_labels = mean_proposals[..., 0].long()
+            #
+            # boxes = torch.cat((boxes, dense_boxes), dim=1)
+            # scores = torch.cat((scores, dense_scores), dim=1)
+            # labels = torch.cat((labels, dense_labels), dim=1)
 
             nmsed_boxes = list()
             nmsed_labels = list()
