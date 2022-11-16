@@ -248,17 +248,17 @@ def main(args):
     # tensorboard writer
     tb_writer = SummaryWriter(os.path.join(ckpt_folder, 'logs'))
 
-    valid_one_epoch_phase_1(
-        val_loader,
-        [m.module for m in model_emas],
-        -1,
-        cfg['test_cfg'],
-        evaluator=det_eval,
-        output_file=output_file,
-        ext_score_file=cfg['test_cfg']['ext_score_file'],
-        tb_writer=tb_writer,
-        print_freq=args.print_freq
-    )
+    # valid_one_epoch_phase_1(
+    #     val_loader,
+    #     [m.module for m in model_emas],
+    #     -1,
+    #     cfg['test_cfg'],
+    #     evaluator=det_eval,
+    #     output_file=output_file,
+    #     ext_score_file=cfg['test_cfg']['ext_score_file'],
+    #     tb_writer=tb_writer,
+    #     print_freq=args.print_freq
+    # )
 
     for epoch in range(args.start_epoch, max_epochs):
         # train for one epoch
@@ -277,7 +277,8 @@ def main(args):
         if (epoch >= 0 and epoch % 1 == 0) or epoch == max_epochs - 1:
             valid_one_epoch_phase_2(
                 val_loader,
-                detr_model_ema.module,
+                # detr_model_ema.module,
+                detr,
                 models,
                 epoch,
                 cfg['test_cfg'],
