@@ -12,7 +12,7 @@ dataset: {
   file_prefix: v_,
   file_ext: .npy,
   num_classes: 1,
-  input_dim: 1024,
+  input_dim: 2048,
   feat_stride: 16, # 16
   num_frames: 16,
   default_fps: 25,
@@ -36,7 +36,7 @@ model: {
 opt: {
   learning_rate: 0.001, # 0.001
   epochs: 10, # 10
-  warmup: False,
+  warmup: True,
   weight_decay: 0.05,
 }
 loader: {

@@ -66,18 +66,30 @@ def main(args):
 
     """3. create model, optimizer, and scheduler"""
     # model
-    rgb_model = make_meta_arch(cfg['model_name'], **cfg['model'])
-    flow_model = make_meta_arch(cfg['model_name'], **cfg['model'])
-    # not ideal for multi GPU training, ok for now
-    rgb_model = nn.DataParallel(rgb_model, device_ids=cfg['devices'])
-    flow_model = nn.DataParallel(flow_model, device_ids=cfg['devices'])
-    # optimizer
-    rgb_optimizer = make_optimizer(rgb_model, cfg['opt'])
-    flow_optimizer = make_optimizer(flow_model, cfg['opt'])
-    # schedule
+    data_types = ["rgb", "flow"]
+    # data_types = ["fusion"]
+    models = list()
+    optimizers = list()
+    schedulers = list()
+    model_emas = list()
     num_iters_per_epoch = len(train_loader)
-    rgb_scheduler = make_scheduler(rgb_optimizer, cfg['opt'], num_iters_per_epoch)
-    flow_scheduler = make_scheduler(flow_optimizer, cfg['opt'], num_iters_per_epoch)
+    for data_type in data_types:
+        if data_type in ["rgb", "flow"]:
+            cfg['dataset']['input_dim'] = cfg['dataset']['input_dim'] // 2
+        model = make_meta_arch(cfg['model_name'], **cfg['model'])
+        # not ideal for multi GPU training, ok for now
+        model = nn.DataParallel(model, device_ids=cfg['devices'])
+        # optimizer
+        optimizer = make_optimizer(model, cfg['opt'])
+        # schedule
+        scheduler = make_scheduler(optimizer, cfg['opt'], num_iters_per_epoch)
+        # enable model EMA
+        model_ema = ModelEma(model)
+
+        models.append(model)
+        optimizers.append(optimizer)
+        schedulers.append(scheduler)
+        model_emas.append(model_ema)
 
     """ DETR """
     detr, detr_criterion = build_dino(cfg['detr'])
@@ -112,16 +124,6 @@ def main(args):
     ]
     detr_optimizer = torch.optim.AdamW(detr_param_dicts, lr=cfg['detr']["lr"], weight_decay=cfg['detr']["weight_decay"])
     detr_scheduler = make_scheduler(detr_optimizer, cfg['opt'], num_iters_per_epoch)
-
-    # enable model EMA
-    print("Using model EMA ...")
-    rgb_model_ema = ModelEma(rgb_model)
-    flow_model_ema = ModelEma(flow_model)
-
-    models = (rgb_model, flow_model)
-    optimizers = (rgb_optimizer, flow_optimizer)
-    schedulers = (rgb_scheduler, flow_scheduler)
-    model_emas = (rgb_model_ema, flow_model_ema)
 
     # """4. Resume from model / Misc"""
     # resume from a checkpoint?
@@ -181,8 +183,11 @@ def main(args):
         'early_stop_epochs',
         cfg['opt']['epochs'] + cfg['opt']['warmup_epochs']
     )
-    for m_i, (model, optimizer, scheduler, model_ema) in enumerate(zip(models, optimizers, schedulers, model_emas)):
-        data_type = ["rgb", "flow"][m_i]
+    for m_i, data_type in enumerate(data_types):
+        model = models[m_i]
+        optimizer = optimizers[m_i]
+        scheduler = schedulers[m_i]
+        model_ema = model_emas[m_i]
         ckpt_folder = os.path.join(ckpt_root_folder, data_type)
         if not os.path.exists(ckpt_folder):
             os.mkdir(ckpt_folder)

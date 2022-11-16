@@ -18,7 +18,7 @@ DEFAULTS = {
         # default fps, may vary across datasets; Set to none for read from json file
         "default_fps": None,
         # input feat dim
-        "input_dim": 2304,
+        "input_dim": 2048, # 2304
         # number of classes
         "num_classes": 97,
         # downsampling rate of features, 1 to use original resolution
