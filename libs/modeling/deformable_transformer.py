@@ -211,10 +211,10 @@ class DeformableTransformer(nn.Module):
         level_start_index_2d = torch.cat((spatial_shapes_2d.new_zeros((1,)), spatial_shapes_2d.prod(1).cumsum(0)[:-1]))
 
         # encoder
-        # memory = self.encoder(src_flatten, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
-        # box_memory = self.box_encoder(box_features, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
-        memory = src_flatten
-        box_memory = self.box_cross_encoder(box_features, memory, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
+        memory = self.encoder(src_flatten, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
+        box_memory = self.box_encoder(box_features, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
+        # memory = src_flatten
+        # box_memory = self.box_cross_encoder(box_features, memory, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
 
         memory_2d = list()
         box_memory_2d = list()
@@ -527,20 +527,21 @@ class DeformableTransformerDecoderLayer(nn.Module):
         tgt = tgt + self.dropout2(tgt2)
         tgt = self.norm2(tgt)
 
-        # # cross attention
-        # box_features = self.cross_attn(self.with_pos_embed(box_features, src_pos),
-        #                        reference_points,
-        #                        self.with_pos_embed(src, src_pos), src_spatial_shapes, level_start_index, src_padding_mask)
-        # box_features = box_features + self.dropout1(box_features)
-        # box_features = self.norm1(box_features)
+        # cross attention
+        tgt2 = self.cross_attn(self.with_pos_embed(tgt, query_pos),
+                                 reference_points,
+                                 self.with_pos_embed(src, box_features + src_pos),
+                                 src_spatial_shapes, level_start_index, src_padding_mask)
+        tgt = tgt + self.dropout1(tgt2)
+        tgt = self.norm1(tgt)
 
-        if box_features is not None:
-            tgt2 = self.cross_attn_2(self.with_pos_embed(tgt, query_pos),
-                                     reference_points,
-                                     self.with_pos_embed(box_features, src_pos),
-                                     src_spatial_shapes, level_start_index, src_padding_mask)
-            tgt = tgt + self.dropout1_2(tgt2)
-            tgt = self.norm1_2(tgt)
+        # if box_features is not None:
+        #     tgt2 = self.cross_attn_2(self.with_pos_embed(tgt, query_pos),
+        #                              reference_points,
+        #                              self.with_pos_embed(box_features, src_pos),
+        #                              src_spatial_shapes, level_start_index, src_padding_mask)
+        #     tgt = tgt + self.dropout1_2(tgt2)
+        #     tgt = self.norm1_2(tgt)
 
         # ffn
         tgt = self.forward_ffn(tgt)
