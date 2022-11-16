@@ -85,7 +85,7 @@ def main(args):
     detr_.load_state_dict(detr.state_dict())
     detr = detr.cuda()
     detr_ = detr_.cuda()
-    detr_model_ema = ModelEma(detr_)
+    detr_model_ema = ModelEma(detr_, copy_model=False)
     def match_name_keywords(n, name_keywords):
         out = False
         for b in name_keywords:

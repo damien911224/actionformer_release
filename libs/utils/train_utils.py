@@ -222,10 +222,10 @@ class AverageMeter(object):
 
 
 class ModelEma(torch.nn.Module):
-    def __init__(self, model, decay=0.999, device=None, deepcopy=True):
+    def __init__(self, model, decay=0.999, device=None, copy_model=True):
         super().__init__()
         # make a copy of the model for accumulating moving average of weights
-        if deepcopy:
+        if copy_model:
             self.module = deepcopy(model)
         else:
             self.module = model
