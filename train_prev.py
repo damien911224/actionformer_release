@@ -277,7 +277,7 @@ def main(args):
         if (epoch >= 0 and epoch % 1 == 0) or epoch == max_epochs - 1:
             valid_one_epoch_phase_2(
                 val_loader,
-                detr,
+                detr_model_ema.module,
                 models,
                 epoch,
                 cfg['test_cfg'],
