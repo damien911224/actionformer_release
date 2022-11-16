@@ -151,6 +151,7 @@ def main(args):
     if not os.path.exists(cfg['output_folder']):
         os.mkdir(cfg['output_folder'])
     cfg_filename = os.path.basename(args.config).replace('.yaml', '')
+    ckpt_base_folder = os.path.join(cfg['output_folder'], cfg_filename + '_' + 'base')
     if len(args.output) == 0:
         ts = datetime.datetime.fromtimestamp(int(time.time()))
         ckpt_root_folder = os.path.join(
