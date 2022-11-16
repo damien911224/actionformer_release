@@ -189,7 +189,7 @@ def main(args):
         optimizer = optimizers[m_i]
         scheduler = schedulers[m_i]
         model_ema = model_emas[m_i]
-        ckpt_folder = os.path.join(ckpt_root_folder, data_type)
+        ckpt_folder = os.path.join(ckpt_base_folder, data_type)
         if not os.path.exists(ckpt_folder):
             os.mkdir(ckpt_folder)
 
