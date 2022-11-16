@@ -222,10 +222,13 @@ class AverageMeter(object):
 
 
 class ModelEma(torch.nn.Module):
-    def __init__(self, model, decay=0.999, device=None):
+    def __init__(self, model, decay=0.999, device=None, deepcopy=True):
         super().__init__()
         # make a copy of the model for accumulating moving average of weights
-        self.module = deepcopy(model)
+        if deepcopy:
+            self.module = deepcopy(model)
+        else:
+            self.module = model
         self.module.eval()
         self.decay = decay
         self.device = device  # perform ema on different device from model if set
@@ -368,6 +371,7 @@ def train_one_epoch_phase_1(
 def train_one_epoch_phase_2(
         train_loader,
         detr,
+        detr_model_ema,
         criterion,
         optimizer,
         scheduler,
@@ -455,6 +459,7 @@ def train_one_epoch_phase_2(
         torch.nn.utils.clip_grad_norm_(detr.parameters(), 0.1)
         optimizer.step()
         scheduler.step()
+        detr_model_ema.update(detr)
 
         # printing (only check the stats when necessary to avoid extra cost)
         if (iter_idx != 0) and (iter_idx % print_freq) == 0:

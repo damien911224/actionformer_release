@@ -81,7 +81,11 @@ def main(args):
 
     """ DETR """
     detr, detr_criterion = build_dino(cfg['detr'])
+    detr_, _ = build_dino(cfg['detr'])
+    detr_.load_state_dict(detr.state_dict())
     detr = detr.cuda()
+    detr_ = detr_.cuda()
+    detr_model_ema = ModelEma(detr_)
     def match_name_keywords(n, name_keywords):
         out = False
         for b in name_keywords:
@@ -246,6 +250,7 @@ def main(args):
         train_one_epoch_phase_2(
             train_loader,
             detr,
+            detr_model_ema,
             detr_criterion,
             detr_optimizer,
             detr_scheduler,

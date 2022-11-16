@@ -35,7 +35,7 @@ model: {
 }
 opt: {
   learning_rate: 0.001, # 0.001
-  epochs: 30, # 10
+  epochs: 10, # 10
   weight_decay: 0.05,
 }
 loader: {
@@ -72,7 +72,7 @@ detr: {
   num_classes: 1,
   num_queries: 100,
   temporal_length: 192,
-  lr: 1.0e-4,
+  lr: 1.0e-3,
   lr_linear_proj_mult: 0.1,
   lr_linear_proj_names: ['reference_points', 'sampling_offsets'],
   hidden_dim: 256,
