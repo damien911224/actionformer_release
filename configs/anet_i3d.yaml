@@ -35,8 +35,8 @@ model: {
 }
 opt: {
   learning_rate: 0.001, # 0.001
-  epochs: 10, # 10
-  warmup: True,
+  epochs: 5, # 10
+  warmup: False,
   weight_decay: 0.05,
 }
 loader: {
