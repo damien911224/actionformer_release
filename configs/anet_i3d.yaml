@@ -73,7 +73,7 @@ detr: {
   num_classes: 1,
   num_queries: 100, # 756
   temporal_length: 192,
-  lr: 1.0e-3,
+  lr: 1.0e-4,
   lr_linear_proj_mult: 0.1,
   lr_linear_proj_names: ['reference_points', 'sampling_offsets'],
   hidden_dim: 64,
