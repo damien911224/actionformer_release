@@ -269,7 +269,7 @@ def main(args):
             detr_criterion,
             detr_optimizer,
             detr_scheduler,
-            [m.module for m in model_emas],
+            models,
             epoch,
             tb_writer=tb_writer,
             print_freq=args.print_freq)
