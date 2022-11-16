@@ -236,7 +236,7 @@ def main(args):
         if (epoch >= 0 and epoch % 1 == 0) or epoch == max_epochs - 1:
             valid_one_epoch_phase_1(
                 val_loader,
-                models,
+                [m.module for m in model_emas],
                 epoch,
                 cfg['test_cfg'],
                 evaluator=det_eval,
@@ -254,7 +254,7 @@ def main(args):
             detr_criterion,
             detr_optimizer,
             detr_scheduler,
-            models,
+            [m.module for m in model_emas],
             epoch,
             tb_writer=tb_writers[-1],
             print_freq=args.print_freq)
@@ -262,7 +262,7 @@ def main(args):
         if (epoch >= 0 and epoch % 1 == 0) or epoch == max_epochs - 1:
             valid_one_epoch_phase_2(
                 val_loader,
-                detr,
+                detr_model_ema.module,
                 models,
                 epoch,
                 cfg['test_cfg'],
