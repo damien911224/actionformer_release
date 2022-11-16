@@ -35,7 +35,8 @@ model: {
 }
 opt: {
   learning_rate: 0.001, # 0.001
-  epochs: 30, # 10
+  epochs: 5, # 10
+  warmup: False,
   weight_decay: 0.05,
 }
 loader: {
@@ -75,7 +76,7 @@ detr: {
   lr: 1.0e-3,
   lr_linear_proj_mult: 0.1,
   lr_linear_proj_names: ['reference_points', 'sampling_offsets'],
-  hidden_dim: 64,
+  hidden_dim: 256,
   num_feature_levels: 12,
   aux_loss: True,
   enc_layers: 2,
@@ -93,7 +94,7 @@ detr: {
   weight_decay: 1.0e-3,
   nhead: 8,
   dropout: 0.1,
-  dim_feedforward: 512,
+  dim_feedforward: 1024,
   pre_norm: False,
   scalar: 5,
   label_noise_scale: 0.2,
