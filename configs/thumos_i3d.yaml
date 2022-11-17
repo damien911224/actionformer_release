@@ -6,7 +6,7 @@ dataset: {
   feat_folder: ./data/thumos/i3d_features,
   file_prefix: ~,
   file_ext: .npy,
-  num_classes: 20,
+  num_classes: 1, # 20
   downsample_rate: 2, # 1
   input_dim: 2048,
   feat_stride: 4, # 4
@@ -27,7 +27,7 @@ opt: {
   weight_decay: 0.05,
 }
 loader: {
-  batch_size: 8,
+  batch_size: 2,
 }
 train_cfg: {
   init_loss_norm: 100,
@@ -42,22 +42,22 @@ test_cfg: {
   max_seg_num: 200,
   min_score: 0.001,
   # when using external scores, our model is generating "proposals"
-  # multiclass_nms: False,
-  # ext_score_file: ./data/thumos/annotations/thumos14_cls_scores.pkl,
+   multiclass_nms: False,
+   ext_score_file: ./data/thumos/annotations/thumos14_cls_scores.pkl,
   # comment out L47-48 and uncomment L50 to disable score fusion
-  multiclass_nms: True,
+#  multiclass_nms: True,
 }
 output_folder: ./ckpt/
 
 # DINO DETR
 detr: {
-  num_classes: 20,
+  num_classes: 1,
   num_queries: 200, # 4536
   temporal_length: 2304,
   lr: 1.0e-3,
   lr_linear_proj_mult: 0.1,
   lr_linear_proj_names: ['reference_points', 'sampling_offsets'],
-  hidden_dim: 8,
+  hidden_dim: 32,
   num_feature_levels: 6,
   input_dim: 512,
   aux_loss: True,
@@ -76,7 +76,7 @@ detr: {
   weight_decay: 1.0e-4,
   nhead: 8,
   dropout: 0.1,
-  dim_feedforward: 32,
+  dim_feedforward: 128,
   pre_norm: False,
   scalar: 5,
   label_noise_scale: 0.2,
