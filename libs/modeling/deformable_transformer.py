@@ -216,7 +216,7 @@ class DeformableTransformer(nn.Module):
         memory = src_flatten
         box_memory = self.box_cross_encoder(box_features, memory, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
 
-        memory_2d = list()
+        # memory_2d = list()
         box_memory_2d = list()
         encoder_outputs = list()
         for l_i in range(len(srcs)):
@@ -226,11 +226,11 @@ class DeformableTransformer(nn.Module):
             this_memory = memory[:, level_start_index:level_end_index]
             this_memory_2d = this_memory.unsqueeze(2).repeat(1, 1, h, 1).flatten(1, 2)
             encoder_outputs.append(this_memory)
-            memory_2d.append(this_memory_2d)
+            # memory_2d.append(this_memory_2d)
             this_box_memory = box_memory[:, level_start_index:level_end_index]
             this_box_memory_2d = this_box_memory.unsqueeze(2).repeat(1, 1, h, 1).flatten(1, 2)
             box_memory_2d.append(this_box_memory_2d)
-        memory_2d = torch.cat(memory_2d, 1)
+        # memory_2d = torch.cat(memory_2d, 1)
         box_memory_2d = torch.cat(box_memory_2d, 1)
 
         if self.two_stage:
@@ -287,7 +287,7 @@ class DeformableTransformer(nn.Module):
             init_reference_out = reference_points
 
         # decoder
-        hs, inter_references = self.decoder(tgt, reference_points, memory_2d,
+        hs, inter_references = self.decoder(tgt, reference_points, None,
                                             lvl_pos_2d_embed_flatten, spatial_shapes_2d, level_start_index_2d,
                                             query_pos=query_embed if not self.use_dab else None,
                                             attn_mask=attn_mask, box_features=box_memory_2d)
