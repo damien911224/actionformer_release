@@ -723,9 +723,6 @@ class PtTransformer(nn.Module):
             scores_all.append(pred_prob[keep_idxs2])
             cls_idxs_all.append(cls_idxs[keep_idxs2])
 
-            print(pred_segs[keep_idxs2].shape, pred_prob[keep_idxs2].shape, cls_idxs[keep_idxs2].shape)
-        exit()
-
         # cat along the FPN levels (F N_i, C)
         segs_all, scores_all, cls_idxs_all = [
             torch.cat(x) for x in [segs_all, scores_all, cls_idxs_all]
