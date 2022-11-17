@@ -574,7 +574,8 @@ def valid_one_epoch_phase_1(
             proposals = list()
             for m_i, model in enumerate(models):
                 data_type = data_types[m_i]
-                output, backbone_features = model(video_list, data_type=data_type, nms=len(models) == 1)
+                # output, backbone_features = model(video_list, data_type=data_type, nms=len(models) == 1)
+                output, backbone_features = model(video_list, data_type=data_type, nms=False)
 
                 labels = list()
                 scores = list()
