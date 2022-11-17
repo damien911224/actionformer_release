@@ -269,6 +269,8 @@ def main(args):
             tb_writer=tb_writer,
             print_freq=args.print_freq)
 
+    exit()
+
     for epoch in range(args.start_epoch, max_epochs):
         # detr.load_state_dict(detr_model_ema.module.state_dict())
         # train for one epoch
