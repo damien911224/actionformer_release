@@ -183,8 +183,8 @@ def main(args):
     # start training
     max_epochs = cfg['opt'].get(
         'early_stop_epochs',
-        cfg['opt']['epochs'] + cfg['opt']['warmup_epochs']
-    )
+        cfg['opt']['epochs'] + cfg['opt']['warmup_epochs'])
+    base_trained = False
     for m_i, data_type in enumerate(data_types):
         model = models[m_i]
         optimizer = optimizers[m_i]
@@ -202,6 +202,7 @@ def main(args):
             checkpoint = torch.load(ckpt_file, map_location=lambda storage, loc: storage.cuda(cfg['devices'][0]))
             model.load_state_dict(checkpoint['state_dict_ema'])
             del checkpoint
+            base_trained = True
             continue
 
         # tensorboard writer
@@ -255,17 +256,17 @@ def main(args):
     # tensorboard writer
     tb_writer = SummaryWriter(os.path.join(ckpt_folder, 'logs'))
 
-    # valid_one_epoch_phase_1(
-    #     val_loader,
-    #     [m.module for m in model_emas],
-    #     -1,
-    #     cfg['test_cfg'],
-    #     evaluator=det_eval,
-    #     output_file=output_file,
-    #     ext_score_file=cfg['test_cfg']['ext_score_file'],
-    #     tb_writer=tb_writer,
-    #     print_freq=args.print_freq
-    # )
+    if not base_trained:
+        valid_one_epoch_phase_1(
+            val_loader,
+            [m.module for m in model_emas],
+            -1,
+            cfg['test_cfg'],
+            evaluator=det_eval,
+            output_file=output_file,
+            ext_score_file=cfg['test_cfg']['ext_score_file'],
+            tb_writer=tb_writer,
+            print_freq=args.print_freq)
 
     for epoch in range(args.start_epoch, max_epochs):
         # detr.load_state_dict(detr_model_ema.module.state_dict())
@@ -277,7 +278,7 @@ def main(args):
             detr_criterion,
             detr_optimizer,
             detr_scheduler,
-            models,
+            models if base_trained else [m.module for m in model_emas],
             epoch,
             tb_writer=tb_writer,
             print_freq=args.print_freq)
@@ -287,7 +288,7 @@ def main(args):
                 val_loader,
                 # detr_model_ema.module,
                 detr,
-                models,
+                models if base_trained else [m.module for m in model_emas],
                 epoch,
                 cfg['test_cfg'],
                 evaluator=det_eval,
