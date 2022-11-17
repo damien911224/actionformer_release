@@ -390,7 +390,7 @@ def train_one_epoch_phase_2(
     # switch to train mode
     detr.train()
     for proposal_model in proposal_models:
-        proposal_model.train()
+        proposal_model.eval()
 
     # main training loop
     print("\n[Train|Phase 2]: Epoch {:d} started".format(curr_epoch))
