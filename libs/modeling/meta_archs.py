@@ -675,7 +675,9 @@ class PtTransformer(nn.Module):
         # loop over fpn levels
         for cls_i, offsets_i, pts_i, mask_i in zip(out_cls_logits, out_offsets, points, fpn_masks):
             # sigmoid normalization for output logits
-            pred_prob = (cls_i.sigmoid() * mask_i.unsqueeze(-1)).flatten()
+            # pred_prob = (cls_i.sigmoid() * mask_i.unsqueeze(-1)).flatten()
+            pred_prob = (cls_i.sigmoid() * mask_i.unsqueeze(-1))
+            pred_prob, cls_idxs = torch.max(pred_prob, dim=-1)
 
             # Apply filtering to make NMS faster following detectron2
             # 1. Keep seg with confidence score > a threshold
@@ -691,15 +693,18 @@ class PtTransformer(nn.Module):
                 num_topk = min(self.test_pre_nms_topk, topk_idxs.size(0))
                 pred_prob, idxs = pred_prob.sort(descending=True)
                 pred_prob = pred_prob[:num_topk].clone()
-                topk_idxs = topk_idxs[idxs[:num_topk]].clone()
+                # topk_idxs = topk_idxs[idxs[:num_topk]].clone()
+                cls_idxs = cls_idxs[idxs[:num_topk]].clone()
 
             # fix a warning in pytorch 1.9
-            pt_idxs = torch.div(topk_idxs, self.num_classes, rounding_mode='floor')
-            cls_idxs = torch.fmod(topk_idxs, self.num_classes)
+            # pt_idxs = torch.div(topk_idxs, self.num_classes, rounding_mode='floor')
+            # cls_idxs = torch.fmod(topk_idxs, self.num_classes)
 
             # 3. gather predicted offsets
-            offsets = offsets_i[pt_idxs]
-            pts = pts_i[pt_idxs]
+            # offsets = offsets_i[pt_idxs]
+            # pts = pts_i[pt_idxs]
+            offsets = offsets_i
+            pts = pts_i
 
             # 4. compute predicted segments (denorm by stride for output offsets)
             seg_left = pts[:, 0] - offsets[:, 0] * pts[:, 3]
@@ -717,6 +722,8 @@ class PtTransformer(nn.Module):
             segs_all.append(pred_segs[keep_idxs2])
             scores_all.append(pred_prob[keep_idxs2])
             cls_idxs_all.append(cls_idxs[keep_idxs2])
+
+            print(pred_segs[keep_idxs2].shape, pred_prob[keep_idxs2].shape, cls_idxs[keep_idxs2])
 
         # cat along the FPN levels (F N_i, C)
         segs_all, scores_all, cls_idxs_all = [
