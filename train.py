@@ -74,15 +74,16 @@ def main(args):
     model_emas = list()
     num_iters_per_epoch = len(train_loader)
     for data_type in data_types:
+        this_cfg = dict(cfg)
         if data_type in ["rgb", "flow"]:
-            cfg['model']['input_dim'] = cfg['dataset']['input_dim'] // 2
-        model = make_meta_arch(cfg['model_name'], **cfg['model'])
+            this_cfg['model']['input_dim'] = this_cfg['dataset']['input_dim'] // 2
+        model = make_meta_arch(this_cfg['model_name'], **this_cfg['model'])
         # not ideal for multi GPU training, ok for now
-        model = nn.DataParallel(model, device_ids=cfg['devices'])
+        model = nn.DataParallel(model, device_ids=this_cfg['devices'])
         # optimizer
-        optimizer = make_optimizer(model, cfg['opt'])
+        optimizer = make_optimizer(model, this_cfg['opt'])
         # schedule
-        scheduler = make_scheduler(optimizer, cfg['opt'], num_iters_per_epoch)
+        scheduler = make_scheduler(optimizer, this_cfg['opt'], num_iters_per_epoch)
         # enable model EMA
         model_ema = ModelEma(model)
 
