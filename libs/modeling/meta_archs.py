@@ -675,9 +675,7 @@ class PtTransformer(nn.Module):
         # loop over fpn levels
         for cls_i, offsets_i, pts_i, mask_i in zip(out_cls_logits, out_offsets, points, fpn_masks):
             # sigmoid normalization for output logits
-            pred_prob = (cls_i.sigmoid() * mask_i.unsqueeze(-1))
-            print(pred_prob.shape)
-            exit()
+            pred_prob = (cls_i.sigmoid() * mask_i.unsqueeze(-1)).flatten()
 
             # Apply filtering to make NMS faster following detectron2
             # 1. Keep seg with confidence score > a threshold
