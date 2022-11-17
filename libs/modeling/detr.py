@@ -29,7 +29,7 @@ class DINO(nn.Module):
     """ This is the DAB-Deformable-DETR for object detection """
 
     def __init__(self, transformer, num_classes, num_queries,
-                 pos_1d_embeds, pos_2d_embeds, num_feature_levels,
+                 pos_1d_embeds, pos_2d_embeds, num_feature_levels, input_dim,
                  aux_loss=True, with_box_refine=True, two_stage=False,
                  use_dab=True, num_patterns=0, random_refpoints_xy=False,
                  dn_number=100, dn_box_noise_scale=0.4, dn_label_noise_ratio=0.5, dn_labelbook_size=100):
@@ -57,6 +57,7 @@ class DINO(nn.Module):
         self.class_embed = nn.Linear(hidden_dim, num_classes)
         self.bbox_embed = MLP(hidden_dim, hidden_dim, 4, 3)
         self.num_feature_levels = num_feature_levels
+        self.input_dim = input_dim
         self.use_dab = use_dab
         self.num_patterns = num_patterns
         self.random_refpoints_xy = random_refpoints_xy
@@ -86,7 +87,7 @@ class DINO(nn.Module):
 
             for _ in range(num_feature_levels):
                 input_proj_list.append(nn.Sequential(
-                    nn.Conv1d(256, hidden_dim, kernel_size=1),
+                    nn.Conv1d(input_dim, hidden_dim, kernel_size=1),
                     nn.GroupNorm(32, hidden_dim)))
 
             self.input_proj = nn.ModuleList(input_proj_list)
@@ -645,6 +646,7 @@ def build_dino(args):
         pos_1d_embeds=pos_1d_embeds,
         pos_2d_embeds=pos_2d_embeds,
         num_feature_levels=args["num_feature_levels"],
+        input_dim=args["input_dim"],
         dn_number=args["dn_number"] if args["use_dn"] else 0,
         dn_box_noise_scale=args["dn_box_noise_scale"],
         dn_label_noise_ratio=args["dn_label_noise_ratio"],
