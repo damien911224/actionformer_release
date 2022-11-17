@@ -13,7 +13,7 @@ dataset: {
   # serve as data augmentation
   trunc_thresh: 0.5,
   crop_ratio: [0.9, 1.0],
-  max_seq_len: 1152, # 2304
+  max_seq_len: 2304, # 2304
 }
 model: {
   fpn_type: identity,
@@ -60,7 +60,7 @@ detr: {
   num_feature_levels: 6,
   input_dim: 512,
   aux_loss: True,
-  enc_layers: 0,
+  enc_layers: 2,
   dec_layers: 4,
   enc_n_points: 4,
   dec_n_points: 4,
