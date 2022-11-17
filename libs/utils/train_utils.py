@@ -428,9 +428,6 @@ def train_one_epoch_phase_2(
                 proposals.append(this_proposals)
             proposals = torch.cat(proposals, dim=1)
 
-        print(proposals.shape)
-        exit()
-
         detr_target_dict = list()
         for b_i in range(len(video_list)):
             batch_dict = dict()
