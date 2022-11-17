@@ -156,7 +156,7 @@ class THUMOS14Dataset(Dataset):
         feat_stride = self.feat_stride * self.downsample_rate
         # T x C -> C x T
         feats = torch.from_numpy(np.ascontiguousarray(feats.transpose()))
-        print(len(feats))
+        print(feats.shape)
 
         # convert time stamp (in second) into temporal feature grids
         # ok to have small negative values here
