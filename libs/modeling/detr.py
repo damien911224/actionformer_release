@@ -88,7 +88,7 @@ class DINO(nn.Module):
             for _ in range(num_feature_levels):
                 input_proj_list.append(nn.Sequential(
                     nn.Conv1d(input_dim, hidden_dim, kernel_size=1),
-                    nn.GroupNorm(32, hidden_dim)))
+                    nn.GroupNorm(max(min(hidden_dim // 8, 32), 1), hidden_dim)))
 
             self.input_proj = nn.ModuleList(input_proj_list)
         else:
