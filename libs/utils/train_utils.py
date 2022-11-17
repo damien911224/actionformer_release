@@ -400,7 +400,7 @@ def train_one_epoch_phase_2(
         backbone_features = list()
         with torch.no_grad():
             for m_i, proposal_model in enumerate(proposal_models):
-                backbone_losses, results, this_backbone_features = proposal_model(video_list, data_type=data_types[m_i])
+                results, this_backbone_features = proposal_model(video_list, data_type=data_types[m_i])
                 backbone_features.extend(this_backbone_features)
                 labels = list()
                 scores = list()
