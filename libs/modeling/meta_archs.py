@@ -724,7 +724,7 @@ class PtTransformer(nn.Module):
             cls_idxs_all.append(cls_idxs[keep_idxs2])
 
             print(pred_segs[keep_idxs2].shape, pred_prob[keep_idxs2].shape, cls_idxs[keep_idxs2])
-            exit()
+        exit()
 
         # cat along the FPN levels (F N_i, C)
         segs_all, scores_all, cls_idxs_all = [
