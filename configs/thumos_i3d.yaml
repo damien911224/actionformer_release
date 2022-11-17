@@ -13,7 +13,7 @@ dataset: {
   # serve as data augmentation
   trunc_thresh: 0.5,
   crop_ratio: [0.9, 1.0],
-  max_seq_len: 2304,
+  max_seq_len: 1152,
 }
 model: {
   fpn_type: identity,
