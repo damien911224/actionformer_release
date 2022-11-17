@@ -767,7 +767,7 @@ def valid_one_epoch_phase_2(
             boxes = boxes * torch.Tensor(durations)
             logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
             detr_scores, labels = torch.max(logits, dim=-1)
-            scores = detr_scores
+            scores = detr_scores + 1.0
 
             mean_proposals = torch.mean(torch.stack(proposals, dim=0), dim=0)
             dense_boxes = mean_proposals[..., 1:3]
