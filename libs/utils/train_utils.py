@@ -431,7 +431,7 @@ def train_one_epoch_phase_2(
         detr_target_dict = list()
         for b_i in range(len(video_list)):
             batch_dict = dict()
-            batch_dict["labels"] = video_list[b_i]["labels"].cuda()
+            batch_dict["labels"] = torch.zeros_like(video_list[b_i]["labels"]).cuda()
             boxes = (video_list[b_i]["segments"] * video_list[b_i]["feat_stride"] +
                      0.5 * video_list[b_i]["feat_num_frames"]) / video_list[b_i]["fps"] / video_list[b_i]["duration"]
             boxes = torch.clamp(boxes, 0.0, 1.0)
