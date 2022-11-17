@@ -66,8 +66,8 @@ def main(args):
 
     """3. create model, optimizer, and scheduler"""
     # model
-    data_types = ["rgb", "flow"]
-    # data_types = ["fusion"]
+    # data_types = ["rgb", "flow"]
+    data_types = ["fusion"]
     models = list()
     optimizers = list()
     schedulers = list()
@@ -92,6 +92,7 @@ def main(args):
         model_emas.append(model_ema)
 
     """ DETR """
+    cfg['detr']['num_feature_levels'] *= len(data_types)
     detr, detr_criterion = build_dino(cfg['detr'])
     detr_, _ = build_dino(cfg['detr'])
     detr_.load_state_dict(detr.state_dict())
