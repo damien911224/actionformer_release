@@ -375,6 +375,7 @@ def train_one_epoch_phase_2(
         criterion,
         optimizer,
         scheduler,
+        data_types,
         proposal_models,
         curr_epoch,
         tb_writer=None,
@@ -394,7 +395,6 @@ def train_one_epoch_phase_2(
     # main training loop
     print("\n[Train|Phase 2]: Epoch {:d} started".format(curr_epoch))
     start = time.time()
-    data_types = ["rgb", "flow"]
     for iter_idx, video_list in enumerate(train_loader, 0):
         proposals = list()
         backbone_features = list()
@@ -539,6 +539,7 @@ def train_one_epoch_phase_2(
 def valid_one_epoch_phase_1(
         val_loader,
         models,
+        data_types,
         curr_epoch,
         test_cfg,
         ext_score_file=None,
@@ -572,7 +573,7 @@ def valid_one_epoch_phase_1(
         with torch.no_grad():
             proposals = list()
             for m_i, model in enumerate(models):
-                data_type = ["rgb", "flow"][m_i]
+                data_type = data_types[m_i]
                 output, backbone_features = model(video_list, data_type=data_type, nms=len(models) == 1)
 
                 labels = list()
@@ -681,6 +682,7 @@ def valid_one_epoch_phase_1(
 def valid_one_epoch_phase_2(
         val_loader,
         detr,
+        data_types,
         proposal_models,
         curr_epoch,
         test_cfg,
@@ -717,7 +719,7 @@ def valid_one_epoch_phase_2(
             proposals = list()
             backbone_features = list()
             for m_i, model in enumerate(proposal_models):
-                data_type = ["rgb", "flow"][m_i]
+                data_type = data_types[m_i]
                 output, this_backbone_features = model(video_list, data_type=data_type)
                 backbone_features.extend(this_backbone_features)
 
@@ -841,7 +843,7 @@ def valid_one_epoch_phase_2(
         # dump to a pickle file that can be directly used for evaluation
         with open(output_file, "wb") as f:
             pickle.dump(detr_results, f)
-        mAP = 0.0
+        detr_mAP = 0.0
 
     # log mAP to tb_writer
     if tb_writer is not None:

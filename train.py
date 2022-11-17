@@ -257,20 +257,21 @@ def main(args):
     # tensorboard writer
     tb_writer = SummaryWriter(os.path.join(ckpt_folder, 'logs'))
 
-    if not base_trained:
-        valid_one_epoch_phase_1(
-            val_loader,
-            [m.module for m in model_emas],
-            -1,
-            cfg['test_cfg'],
-            evaluator=det_eval,
-            output_file=output_file,
-            ext_score_file=cfg['test_cfg']['ext_score_file'],
-            tb_writer=tb_writer,
-            print_freq=args.print_freq)
+    # if not base_trained:
+    valid_one_epoch_phase_1(
+        val_loader,
+        models if base_trained else [m.module for m in model_emas],
+        data_types,
+        -1,
+        cfg['test_cfg'],
+        evaluator=det_eval,
+        output_file=output_file,
+        ext_score_file=cfg['test_cfg']['ext_score_file'],
+        tb_writer=tb_writer,
+        print_freq=args.print_freq)
 
-    exit()
-
+    is_best = False
+    best_mAP = -1
     for epoch in range(args.start_epoch, max_epochs):
         # detr.load_state_dict(detr_model_ema.module.state_dict())
         # train for one epoch
@@ -281,16 +282,18 @@ def main(args):
             detr_criterion,
             detr_optimizer,
             detr_scheduler,
+            data_types,
             models if base_trained else [m.module for m in model_emas],
             epoch,
             tb_writer=tb_writer,
             print_freq=args.print_freq)
 
         if (epoch >= 0 and epoch % 1 == 0) or epoch == max_epochs - 1:
-            valid_one_epoch_phase_2(
+            mAP = valid_one_epoch_phase_2(
                 val_loader,
                 # detr_model_ema.module,
                 detr,
+                data_types,
                 models if base_trained else [m.module for m in model_emas],
                 epoch,
                 cfg['test_cfg'],
@@ -301,9 +304,14 @@ def main(args):
                 print_freq=args.print_freq
             )
 
+            is_best = mAP >= best_mAP
+            if is_best:
+                best_mAP = mAP
+
         # save ckpt once in a while
         if (
                 (epoch == max_epochs - 1) or
+                is_best or
                 (
                         (args.ckpt_freq > 0) and
                         (epoch % args.ckpt_freq == 0) and
@@ -320,7 +328,7 @@ def main(args):
 
             save_checkpoint(
                 save_states,
-                False,
+                is_best,
                 file_folder=ckpt_folder,
                 file_name='epoch_{:03d}.pth.tar'.format(epoch)
             )
