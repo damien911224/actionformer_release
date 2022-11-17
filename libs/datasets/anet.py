@@ -188,14 +188,14 @@ class ActivityNetDataset(Dataset):
         feats = torch.from_numpy(np.ascontiguousarray(feats.transpose()))
 
         # resize the features if needed
-        # if (feats.shape[-1] != self.max_seq_len) and self.force_upsampling:
-        resize_feats = F.interpolate(
-            feats.unsqueeze(0),
-            size=self.max_seq_len,
-            mode='linear',
-            align_corners=False
-        )
-        feats = resize_feats.squeeze(0)
+        if (feats.shape[-1] != self.max_seq_len) and self.force_upsampling:
+            resize_feats = F.interpolate(
+                feats.unsqueeze(0),
+                size=self.max_seq_len,
+                mode='linear',
+                align_corners=False
+            )
+            feats = resize_feats.squeeze(0)
 
 
         # convert time stamp (in second) into temporal feature grids
