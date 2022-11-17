@@ -7,7 +7,7 @@ dataset: {
   file_prefix: ~,
   file_ext: .npy,
   num_classes: 20, # 20
-  downsample_rate: 1, # 1
+  downsample_rate: 4, # 1
   input_dim: 2048,
   feat_stride: 4, # 4
   num_frames: 16,
@@ -54,15 +54,15 @@ detr: {
   num_classes: 1,
   num_queries: 200, # 4536
   temporal_length: 2304,
-  lr: 1.0e-4,
+  lr: 1.0e-3,
   lr_linear_proj_mult: 0.1,
   lr_linear_proj_names: ['reference_points', 'sampling_offsets'],
-  hidden_dim: 8,
+  hidden_dim: 64,
   num_feature_levels: 6,
   input_dim: 512,
   aux_loss: True,
-  enc_layers: 1,
-  dec_layers: 3,
+  enc_layers: 2,
+  dec_layers: 4,
   enc_n_points: 4,
   dec_n_points: 4,
   two_stage: False,
@@ -73,10 +73,10 @@ detr: {
   weight_loss_ce: 2, # 2
   weight_loss_bbox: 5, # 5
   weight_loss_giou: 5, # 2
-  weight_decay: 1.0e-4,
+  weight_decay: 1.0e-3,
   nhead: 8,
   dropout: 0.1,
-  dim_feedforward: 32,
+  dim_feedforward: 256,
   pre_norm: False,
   scalar: 5,
   label_noise_scale: 0.2,
