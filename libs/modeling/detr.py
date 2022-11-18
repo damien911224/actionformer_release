@@ -190,10 +190,10 @@ class DINO(nn.Module):
             prop_labels = feat[..., 0]
             prop_scores = feat[..., -1].unsqueeze(-1)
             prop_box_embeds = self.box_enc(prop_boxes)
-            # prop_label_embeds = self.label_enc(prop_labels.long())
+            prop_label_embeds = self.label_enc(prop_labels.long())
             prop_score_embeds = self.score_enc(prop_scores)
-            # box_src = (prop_box_embeds + prop_label_embeds + prop_score_embeds).permute(0, 2, 1)
-            box_src = (prop_box_embeds + prop_score_embeds).permute(0, 2, 1)
+            box_src = (prop_box_embeds + prop_label_embeds + prop_score_embeds).permute(0, 2, 1)
+            # box_src = (prop_box_embeds + prop_score_embeds).permute(0, 2, 1)
             # src = feat
             n, c, t = box_src.shape
             this_max_len = self.max_input_len // (2 ** l)
