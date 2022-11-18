@@ -27,7 +27,7 @@ opt: {
   weight_decay: 0.05,
 }
 loader: {
-  batch_size: 16,
+  batch_size: 8,
 }
 train_cfg: {
   init_loss_norm: 100,
