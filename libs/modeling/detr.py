@@ -172,7 +172,6 @@ class DINO(nn.Module):
             src = self.input_proj[l](feat)
             n, c, t = src.shape
             this_max_len = self.max_input_len // (2 ** l)
-            print(this_max_len)
             if t > this_max_len:
                 src = F.interpolate(src, size=this_max_len, mode="linear")
                 t = this_max_len
@@ -197,7 +196,7 @@ class DINO(nn.Module):
             box_src = (prop_box_embeds + prop_score_embeds).permute(0, 2, 1)
             # src = feat
             n, c, t = box_src.shape
-            this_max_len = self.max_input_len / (2 ** l)
+            this_max_len = self.max_input_len // (2 ** l)
             if t > this_max_len:
                 box_src = F.interpolate(box_src, size=this_max_len, mode="linear")
                 t = this_max_len
