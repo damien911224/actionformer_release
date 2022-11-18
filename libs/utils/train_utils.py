@@ -777,14 +777,14 @@ def valid_one_epoch_phase_2(
 
             detr_predictions = detr(features, pyramidal_proposals)
 
-            boxes = detr_predictions['aux_outputs'][0]["pred_boxes"].detach().cpu()
+            boxes = detr_predictions["pred_boxes"].detach().cpu()
             boxes = (boxes[..., :2] +
                      torch.stack((torch.clamp(boxes[..., 2] - boxes[..., 3] / 2.0, 0.0, 1.0),
                                   torch.clamp(boxes[..., 2] + boxes[..., 3] / 2.0, 0.0, 1.0)), dim=-1)) / 2.0
             # boxes = boxes[..., :2]
             durations = [x["duration"] for x in video_list]
             boxes = boxes * torch.Tensor(durations)
-            logits = detr_predictions['aux_outputs'][0]["pred_logits"].detach().cpu().sigmoid()
+            logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
             detr_scores, labels = torch.max(logits, dim=-1)
             scores = detr_scores
 
@@ -796,14 +796,15 @@ def valid_one_epoch_phase_2(
             dense_labels = mean_proposals[..., 0].long()
 
             dense_onehot = F.one_hot(dense_labels, num_classes=20).sum(dim=1)
-            labels = torch.argmax(dense_onehot, dim=-1).unsqueeze(1).repeat(1, labels.size(1))
+            top_1_labels = torch.argsort(dense_onehot, dim=-1, descending=True)[..., 0].unsqueeze(1).repeat(1, labels.size(1))
+            top_2_labels = torch.argsort(dense_onehot, dim=-1, descending=True)[..., 0].unsqueeze(1).repeat(1, labels.size(1))
 
             # scores = (scores - scores.min()) / (scores.max() - scores.min())
             # dense_scores = (dense_scores - dense_scores.min()) / (dense_scores.max() - dense_scores.min())
 
-            boxes = torch.cat((boxes, dense_boxes), dim=1)
-            scores = torch.cat((scores, dense_scores), dim=1)
-            labels = torch.cat((labels, dense_labels), dim=1)
+            boxes = torch.cat((boxes, boxes, dense_boxes), dim=1)
+            scores = torch.cat((scores, scores, dense_scores), dim=1)
+            labels = torch.cat((top_1_labels, top_2_labels, dense_labels), dim=1)
 
             nmsed_boxes = list()
             nmsed_labels = list()
