@@ -62,7 +62,8 @@ class DINO(nn.Module):
         self.use_dab = use_dab
         self.num_patterns = num_patterns
         self.random_refpoints_xy = random_refpoints_xy
-        self.label_enc = nn.Embedding(dn_labelbook_size + 1, hidden_dim)
+        # self.label_enc = nn.Embedding(dn_labelbook_size + 1, hidden_dim)
+        self.label_enc = nn.Embedding(200 + 1, hidden_dim)
         self.score_enc = nn.Linear(1, hidden_dim)
         self.box_enc = nn.Linear(2, hidden_dim)
         if not use_dab:
