@@ -799,6 +799,7 @@ def valid_one_epoch_phase_2(
                 print(top1_dense_labels.shape)
                 labels = top1_dense_labels.expand_as(labels)
             print(labels.shape)
+            exit()
 
             boxes = torch.cat((boxes, dense_boxes), dim=1)
             scores = torch.cat((scores, dense_scores), dim=1)
