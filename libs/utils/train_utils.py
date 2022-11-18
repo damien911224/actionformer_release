@@ -771,7 +771,7 @@ def valid_one_epoch_phase_2(
             pyramidal_proposals = list()
             for feat in backbone_features:
                 this_len = feat.size(2)
-                this_proposals = proposals[:, start_index:start_index + this_len]
+                this_proposals = cat_proposals[:, start_index:start_index + this_len]
                 pyramidal_proposals.append(this_proposals)
                 start_index += this_len
 
