@@ -434,13 +434,11 @@ def train_one_epoch_phase_2(
             batch_dict["labels"] = torch.zeros_like(video_list[b_i]["labels"]).cuda()
             boxes = (video_list[b_i]["segments"] * video_list[b_i]["feat_stride"] +
                      0.5 * video_list[b_i]["feat_num_frames"]) / video_list[b_i]["fps"] / video_list[b_i]["duration"]
-            print(boxes)
             boxes = torch.clamp(boxes, 0.0, 1.0)
             batch_dict["boxes"] = torch.cat((boxes,
                                              ((boxes[..., 0] + boxes[..., 1]) / 2.0).unsqueeze(-1),
                                              (boxes[..., 1] - boxes[..., 0]).unsqueeze(-1)), dim=-1).cuda()
             detr_target_dict.append(batch_dict)
-        exit()
 
         # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
         # features = [feat for feat in features]
@@ -799,10 +797,14 @@ def valid_one_epoch_phase_2(
 
             dense_onehot = F.one_hot(dense_labels, num_classes=20).sum(dim=1)
             top_1_labels = torch.argsort(dense_onehot, dim=-1, descending=True)[..., 0].unsqueeze(1).repeat(1, labels.size(1))
-            top_2_labels = torch.argsort(dense_onehot, dim=-1, descending=True)[..., 0].unsqueeze(1).repeat(1, labels.size(1))
+            # top_2_labels = torch.argsort(dense_onehot, dim=-1, descending=True)[..., 0].unsqueeze(1).repeat(1, labels.size(1))
 
             # scores = (scores - scores.min()) / (scores.max() - scores.min())
             # dense_scores = (dense_scores - dense_scores.min()) / (dense_scores.max() - dense_scores.min())
+
+            boxes = torch.cat((boxes, dense_boxes), dim=1)
+            scores = torch.cat((scores, dense_scores), dim=1)
+            labels = torch.cat((top_1_labels, dense_labels), dim=1)
 
             boxes = torch.cat((boxes, boxes, dense_boxes), dim=1)
             scores = torch.cat((scores, scores, dense_scores), dim=1)
