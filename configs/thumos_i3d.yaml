@@ -54,7 +54,7 @@ detr: {
   num_classes: 1,
   num_queries: 200, # 4536
   temporal_length: 2304,
-  lr: 1.0e-3,
+  lr: 1.0e-4,
   lr_linear_proj_mult: 0.1,
   lr_linear_proj_names: ['reference_points', 'sampling_offsets'],
   hidden_dim: 256,
@@ -68,12 +68,12 @@ detr: {
   two_stage: False,
   eos_coef: 0.1,
   set_cost_class: 2, # 6
-  set_cost_bbox: 5, # 5
-  set_cost_giou: 2, # 2
+  set_cost_bbox: 2, # 5
+  set_cost_giou: 5, # 2
   weight_loss_ce: 2, # 2
-  weight_loss_bbox: 5, # 5
-  weight_loss_giou: 2, # 2
-  weight_decay: 1.0e-3,
+  weight_loss_bbox: 2, # 5
+  weight_loss_giou: 5, # 2
+  weight_decay: 1.0e-4,
   nhead: 8,
   dropout: 0.1,
   dim_feedforward: 1024,
