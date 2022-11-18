@@ -26,7 +26,7 @@ opt: {
   epochs: 30,
   weight_decay: 0.05,
   warmup: True, # True
-  warmup_epochs: 10, # 5
+  warmup_epochs: 5, # 5
 }
 loader: {
   batch_size: 2,
