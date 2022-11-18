@@ -218,9 +218,8 @@ class DINO(nn.Module):
             assert NotImplementedError
 
         input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
-        # input_query_label = input_query_label + prop_label_embeds + prop_score_embeds
-
         input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
+
         # input_query_bbox = torch.cat([proposals[..., 1:-1],
         #                               ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
         #                               (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
@@ -241,6 +240,14 @@ class DINO(nn.Module):
             # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features.size(0), 1, 1)
 
         query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
+        proposals = torch.cat(proposals, dim=1)
+        prop_query_label = self.score_enc(proposals[..., -1])
+        prop_query_bbox = torch.cat([proposals[..., 1:-1],
+                                     ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
+                                     (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
+        prop_query_bbox = inverse_sigmoid(prop_query_bbox)
+        prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
+        query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
 
         hs, init_reference, inter_references, _, _ = \
             self.transformer(srcs, pos_1d, pos_2d, box_srcs, box_pos_1d, box_pos_2d,
