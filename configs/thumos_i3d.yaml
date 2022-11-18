@@ -45,7 +45,7 @@ test_cfg: {
   min_score: 0.001,
   # when using external scores, our model is generating "proposals"
 #   multiclass_nms: False,
-   ext_score_file: ./data/thumos/annotations/thumos14_cls_scores.pkl,
+#   ext_score_file: ./data/thumos/annotations/thumos14_cls_scores.pkl,
   # comment out L47-48 and uncomment L50 to disable score fusion
   multiclass_nms: True,
 }
@@ -71,10 +71,10 @@ detr: {
   eos_coef: 0.1,
   set_cost_class: 2, # 6
   set_cost_bbox: 5, # 5
-  set_cost_giou: 2, # 2
+  set_cost_giou: 0, # 2
   weight_loss_ce: 2, # 2
   weight_loss_bbox: 5, # 5
-  weight_loss_giou: 2, # 2
+  weight_loss_giou: 0, # 2
   weight_decay: 1.0e-3,
   nhead: 8,
   dropout: 0.1,
