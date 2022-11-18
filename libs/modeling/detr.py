@@ -58,7 +58,7 @@ class DINO(nn.Module):
         self.bbox_embed = MLP(hidden_dim, hidden_dim, 4, 3)
         self.num_feature_levels = num_feature_levels
         self.input_dim = input_dim
-        self.max_input_len = 1024
+        self.max_input_len = 512
         self.use_dab = use_dab
         self.num_patterns = num_patterns
         self.random_refpoints_xy = random_refpoints_xy
