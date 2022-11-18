@@ -803,9 +803,9 @@ def valid_one_epoch_phase_2(
             # scores = (scores - scores.min()) / (scores.max() - scores.min())
             # dense_scores = (dense_scores - dense_scores.min()) / (dense_scores.max() - dense_scores.min())
 
-            # boxes = torch.cat((boxes, dense_boxes), dim=1)
-            # scores = torch.cat((scores, dense_scores), dim=1)
-            # labels = torch.cat((labels, dense_labels), dim=1)
+            boxes = torch.cat((boxes, dense_boxes), dim=1)
+            scores = torch.cat((scores, dense_scores), dim=1)
+            labels = torch.cat((labels, dense_labels), dim=1)
 
             # boxes = torch.cat((boxes, boxes, dense_boxes), dim=1)
             # scores = torch.cat((scores, scores, dense_scores), dim=1)
