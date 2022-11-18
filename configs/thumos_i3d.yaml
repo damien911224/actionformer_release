@@ -44,7 +44,7 @@ test_cfg: {
   max_seg_num: 200,
   min_score: 0.001,
   # when using external scores, our model is generating "proposals"
-  multiclass_nms: True,
+#  multiclass_nms: True,
   ext_score_file: ./data/thumos/annotations/thumos14_cls_scores.pkl,
   # comment out L47-48 and uncomment L50 to disable score fusion
 #  multiclass_nms: True,
