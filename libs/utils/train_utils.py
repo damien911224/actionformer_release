@@ -794,7 +794,7 @@ def valid_one_epoch_phase_2(
             dense_scores = mean_proposals[..., -1]
             dense_labels = mean_proposals[..., 0].long()
             if test_cfg['multiclass_nms']:
-                dense_onehot = F.onehot(dense_labels, num_classes=20)
+                dense_onehot = F.one_hot(dense_labels, num_classes=20)
                 print(dense_onehot.shape)
                 exit()
                 # top1_dense_labels =
