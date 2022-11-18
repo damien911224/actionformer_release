@@ -815,8 +815,7 @@ def valid_one_epoch_phase_2(
                         use_soft_nms=(test_cfg['nms_method'] == 'soft'),
                         multiclass=test_cfg['multiclass_nms'],
                         sigma=test_cfg['nms_sigma'],
-                        voting_thresh=test_cfg['voting_thresh']
-                    )
+                        voting_thresh=test_cfg['voting_thresh'])
                 nmsed_boxes.append(b)
                 nmsed_labels.append(l)
                 nmsed_scores.append(s)
