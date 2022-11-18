@@ -171,7 +171,7 @@ class DINO(nn.Module):
         for l, feat in enumerate(features):
             src = self.input_proj[l](feat)
             n, c, t = src.shape
-            this_max_len = self.max_input_len / (2 ** l)
+            this_max_len = self.max_input_len // (2 ** l)
             print(this_max_len)
             if t > this_max_len:
                 src = F.interpolate(src, size=this_max_len, mode="linear")
