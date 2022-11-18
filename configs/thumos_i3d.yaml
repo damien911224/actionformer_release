@@ -62,7 +62,7 @@ detr: {
   hidden_dim: 64,
   num_feature_levels: 6,
   input_dim: 512,
-  aux_loss: True,
+  aux_loss: False,
   enc_layers: 2,
   dec_layers: 4,
   enc_n_points: 4,
