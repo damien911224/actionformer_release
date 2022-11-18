@@ -801,6 +801,10 @@ def valid_one_epoch_phase_2(
             scores = torch.cat((scores, dense_scores), dim=1)
             labels = torch.cat((labels, dense_labels), dim=1)
 
+            boxes = dense_boxes
+            scores = dense_scores
+            labels = dense_labels
+
             nmsed_boxes = list()
             nmsed_labels = list()
             nmsed_scores = list()
