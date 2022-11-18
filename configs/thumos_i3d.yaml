@@ -29,7 +29,7 @@ opt: {
   warmup_epochs: 5, # 5
 }
 loader: {
-  batch_size: 2,
+  batch_size: 8,
 }
 train_cfg: {
   init_loss_norm: 100,
@@ -54,7 +54,7 @@ output_folder: ./ckpt/
 # DINO DETR
 detr: {
   num_classes: 1,
-  num_queries: 2000, # 4536
+  num_queries: 200, # 4536
   temporal_length: 2304,
   lr: 1.0e-3,
   lr_linear_proj_mult: 0.1,

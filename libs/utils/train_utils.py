@@ -434,11 +434,13 @@ def train_one_epoch_phase_2(
             batch_dict["labels"] = torch.zeros_like(video_list[b_i]["labels"]).cuda()
             boxes = (video_list[b_i]["segments"] * video_list[b_i]["feat_stride"] +
                      0.5 * video_list[b_i]["feat_num_frames"]) / video_list[b_i]["fps"] / video_list[b_i]["duration"]
+            print(boxes)
             boxes = torch.clamp(boxes, 0.0, 1.0)
             batch_dict["boxes"] = torch.cat((boxes,
                                              ((boxes[..., 0] + boxes[..., 1]) / 2.0).unsqueeze(-1),
                                              (boxes[..., 1] - boxes[..., 0]).unsqueeze(-1)), dim=-1).cuda()
             detr_target_dict.append(batch_dict)
+        exit()
 
         # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
         # features = [feat for feat in features]
