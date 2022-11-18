@@ -58,6 +58,7 @@ class DINO(nn.Module):
         self.bbox_embed = MLP(hidden_dim, hidden_dim, 4, 3)
         self.num_feature_levels = num_feature_levels
         self.input_dim = input_dim
+        self.max_input_len = 256
         self.use_dab = use_dab
         self.num_patterns = num_patterns
         self.random_refpoints_xy = random_refpoints_xy
@@ -155,28 +156,56 @@ class DINO(nn.Module):
         raw_pos_1d = self.pos_1d_embeds.repeat(features[0].size(0), 1, 1)
         raw_pos_2d = self.pos_2d_embeds.repeat(features[0].size(0), 1, 1, 1)
 
-        prop_boxes = proposals[..., 1:3]
-        # prop_labels = proposals[..., 0]
-        prop_scores = proposals[..., -1].unsqueeze(-1)
-        prop_box_embeds = self.box_enc(prop_boxes)
-        # prop_label_embeds = self.label_enc(prop_labels.long())
-        prop_score_embeds = self.score_enc(prop_scores)
-        # box_features = prop_box_embeds + prop_label_embeds + prop_score_embeds
-        box_features = prop_box_embeds + prop_score_embeds
+        # prop_boxes = proposals[..., 1:3]
+        # # prop_labels = proposals[..., 0]
+        # prop_scores = proposals[..., -1].unsqueeze(-1)
+        # prop_box_embeds = self.box_enc(prop_boxes)
+        # # prop_label_embeds = self.label_enc(prop_labels.long())
+        # prop_score_embeds = self.score_enc(prop_scores)
+        # # box_features = prop_box_embeds + prop_label_embeds + prop_score_embeds
+        # box_features = prop_box_embeds + prop_score_embeds
 
         srcs = []
         pos_1d = []
         pos_2d = []
         for l, feat in enumerate(features):
             src = self.input_proj[l](feat)
-            # src = feat
             n, c, t = src.shape
+            this_max_len = self.max_input_len / (2 ** l)
+            if t > this_max_len:
+                src = F.interpolate(src, size=this_max_len, mode="linear")
+                t = this_max_len
             src = src.unsqueeze(-1)
             pos_1d_l = F.interpolate(raw_pos_1d, size=t, mode="linear")
             pos_2d_l = F.interpolate(raw_pos_2d, size=(t, t), mode="bilinear")
             pos_1d.append(pos_1d_l)
             pos_2d.append(pos_2d_l)
             srcs.append(src)
+
+        box_srcs = []
+        box_pos_1d = []
+        box_pos_2d = []
+        for l, feat in enumerate(features):
+            prop_boxes = proposals[..., 1:3]
+            # prop_labels = proposals[..., 0]
+            prop_scores = proposals[..., -1].unsqueeze(-1)
+            prop_box_embeds = self.box_enc(prop_boxes)
+            # prop_label_embeds = self.label_enc(prop_labels.long())
+            prop_score_embeds = self.score_enc(prop_scores)
+            # box_features = prop_box_embeds + prop_label_embeds + prop_score_embeds
+            box_src = (prop_box_embeds + prop_score_embeds).permute(0, 2, 1)
+            # src = feat
+            n, c, t = box_src.shape
+            this_max_len = self.max_input_len / (2 ** l)
+            if t > this_max_len:
+                box_src = F.interpolate(box_src, size=this_max_len, mode="linear")
+                t = this_max_len
+            box_src = box_src.unsqueeze(-1)
+            pos_1d_l = F.interpolate(raw_pos_1d, size=t, mode="linear")
+            pos_2d_l = F.interpolate(raw_pos_2d, size=(t, t), mode="bilinear")
+            box_pos_1d.append(pos_1d_l)
+            box_pos_2d.append(pos_2d_l)
+            box_srcs.append(box_src)
 
         if self.use_dab:
             if self.num_patterns == 0:
@@ -214,7 +243,8 @@ class DINO(nn.Module):
         query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
 
         hs, init_reference, inter_references, _, _ = \
-            self.transformer(srcs, pos_1d, pos_2d, query_embeds, attn_mask, self.label_enc, box_features=box_features)
+            self.transformer(srcs, pos_1d, pos_2d, box_srcs, box_pos_1d, box_pos_2d,
+                             query_embeds, attn_mask, self.label_enc)
 
         # In case num object=0
         hs[0] += self.label_enc.weight[0, 0] * 0.0

@@ -173,7 +173,9 @@ class DeformableTransformer(nn.Module):
         valid_ratio = torch.stack([valid_ratio_w, valid_ratio_h], -1)
         return valid_ratio
 
-    def forward(self, srcs, pos_1d_embeds, pos_2d_embeds, query_embed=None, attn_mask=None, label_enc=None, box_features=None):
+    def forward(self, srcs, pos_1d_embeds, pos_2d_embeds,
+                box_srcs, box_pos_1d_embeds, box_pos_2d_embeds,
+                query_embed=None, attn_mask=None, label_enc=None):
         """
         Input:
             - srcs: List([bs, c, h, w])
@@ -210,72 +212,102 @@ class DeformableTransformer(nn.Module):
         level_start_index_1d = torch.cat((spatial_shapes_1d.new_zeros((1,)), spatial_shapes_1d.prod(1).cumsum(0)[:-1]))
         level_start_index_2d = torch.cat((spatial_shapes_2d.new_zeros((1,)), spatial_shapes_2d.prod(1).cumsum(0)[:-1]))
 
+        box_src_flatten = []
+        box_lvl_pos_1d_embed_flatten = []
+        box_lvl_pos_2d_embed_flatten = []
+        box_spatial_shapes_1d = []
+        box_spatial_shapes_2d = []
+        for lvl, (src, pos_1d_embed, pos_2d_embed) in enumerate(zip(box_srcs, box_pos_1d_embeds, box_pos_2d_embeds)):
+            bs, c, h, w = src.shape
+            spatial_shape_1d = (h, w)
+            spatial_shape_2d = (h, h)
+            box_spatial_shapes_1d.append(spatial_shape_1d)
+            box_spatial_shapes_2d.append(spatial_shape_2d)
+
+            src = src.flatten(2).transpose(1, 2)  # bs, hw, c
+            pos_1d_embed = pos_1d_embed.flatten(2).transpose(1, 2)  # bs, hw, c
+            pos_2d_embed = pos_2d_embed.flatten(2).transpose(1, 2)  # bs, hw, c
+            lvl_pos_1d_embed = pos_1d_embed + self.level_embed[lvl].view(1, 1, -1)
+            lvl_pos_2d_embed = pos_2d_embed + self.level_embed[lvl].view(1, 1, -1)
+            box_lvl_pos_1d_embed_flatten.append(lvl_pos_1d_embed)
+            box_lvl_pos_2d_embed_flatten.append(lvl_pos_2d_embed)
+            box_src_flatten.append(src)
+        box_src_flatten = torch.cat(box_src_flatten, 1)  # bs, \sum{hxw}, c
+        box_lvl_pos_1d_embed_flatten = torch.cat(box_lvl_pos_1d_embed_flatten, 1)
+        box_lvl_pos_2d_embed_flatten = torch.cat(box_lvl_pos_2d_embed_flatten, 1)
+        box_spatial_shapes_1d = torch.as_tensor(box_spatial_shapes_1d, dtype=torch.long, device=box_src_flatten.device)
+        box_spatial_shapes_2d = torch.as_tensor(box_spatial_shapes_2d, dtype=torch.long, device=box_src_flatten.device)
+        box_level_start_index_1d = torch.cat((box_spatial_shapes_1d.new_zeros((1,)),
+                                              box_spatial_shapes_1d.prod(1).cumsum(0)[:-1]))
+        box_level_start_index_2d = torch.cat((box_spatial_shapes_2d.new_zeros((1,)),
+                                              box_spatial_shapes_2d.prod(1).cumsum(0)[:-1]))
+
         # encoder
         # memory = self.encoder(src_flatten, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
         # box_memory = self.box_encoder(box_features, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
-        memory = src_flatten
-        box_memory = self.box_cross_encoder(box_features, memory, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
+        memory = self.encoder(src_flatten, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
+        box_memory = self.box_cross_encoder(box_src_flatten, memory, box_spatial_shapes_1d,
+                                            box_level_start_index_1d, box_lvl_pos_1d_embed_flatten)
 
-        # memory_2d = list()
+        memory_2d = list()
         box_memory_2d = list()
-        # encoder_outputs = list()
         for l_i in range(len(srcs)):
             h, w = spatial_shapes_1d[l_i]
             level_start_index = level_start_index_1d[l_i]
             level_end_index = level_start_index + h * w
-            # this_memory = memory[:, level_start_index:level_end_index]
-            # this_memory_2d = this_memory.unsqueeze(2).repeat(1, 1, h, 1).flatten(1, 2)
-            # encoder_outputs.append(this_memory)
-            # memory_2d.append(this_memory_2d)
+            this_memory = memory[:, level_start_index:level_end_index]
+            this_memory_2d = this_memory.unsqueeze(2).repeat(1, 1, h, 1).flatten(1, 2)
+            encoder_outputs.append(this_memory)
+            memory_2d.append(this_memory_2d)
             this_box_memory = box_memory[:, level_start_index:level_end_index]
             this_box_memory_2d = this_box_memory.unsqueeze(2).repeat(1, 1, h, 1).flatten(1, 2)
             box_memory_2d.append(this_box_memory_2d)
-        # memory_2d = torch.cat(memory_2d, 1)
+        memory_2d = torch.cat(memory_2d, 1)
         box_memory_2d = torch.cat(box_memory_2d, 1)
 
-        if self.two_stage:
-            target_length = encoder_outputs[-1].shape[1]
-            merged_encoder_outputs = list()
-            for e_o in encoder_outputs:
-                _, t, _ = e_o.shape
-                if t != target_length:
-                    e_o = F.interpolate(e_o.permute(0, 2, 1), size=target_length, mode="linear")
-                else:
-                    e_o = e_o.permute(0, 2, 1)
-                merged_encoder_outputs.append(e_o)
-            merged_encoder_outputs = torch.cat(merged_encoder_outputs, dim=1)
-
-            proposals = self.proposal_embed(merged_encoder_outputs).permute(0, 2, 1)
-            bs, t, _ = proposals.shape
-            _, q, _ = query_embed.shape
-            q = q // 4
-            proposal_boxes = proposals.detach()[..., 1:].sigmoid()
-            proposal_boxes[..., 0] = -proposal_boxes[..., 0]
-            proposal_boxes = torch.arange(t, dtype=torch.float32, device=proposals.device)[None, :, None] / (t - 1) + \
-                             proposal_boxes
-            proposal_boxes = torch.clamp(proposal_boxes, 0.0, 1.0)
-            proposal_boxes = torch.stack((proposal_boxes[..., 0], proposal_boxes[..., 1],
-                                          (proposal_boxes[..., 0] + proposal_boxes[..., 1]) / 2.0,
-                                          proposal_boxes[..., 1] - proposal_boxes[..., 0]), dim=-1)
-            topk_indices = torch.topk(proposals.detach()[..., 0], k=q, dim=1)[1]
-            topk_references = torch.gather(proposal_boxes, 1, topk_indices.unsqueeze(-1).repeat(1, 1, 4))
-
-            video_embeds = self.video_embed(merged_encoder_outputs).permute(0, 2, 1).mean(dim=1)
-            video_class = torch.argmax(video_embeds.detach(), dim=-1)
-            video_embeddings = label_enc(video_class).unsqueeze(1).repeat(1, q, 1)
-        else:
-            proposals = None
-            video_embeds = None
+        # if self.two_stage:
+        #     target_length = encoder_outputs[-1].shape[1]
+        #     merged_encoder_outputs = list()
+        #     for e_o in encoder_outputs:
+        #         _, t, _ = e_o.shape
+        #         if t != target_length:
+        #             e_o = F.interpolate(e_o.permute(0, 2, 1), size=target_length, mode="linear")
+        #         else:
+        #             e_o = e_o.permute(0, 2, 1)
+        #         merged_encoder_outputs.append(e_o)
+        #     merged_encoder_outputs = torch.cat(merged_encoder_outputs, dim=1)
+        #
+        #     proposals = self.proposal_embed(merged_encoder_outputs).permute(0, 2, 1)
+        #     bs, t, _ = proposals.shape
+        #     _, q, _ = query_embed.shape
+        #     q = q // 4
+        #     proposal_boxes = proposals.detach()[..., 1:].sigmoid()
+        #     proposal_boxes[..., 0] = -proposal_boxes[..., 0]
+        #     proposal_boxes = torch.arange(t, dtype=torch.float32, device=proposals.device)[None, :, None] / (t - 1) + \
+        #                      proposal_boxes
+        #     proposal_boxes = torch.clamp(proposal_boxes, 0.0, 1.0)
+        #     proposal_boxes = torch.stack((proposal_boxes[..., 0], proposal_boxes[..., 1],
+        #                                   (proposal_boxes[..., 0] + proposal_boxes[..., 1]) / 2.0,
+        #                                   proposal_boxes[..., 1] - proposal_boxes[..., 0]), dim=-1)
+        #     topk_indices = torch.topk(proposals.detach()[..., 0], k=q, dim=1)[1]
+        #     topk_references = torch.gather(proposal_boxes, 1, topk_indices.unsqueeze(-1).repeat(1, 1, 4))
+        #
+        #     video_embeds = self.video_embed(merged_encoder_outputs).permute(0, 2, 1).mean(dim=1)
+        #     video_class = torch.argmax(video_embeds.detach(), dim=-1)
+        #     video_embeddings = label_enc(video_class).unsqueeze(1).repeat(1, q, 1)
+        # else:
+        #     proposals = None
+        #     video_embeds = None
 
         # prepare input for decoder
         bs, _, c = memory.shape
         if self.use_dab:
             reference_points = query_embed[..., self.d_model:].sigmoid()
             tgt = query_embed[..., :self.d_model]
-            if self.two_stage:
-                reference_points = torch.cat((reference_points[:, :-q], topk_references), dim=1)
-                tgt_new = torch.cat([video_embeddings, torch.zeros([bs, q, 1], device=video_embeddings.device)], dim=-1)
-                tgt = torch.cat((tgt[:, :-q], tgt_new), dim=1)
+            # if self.two_stage:
+            #     reference_points = torch.cat((reference_points[:, :-q], topk_references), dim=1)
+            #     tgt_new = torch.cat([video_embeddings, torch.zeros([bs, q, 1], device=video_embeddings.device)], dim=-1)
+            #     tgt = torch.cat((tgt[:, :-q], tgt_new), dim=1)
             # tgt = tgt.unsqueeze(0).expand(bs, -1, -1)
             init_reference_out = reference_points
         else:
@@ -287,10 +319,11 @@ class DeformableTransformer(nn.Module):
             init_reference_out = reference_points
 
         # decoder
-        hs, inter_references = self.decoder(tgt, reference_points, None,
+        hs, inter_references = self.decoder(tgt, reference_points, memory_2d,
                                             lvl_pos_2d_embed_flatten, spatial_shapes_2d, level_start_index_2d,
-                                            query_pos=query_embed if not self.use_dab else None,
-                                            attn_mask=attn_mask, box_features=box_memory_2d)
+                                            box_memory_2d, box_lvl_pos_2d_embed_flatten,
+                                            box_spatial_shapes_2d, box_level_start_index_2d,
+                                            query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
 
         inter_references_out = inter_references
         return hs, init_reference_out, inter_references_out, None, None
@@ -416,7 +449,7 @@ class DeformableTransformerCrossEncoderLayer(nn.Module):
         src = self.norm2(src)
         return src
 
-    def forward(self, src, src2, pos, reference_points, spatial_shapes, level_start_index, padding_mask=None):
+    def forward(self, src, memory, pos, reference_points, spatial_shapes, level_start_index, padding_mask=None):
         # self attention
         src2 = self.self_attn(self.with_pos_embed(src, pos), reference_points, src, spatial_shapes, level_start_index,
                               padding_mask)
@@ -424,8 +457,8 @@ class DeformableTransformerCrossEncoderLayer(nn.Module):
         src = self.norm1(src)
 
         # cross attention
-        src2 = self.cross_attn(self.with_pos_embed(src, pos), reference_points, src2, spatial_shapes, level_start_index,
-                              padding_mask)
+        src2 = self.cross_attn(self.with_pos_embed(src, pos), reference_points,
+                               memory, spatial_shapes, level_start_index, padding_mask)
         src = src + self.dropout2(src2)
         src = self.norm2(src)
 
@@ -516,9 +549,9 @@ class DeformableTransformerDecoderLayer(nn.Module):
         tgt = self.norm3(tgt)
         return tgt
 
-    def forward(self, tgt, query_pos, reference_points, src, src_pos,
-                src_spatial_shapes, level_start_index,
-                src_padding_mask=None, self_attn_mask=None, box_features=None):\
+    def forward(self, tgt, query_pos, reference_points, src, src_pos, src_spatial_shapes, level_start_index,
+                box_src, box_src_pos, box_src_spatial_shapes, box_level_start_index,
+                src_padding_mask=None, box_src_padding_mask=None, self_attn_mask=None):\
 
         # self attention
         q = k = self.with_pos_embed(tgt, query_pos)
@@ -535,13 +568,12 @@ class DeformableTransformerDecoderLayer(nn.Module):
         # tgt = tgt + self.dropout1(tgt2)
         # tgt = self.norm1(tgt)
 
-        if box_features is not None:
-            tgt2 = self.cross_attn_2(self.with_pos_embed(tgt, query_pos),
-                                     reference_points,
-                                     self.with_pos_embed(box_features, src_pos),
-                                     src_spatial_shapes, level_start_index, src_padding_mask)
-            tgt = tgt + self.dropout1_2(tgt2)
-            tgt = self.norm1_2(tgt)
+        tgt2 = self.cross_attn_2(self.with_pos_embed(tgt, query_pos),
+                                 reference_points,
+                                 self.with_pos_embed(box_src, box_src_pos),
+                                 box_src_spatial_shapes, box_level_start_index, box_src_padding_mask)
+        tgt = tgt + self.dropout1_2(tgt2)
+        tgt = self.norm1_2(tgt)
 
         # ffn
         tgt = self.forward_ffn(tgt)
@@ -572,10 +604,9 @@ class DeformableTransformerDecoder(nn.Module):
         if high_dim_query_update:
             self.high_dim_query_proj = MLP(d_model, d_model, d_model, 2)
 
-    def forward(self, tgt, reference_points, src, src_pos,
-                src_spatial_shapes, src_level_start_index,
-                query_pos=None, src_padding_mask=None, attn_mask=None,
-                box_features=None):
+    def forward(self, tgt, reference_points, src, src_pos, src_spatial_shapes, src_level_start_index,
+                box_src, box_src_pos, box_src_spatial_shapes, box_src_level_start_index,
+                query_pos=None, src_padding_mask=None, attn_mask=None):
         output = tgt
         if self.use_dab:
             assert query_pos is None
@@ -604,8 +635,9 @@ class DeformableTransformerDecoder(nn.Module):
                 query_pos = query_pos + self.high_dim_query_proj(output)
 
             output = layer(output, query_pos, reference_points_input, src, src_pos,
-                           src_spatial_shapes, src_level_start_index, src_padding_mask,
-                           self_attn_mask=attn_mask, box_features=box_features)
+                           src_spatial_shapes, src_level_start_index,
+                           box_src, box_src_pos, box_src_spatial_shapes, box_src_level_start_index,
+                           src_padding_mask, box_src_padding_mask=None, self_attn_mask=attn_mask)
 
             # hack implementation for iterative bounding box refinement
             if self.bbox_embed is not None:

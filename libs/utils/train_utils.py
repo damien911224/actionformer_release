@@ -426,7 +426,7 @@ def train_one_epoch_phase_2(
                 segments = torch.stack(segments, dim=0)
                 this_proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
                 proposals.append(this_proposals)
-            proposals = torch.cat(proposals, dim=1)
+        proposals = torch.cat(proposals, dim=1)
 
         detr_target_dict = list()
         for b_i in range(len(video_list)):
@@ -449,7 +449,15 @@ def train_one_epoch_phase_2(
         # features = [features]
         features = [feat.detach() for feat in backbone_features]
 
-        detr_predictions = detr(features, proposals, detr_target_dict)
+        start_index = 0
+        pyramidal_proposals = list()
+        for feat in backbone_features:
+            this_len = feat.size(2)
+            this_proposals = proposals[:, start_index:start_index + this_len]
+            pyramidal_proposals.append(this_proposals)
+            start_index += this_len
+
+        detr_predictions = detr(features, pyramidal_proposals, detr_target_dict)
         loss_dict = criterion(detr_predictions, detr_target_dict)
         weight_dict = criterion.weight_dict
         detr_losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
@@ -758,7 +766,16 @@ def valid_one_epoch_phase_2(
             #                         for x in video_list], dim=0).cuda()
             # features = [features]
             features = [feat.detach() for feat in backbone_features]
-            detr_predictions = detr(features, cat_proposals)
+
+            start_index = 0
+            pyramidal_proposals = list()
+            for feat in backbone_features:
+                this_len = feat.size(2)
+                this_proposals = proposals[:, start_index:start_index + this_len]
+                pyramidal_proposals.append(this_proposals)
+                start_index += this_len
+
+            detr_predictions = detr(features, pyramidal_proposals)
 
             boxes = detr_predictions["pred_boxes"].detach().cpu()
             boxes = (boxes[..., :2] +
