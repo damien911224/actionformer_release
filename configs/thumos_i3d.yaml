@@ -52,12 +52,12 @@ output_folder: ./ckpt/
 # DINO DETR
 detr: {
   num_classes: 1,
-  num_queries: 20, # 4536
+  num_queries: 100, # 4536
   temporal_length: 2304,
-  lr: 1.0e-4,
+  lr: 1.0e-3,
   lr_linear_proj_mult: 0.1,
   lr_linear_proj_names: ['reference_points', 'sampling_offsets'],
-  hidden_dim: 64,
+  hidden_dim: 256,
   num_feature_levels: 6,
   input_dim: 512,
   aux_loss: True,
@@ -73,10 +73,10 @@ detr: {
   weight_loss_ce: 2, # 2
   weight_loss_bbox: 2, # 5
   weight_loss_giou: 5, # 2
-  weight_decay: 1.0e-4,
+  weight_decay: 1.0e-3,
   nhead: 8,
   dropout: 0.1,
-  dim_feedforward: 128,
+  dim_feedforward: 1024,
   pre_norm: False,
   scalar: 5,
   label_noise_scale: 0.2,
