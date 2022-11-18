@@ -456,6 +456,7 @@ def train_one_epoch_phase_2(
             this_proposals = proposals[:, start_index:start_index + this_len]
             pyramidal_proposals.append(this_proposals)
             start_index += this_len
+            print(this_proposals.shape)
 
         detr_predictions = detr(features, pyramidal_proposals, detr_target_dict)
         loss_dict = criterion(detr_predictions, detr_target_dict)
