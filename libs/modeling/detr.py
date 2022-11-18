@@ -185,10 +185,10 @@ class DINO(nn.Module):
         box_srcs = []
         box_pos_1d = []
         box_pos_2d = []
-        for l, feat in enumerate(features):
-            prop_boxes = proposals[..., 1:3]
-            # prop_labels = proposals[..., 0]
-            prop_scores = proposals[..., -1].unsqueeze(-1)
+        for l, feat in enumerate(proposals):
+            prop_boxes = feat[..., 1:3]
+            # prop_labels = feat[..., 0]
+            prop_scores = feat[..., -1].unsqueeze(-1)
             prop_box_embeds = self.box_enc(prop_boxes)
             # prop_label_embeds = self.label_enc(prop_labels.long())
             prop_score_embeds = self.score_enc(prop_scores)
