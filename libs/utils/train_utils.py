@@ -793,9 +793,15 @@ def valid_one_epoch_phase_2(
             dense_boxes = dense_boxes * torch.Tensor(durations)
             dense_scores = mean_proposals[..., -1]
             dense_labels = mean_proposals[..., 0].long()
-            if test_cfg['multiclass_nms']:
-                dense_onehot = F.one_hot(dense_labels, num_classes=20).sum(dim=1)
-                labels = torch.argmax(dense_onehot, dim=-1).unsqueeze(1).repeat(1, labels.size(1))
+
+
+            print(scores.min())
+            print(scores.max())
+            print(dense_scores.min())
+            print(dense_scores.max())
+
+            dense_onehot = F.one_hot(dense_labels, num_classes=20).sum(dim=1)
+            labels = torch.argmax(dense_onehot, dim=-1).unsqueeze(1).repeat(1, labels.size(1))
 
             boxes = torch.cat((boxes, dense_boxes), dim=1)
             scores = torch.cat((scores, dense_scores), dim=1)
