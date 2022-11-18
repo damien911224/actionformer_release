@@ -89,6 +89,6 @@ detr: {
   dn_number: 100,
   dn_box_noise_scale: 0.4,
   dn_label_noise_ratio: 0.5,
-  dn_labelbook_size: 2,
+  dn_labelbook_size: 21,
   focal_alpha: 0.25
 }
