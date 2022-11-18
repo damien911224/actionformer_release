@@ -257,7 +257,6 @@ class DeformableTransformer(nn.Module):
             level_end_index = level_start_index + h * w
             this_memory = memory[:, level_start_index:level_end_index]
             this_memory_2d = this_memory.unsqueeze(2).repeat(1, 1, h, 1).flatten(1, 2)
-            encoder_outputs.append(this_memory)
             memory_2d.append(this_memory_2d)
             this_box_memory = box_memory[:, level_start_index:level_end_index]
             this_box_memory_2d = this_box_memory.unsqueeze(2).repeat(1, 1, h, 1).flatten(1, 2)
