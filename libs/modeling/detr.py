@@ -58,7 +58,7 @@ class DINO(nn.Module):
         self.bbox_embed = MLP(hidden_dim, hidden_dim, 4, 3)
         self.num_feature_levels = num_feature_levels
         self.input_dim = input_dim
-        self.max_input_len = 256
+        self.max_input_len = 512
         self.use_dab = use_dab
         self.num_patterns = num_patterns
         self.random_refpoints_xy = random_refpoints_xy
@@ -240,14 +240,15 @@ class DINO(nn.Module):
             # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features.size(0), 1, 1)
 
         query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
-        proposals = torch.cat(proposals, dim=1)
-        prop_query_label = self.score_enc(proposals[..., -1].unsqueeze(-1))
-        prop_query_bbox = torch.cat([proposals[..., 1:-1],
-                                     ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
-                                     (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
-        prop_query_bbox = inverse_sigmoid(prop_query_bbox)
-        prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
-        query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
+
+        # proposals = torch.cat(proposals, dim=1)
+        # prop_query_label = self.score_enc(proposals[..., -1].unsqueeze(-1))
+        # prop_query_bbox = torch.cat([proposals[..., 1:-1],
+        #                              ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
+        #                              (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
+        # prop_query_bbox = inverse_sigmoid(prop_query_bbox)
+        # prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
+        # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
 
         hs, init_reference, inter_references, _, _ = \
             self.transformer(srcs, pos_1d, pos_2d, box_srcs, box_pos_1d, box_pos_2d,
