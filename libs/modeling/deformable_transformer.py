@@ -326,8 +326,6 @@ class DeformableTransformer(nn.Module):
                                             box_spatial_shapes_2d, box_level_start_index_2d,
                                             query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
 
-        hs = box_memory.unsqueeze(0)
-
         inter_references_out = inter_references
         return hs, init_reference_out, inter_references_out, None, None
 
