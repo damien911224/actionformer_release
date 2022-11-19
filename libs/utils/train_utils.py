@@ -799,8 +799,8 @@ def valid_one_epoch_phase_2(
             labels = torch.argsort(dense_onehot, dim=-1, descending=True)[..., 0].unsqueeze(1).repeat(1, labels.size(1))
             top_2_labels = torch.argsort(dense_onehot, dim=-1, descending=True)[..., 1].unsqueeze(1).repeat(1, labels.size(1))
 
-            scores = (scores - scores.min()) / (scores.max() - scores.min())
-            dense_scores = (dense_scores - dense_scores.min()) / (dense_scores.max() - dense_scores.min())
+            # scores = (scores - scores.min()) / (scores.max() - scores.min())
+            # dense_scores = (dense_scores - dense_scores.min()) / (dense_scores.max() - dense_scores.min())
 
             # boxes = torch.cat((boxes, dense_boxes), dim=1)
             # scores = torch.cat((scores, dense_scores), dim=1)
@@ -810,8 +810,8 @@ def valid_one_epoch_phase_2(
             scores = torch.cat((scores, scores, dense_scores), dim=1)
             labels = torch.cat((labels, top_2_labels, dense_labels), dim=1)
 
-            labels = dense_labels
-            scores = scores * dense_scores
+            # labels = dense_labels
+            # scores = scores * dense_scores
 
             nmsed_boxes = list()
             nmsed_labels = list()
