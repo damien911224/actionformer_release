@@ -9,6 +9,7 @@ from .blocks import MaskedConv1D, Scale, LayerNorm
 from .losses import ctr_diou_loss_1d, sigmoid_focal_loss
 
 from ..utils import batched_nms
+from .deformable_transformer import DeformableTransformerEncoder, DeformableTransformerEncoderLayer
 
 
 class PtTransformerClsHead(nn.Module):
@@ -308,6 +309,9 @@ class PtTransformer(nn.Module):
             }
         )
 
+        encoder_layer = DeformableTransformerEncoderLayer(fpn_dim, fpn_dim * 4, n_levels=6)
+        self.deformable_encoder = DeformableTransformerEncoder(encoder_layer, 3)
+
         # classfication and regerssion heads
         self.cls_head = PtTransformerClsHead(
             fpn_dim, head_dim, self.num_classes,
@@ -329,6 +333,9 @@ class PtTransformer(nn.Module):
         self.loss_normalizer = train_cfg['init_loss_norm']
         self.loss_normalizer_momentum = 0.9
 
+        self.t_embeddings = nn.Embedding(1000, fpn_dim)
+        self.level_embed = nn.Parameter(torch.Tensor(6, fpn_dim))
+
     @property
     def device(self):
         # a hacky way to get the device type
@@ -342,6 +349,38 @@ class PtTransformer(nn.Module):
         # forward the network (backbone -> neck -> heads)
         feats, masks = self.backbone(batched_inputs, batched_masks)
         fpn_feats, fpn_masks = self.neck(feats, masks)
+
+        # prepare input for encoder
+        srcs = [feat.unsqueeze(-1) for feat in fpn_feats]
+        src_flatten = []
+        lvl_pos_1d_embed_flatten = []
+        spatial_shapes_1d = []
+        pos_1d_embeds = self.t_embeddings.weight.unsqueeze(0).repeat()
+        for lvl, src in enumerate(srcs):
+            bs, c, h, w = src.shape
+            this_pos_1d_embeds = F.interpolate(pos_1d_embeds, size=h, method="linear")
+            spatial_shape_1d = (h, w)
+            spatial_shapes_1d.append(spatial_shape_1d)
+
+            src = src.flatten(2).transpose(1, 2)  # bs, hw, c
+            this_pos_1d_embeds = this_pos_1d_embeds.flatten(2).transpose(1, 2)  # bs, hw, c
+            lvl_pos_1d_embed = this_pos_1d_embeds + self.level_embed[lvl].view(1, 1, -1)
+            lvl_pos_1d_embed_flatten.append(lvl_pos_1d_embed)
+            src_flatten.append(src)
+        src_flatten = torch.cat(src_flatten, 1)  # bs, \sum{hxw}, c
+        lvl_pos_1d_embed_flatten = torch.cat(lvl_pos_1d_embed_flatten, 1)
+        spatial_shapes_1d = torch.as_tensor(spatial_shapes_1d, dtype=torch.long, device=src_flatten.device)
+        level_start_index_1d = torch.cat((spatial_shapes_1d.new_zeros((1,)), spatial_shapes_1d.prod(1).cumsum(0)[:-1]))
+
+        memory = self.deformable_encoder(src_flatten, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
+        new_fpn_feats = list()
+        for l_i in range(len(srcs)):
+            h, w = spatial_shapes_1d[l_i]
+            level_start_index = level_start_index_1d[l_i]
+            level_end_index = level_start_index + h * w
+            this_memory = memory[:, level_start_index:level_end_index].permute(0, 2, 1)
+            new_fpn_feats.append(this_memory)
+        fpn_feats = new_fpn_feats
 
         # compute the point coordinate along the FPN
         # this is used for computing the GT or decode the final results
