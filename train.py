@@ -77,12 +77,12 @@ def main(args):
         this_cfg = dict(cfg)
         if data_type in ["rgb", "flow"]:
             this_cfg['model']['input_dim'] = this_cfg['dataset']['input_dim'] // 2
-        model = make_meta_arch(this_cfg['model_name'], **this_cfg['model'])
-        model_ = make_meta_arch(this_cfg['model_name'], **this_cfg['model'])
-        # not ideal for multi GPU training, ok for now
-        model = nn.DataParallel(model, device_ids=this_cfg['devices'])
-        model_ = nn.DataParallel(model_, device_ids=this_cfg['devices'])
+        model = make_meta_arch(this_cfg['model_name'], **this_cfg['model']).cuda()
+        model_ = make_meta_arch(this_cfg['model_name'], **this_cfg['model']).cuda()
         model_.load_state_dict(model.state_dict())
+        # not ideal for multi GPU training, ok for now
+        # model = nn.DataParallel(model, device_ids=this_cfg['devices'])
+        # model_ = nn.DataParallel(model_, device_ids=this_cfg['devices'])
         # optimizer
         optimizer = make_optimizer(model, this_cfg['opt'])
         # schedule
