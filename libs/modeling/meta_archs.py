@@ -355,7 +355,7 @@ class PtTransformer(nn.Module):
         src_flatten = []
         lvl_pos_1d_embed_flatten = []
         spatial_shapes_1d = []
-        pos_1d_embeds = self.t_embeddings.weight.unsqueeze(0).repeat(batched_inputs.size(0), 1, 1).permute(0, 2, 1).cuda()
+        pos_1d_embeds = self.t_embeddings.weight.unsqueeze(0).repeat(batched_inputs.size(0), 1, 1).permute(0, 2, 1)
         for lvl, src in enumerate(srcs):
             bs, c, h, w = src.shape
             this_pos_1d_embeds = F.interpolate(pos_1d_embeds, size=h, mode="linear")
