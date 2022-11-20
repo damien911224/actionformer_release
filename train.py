@@ -77,12 +77,11 @@ def main(args):
         this_cfg = dict(cfg)
         if data_type in ["rgb", "flow"]:
             this_cfg['model']['input_dim'] = this_cfg['dataset']['input_dim'] // 2
-        model = make_meta_arch(this_cfg['model_name'], **this_cfg['model']).cuda()
-        model_ = make_meta_arch(this_cfg['model_name'], **this_cfg['model']).cuda()
+        model = make_meta_arch(this_cfg['model_name'], **this_cfg['model'])
+        model_ = make_meta_arch(this_cfg['model_name'], **this_cfg['model'])
         model_.load_state_dict(model.state_dict())
         # not ideal for multi GPU training, ok for now
-        # model = nn.DataParallel(model, device_ids=this_cfg['devices'])
-        # model_ = nn.DataParallel(model_, device_ids=this_cfg['devices'])
+        model = nn.DataParallel(model, device_ids=this_cfg['devices'])
         # optimizer
         optimizer = make_optimizer(model, this_cfg['opt'])
         # schedule
@@ -167,6 +166,7 @@ def main(args):
             cfg['output_folder'], cfg_filename + '_' + str(args.output))
     if not os.path.exists(ckpt_root_folder):
         os.mkdir(ckpt_root_folder)
+    ckpt_base_folder = ckpt_root_folder
 
     # save the current config
     # with open(os.path.join(ckpt_folder, 'config.txt'), 'w') as fid:
