@@ -256,8 +256,8 @@ def main(args):
             valid_one_epoch_phase_1(
                 val_loader,
                 (model_ema, ),
-                data_types,
-                -1,
+                (data_type, ),
+                epoch,
                 cfg['test_cfg'],
                 evaluator=det_eval,
                 output_file=output_file,
