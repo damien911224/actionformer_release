@@ -78,6 +78,8 @@ def main(args):
         if data_type in ["rgb", "flow"]:
             this_cfg['model']['input_dim'] = this_cfg['dataset']['input_dim'] // 2
         model = make_meta_arch(this_cfg['model_name'], **this_cfg['model'])
+        model_ = make_meta_arch(this_cfg['model_name'], **this_cfg['model'])
+        model_.load_state_dict(model.state_dict())
         # not ideal for multi GPU training, ok for now
         model = nn.DataParallel(model, device_ids=this_cfg['devices'])
         # optimizer
@@ -85,7 +87,8 @@ def main(args):
         # schedule
         scheduler = make_scheduler(optimizer, this_cfg['opt'], num_iters_per_epoch)
         # enable model EMA
-        model_ema = ModelEma(model)
+        # model_ema = ModelEma(model)
+        model_ema = ModelEma(model_, copy_model=False)
 
         models.append(model)
         optimizers.append(optimizer)
