@@ -299,6 +299,11 @@ class PtTransformer(nn.Module):
             }
         )
 
+        print(self.reg_range)
+        exit()
+        self.fpn_strides = [self.fpn_strides[0]] * len(self.fpn_strides)
+        self.reg_range = []
+
         # location generator: points
         self.point_generator = make_generator(
             'point',
