@@ -599,6 +599,7 @@ class SetCriterion_DINO(nn.Module):
                 kwargs['layer'] = idx
                 kwargs['name'] = "loss_entire_ce"
                 l_dict = self.get_loss("labels", aux_outputs, targets, entire_indices, num_boxes, **kwargs)
+                l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
                 losses.update(l_dict)
 
                 if self.training and dn_meta and 'output_known_lbs_bboxes' in dn_meta:
