@@ -583,20 +583,22 @@ class SetCriterion_DINO(nn.Module):
                 # indices = self.matcher(aux_outputs, targets)
                 outputs_without_props = {k: v[:, :100] for k, v in aux_outputs.items()
                                          if k in ["pred_logits", "pred_boxes"]}
-                indices = self.matcher(outputs_without_props, targets, layer=idx)
-                entire_indices = self.matcher(aux_outputs, targets, layer=idx)
+                # indices = self.matcher(outputs_without_props, targets, layer=idx)
+                indices = self.matcher(outputs_without_props, targets)
+                # entire_indices = self.matcher(aux_outputs, targets, layer=idx)
+                entire_indices = self.matcher(aux_outputs, targets)
                 if return_indices:
                     indices_list.append(indices)
                 for loss in self.losses:
                     kwargs = {}
                     if loss == "labels":
                         kwargs['log'] = False
-                    kwargs['layer'] = idx
+                    # kwargs['layer'] = idx
                     l_dict = self.get_loss(loss, outputs_without_props, targets, indices, num_boxes, **kwargs)
                     l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
                     losses.update(l_dict)
                 kwargs = {'log': False}
-                kwargs['layer'] = idx
+                # kwargs['layer'] = idx
                 kwargs['name'] = "loss_entire_ce"
                 l_dict = self.get_loss("labels", aux_outputs, targets, entire_indices, num_boxes, **kwargs)
                 l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
