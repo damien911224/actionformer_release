@@ -167,7 +167,6 @@ def main(args):
             cfg['output_folder'], cfg_filename + '_' + str(args.output))
     if not os.path.exists(ckpt_root_folder):
         os.mkdir(ckpt_root_folder)
-    ckpt_base_folder = ckpt_root_folder
 
     # save the current config
     # with open(os.path.join(ckpt_folder, 'config.txt'), 'w') as fid:
