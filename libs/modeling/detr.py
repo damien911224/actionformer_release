@@ -222,7 +222,7 @@ class DINO(nn.Module):
         input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
         input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
 
-        # proposals = torch.cat(proposals, dim=1)
+        proposals = torch.cat(proposals, dim=1)
         # prop_labels = proposals[..., 0]
         # prop_scores = proposals[..., -1].unsqueeze(-1)
         # prop_label_embeds = self.query_label_enc(prop_labels.long())
