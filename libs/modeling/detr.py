@@ -510,7 +510,7 @@ class SetCriterion_DINO(nn.Module):
         """
         outputs_without_aux = {k: v for k, v in outputs.items() if k != 'aux_outputs'}
         device = next(iter(outputs.values())).device
-        outputs_without_aux_and_props = {k: v[:, :100] for k, v in outputs.items()}
+        outputs_without_aux_and_props = {k: v[:, :100] for k, v in outputs_without_aux.items()}
         indices = self.matcher(outputs_without_aux_and_props, targets)
         entire_indices = self.matcher(outputs_without_aux, targets)
 
