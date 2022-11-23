@@ -201,7 +201,7 @@ def main(args):
 
         ckpt_file_list = sorted(glob.glob(os.path.join(ckpt_folder, '*.pth.tar')))
         if len(ckpt_file_list):
-            ckpt_file = sorted(ckpt_file_list[-1])
+            ckpt_file = sorted(ckpt_file_list)[-1]
 
             # load ckpt, reset epoch / best rmse
             checkpoint = torch.load(ckpt_file, map_location=lambda storage, loc: storage.cuda(cfg['devices'][0]))
