@@ -59,7 +59,7 @@ class DINO(nn.Module):
         self.entire_class_embed = nn.Linear(hidden_dim, num_classes)
         self.num_feature_levels = num_feature_levels
         self.input_dim = input_dim
-        self.max_input_len = 512
+        self.max_input_len = 1024
         self.use_dab = use_dab
         self.num_patterns = num_patterns
         self.random_refpoints_xy = random_refpoints_xy
@@ -67,11 +67,9 @@ class DINO(nn.Module):
         self.query_label_enc = nn.Embedding(200 + 1, hidden_dim)
         self.query_score_enc = nn.Linear(1, hidden_dim)
         self.query_box_enc = nn.Linear(2, hidden_dim)
-        self.query_type_enc = nn.Linear(2, hidden_dim)
         self.feat_label_enc = nn.Embedding(200 + 1, hidden_dim)
         self.feat_score_enc = nn.Linear(1, hidden_dim)
         self.feat_box_enc = nn.Linear(2, hidden_dim)
-        self.feat_level_enc = nn.Embedding(10, hidden_dim)
         if not use_dab:
             self.query_embed = nn.Embedding(num_queries, hidden_dim * 2)
         else:
@@ -193,7 +191,6 @@ class DINO(nn.Module):
             prop_box_embeds = self.feat_box_enc(prop_boxes)
             prop_label_embeds = self.feat_label_enc(prop_labels.long())
             prop_score_embeds = self.feat_score_enc(prop_scores)
-            # prop_level_embeds = self.feat_level_enc(torch.ones_like(prop_labels.long()) * l)
             box_src = (prop_box_embeds + prop_label_embeds + prop_score_embeds).permute(0, 2, 1)
             # box_src = (prop_box_embeds + prop_score_embeds).permute(0, 2, 1)
             # src = feat
@@ -225,11 +222,9 @@ class DINO(nn.Module):
         proposals = torch.cat(proposals, dim=1)
         prop_labels = proposals[..., 0]
         prop_scores = proposals[..., -1].unsqueeze(-1)
-        prop_label_embeds = self.query_label_enc(torch.zeros_like(prop_labels.long()))
+        prop_label_embeds = self.query_label_enc(prop_labels.long())
         prop_score_embeds = self.query_score_enc(prop_scores)
         prop_query_label = prop_label_embeds + prop_score_embeds
-        # prop_query_label = prop_score_embeds
-        # prop_query_label = torch.cat(box_srcs, dim=2).squeeze(-1).permute(0, 2, 1)
         prop_query_bbox = torch.cat([proposals[..., 1:-1],
                                       ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
                                       (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
