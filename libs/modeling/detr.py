@@ -59,7 +59,7 @@ class DINO(nn.Module):
         self.entire_class_embed = nn.Linear(hidden_dim, num_classes)
         self.num_feature_levels = num_feature_levels
         self.input_dim = input_dim
-        self.max_input_len = 256
+        self.max_input_len = 1024
         self.use_dab = use_dab
         self.num_patterns = num_patterns
         self.random_refpoints_xy = random_refpoints_xy
