@@ -63,9 +63,12 @@ class DINO(nn.Module):
         self.num_patterns = num_patterns
         self.random_refpoints_xy = random_refpoints_xy
         # self.label_enc = nn.Embedding(dn_labelbook_size + 1, hidden_dim)
-        self.label_enc = nn.Embedding(200 + 1, hidden_dim)
-        self.score_enc = nn.Linear(1, hidden_dim)
-        self.box_enc = nn.Linear(2, hidden_dim)
+        self.query_label_enc = nn.Embedding(200 + 1, hidden_dim)
+        self.query_score_enc = nn.Linear(1, hidden_dim)
+        self.query_box_enc = nn.Linear(2, hidden_dim)
+        self.feat_label_enc = nn.Embedding(200 + 1, hidden_dim)
+        self.feat_score_enc = nn.Linear(1, hidden_dim)
+        self.feat_box_enc = nn.Linear(2, hidden_dim)
         if not use_dab:
             self.query_embed = nn.Embedding(num_queries, hidden_dim * 2)
         else:
@@ -157,15 +160,6 @@ class DINO(nn.Module):
         raw_pos_1d = self.pos_1d_embeds.repeat(features[0].size(0), 1, 1)
         raw_pos_2d = self.pos_2d_embeds.repeat(features[0].size(0), 1, 1, 1)
 
-        # prop_boxes = proposals[..., 1:3]
-        # # prop_labels = proposals[..., 0]
-        # prop_scores = proposals[..., -1].unsqueeze(-1)
-        # prop_box_embeds = self.box_enc(prop_boxes)
-        # # prop_label_embeds = self.label_enc(prop_labels.long())
-        # prop_score_embeds = self.score_enc(prop_scores)
-        # # box_features = prop_box_embeds + prop_label_embeds + prop_score_embeds
-        # box_features = prop_box_embeds + prop_score_embeds
-
         srcs = []
         pos_1d = []
         pos_2d = []
@@ -190,9 +184,9 @@ class DINO(nn.Module):
             prop_boxes = feat[..., 1:3]
             prop_labels = feat[..., 0]
             prop_scores = feat[..., -1].unsqueeze(-1)
-            prop_box_embeds = self.box_enc(prop_boxes)
-            prop_label_embeds = self.label_enc(prop_labels.long())
-            prop_score_embeds = self.score_enc(prop_scores)
+            prop_box_embeds = self.feat_box_enc(prop_boxes)
+            prop_label_embeds = self.feat_label_enc(prop_labels.long())
+            prop_score_embeds = self.feat_score_enc(prop_scores)
             box_src = (prop_box_embeds + prop_label_embeds + prop_score_embeds).permute(0, 2, 1)
             # box_src = (prop_box_embeds + prop_score_embeds).permute(0, 2, 1)
             # src = feat
@@ -221,10 +215,19 @@ class DINO(nn.Module):
         input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
         input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
 
-        # input_query_bbox = torch.cat([proposals[..., 1:-1],
-        #                               ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
-        #                               (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
-        # input_query_bbox = inverse_sigmoid(input_query_bbox)
+        proposals = torch.cat(proposals, dim=1)
+        prop_labels = proposals[..., 0]
+        prop_scores = proposals[..., -1].unsqueeze(-1)
+        prop_label_embeds = self.query_label_enc(prop_labels.long())
+        prop_score_embeds = self.query_score_enc(prop_scores)
+        prop_query_label = prop_label_embeds + prop_score_embeds
+        prop_query_bbox = torch.cat([proposals[..., 1:-1],
+                                      ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
+                                      (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
+        prop_query_bbox = inverse_sigmoid(prop_query_bbox)
+
+        input_query_label = torch.cat((input_query_label, prop_query_label), dim=1)
+        input_query_bbox = torch.cat((input_query_bbox, prop_query_bbox), dim=1)
 
         # prepare for dn
         if self.dn_number > 0 and self.training:
