@@ -259,7 +259,7 @@ class DINO(nn.Module):
                              query_embeds, attn_mask, self.feat_label_enc)
 
         # In case num object=0
-        hs[0] += self.label_enc.weight[0, 0] * 0.0
+        hs[0] += self.feat_label_enc.weight[0, 0] * 0.0
 
         outputs_classes = []
         outputs_coords = []
