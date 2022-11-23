@@ -56,6 +56,7 @@ class DINO(nn.Module):
         self.pos_2d_embeds = pos_2d_embeds
         self.class_embed = nn.Linear(hidden_dim, num_classes)
         self.bbox_embed = MLP(hidden_dim, hidden_dim, 4, 3)
+        self.entire_class_embed = nn.Linear(hidden_dim, num_classes)
         self.num_feature_levels = num_feature_levels
         self.input_dim = input_dim
         self.max_input_len = 1024
@@ -126,6 +127,7 @@ class DINO(nn.Module):
         num_pred = transformer.decoder.num_layers
         if with_box_refine:
             self.class_embed = _get_clones(self.class_embed, num_pred)
+            self.entire_class_embed = _get_clones(self.entire_class_embed, num_pred)
             self.bbox_embed = _get_clones(self.bbox_embed, num_pred)
             nn.init.constant_(self.bbox_embed[0].layers[-1].bias.data[2:], -2.0)
             # hack implementation for iterative bounding box refinement
@@ -133,6 +135,7 @@ class DINO(nn.Module):
         else:
             nn.init.constant_(self.bbox_embed.layers[-1].bias.data[2:], -2.0)
             self.class_embed = nn.ModuleList([self.class_embed for _ in range(num_pred)])
+            self.entire_class_embed = nn.ModuleList([self.entire_class_embed for _ in range(num_pred)])
             self.bbox_embed = nn.ModuleList([self.bbox_embed for _ in range(num_pred)])
             self.transformer.decoder.bbox_embed = None
 
@@ -263,6 +266,7 @@ class DINO(nn.Module):
 
         outputs_classes = []
         outputs_coords = []
+        outputs_entire_classes = []
         for lvl in range(hs.shape[0]):
             if lvl == 0:
                 reference = init_reference
@@ -278,31 +282,36 @@ class DINO(nn.Module):
             outputs_coord = tmp.sigmoid()
             # outputs_coord = init_reference
             outputs_class = self.class_embed[lvl](hs[lvl])
+            outputs_entire_class = self.entire_class_embed[lvl](hs[lvl])
             outputs_classes.append(outputs_class)
+            outputs_entire_classes.append(outputs_entire_class)
             outputs_coords.append(outputs_coord)
         outputs_class = torch.stack(outputs_classes)
         outputs_coord = torch.stack(outputs_coords)
+        outputs_entire_class = torch.stack(outputs_entire_classes)
 
         # dn post process
         if self.dn_number > 0 and dn_meta is not None:
             outputs_class, outputs_coord = \
                 cdn_post_process(outputs_class, outputs_coord, dn_meta, self.aux_loss, self._set_aux_loss)
 
-        out = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord[-1]}
+        # out = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord[-1]}
+        out = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord[-1],
+               'pred_entire_logits': outputs_entire_class[-1]}
         if self.aux_loss:
-            out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord)
+            out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord, outputs_entire_class)
 
         out['dn_meta'] = dn_meta
 
         return out
 
     @torch.jit.unused
-    def _set_aux_loss(self, outputs_class, outputs_coord):
+    def _set_aux_loss(self, outputs_class, outputs_coord, outputs_entire_class):
         # this is a workaround to make torchscript happy, as torchscript
         # doesn't support dictionary with non-homogeneous values, such
         # as a dict having both a Tensor and a list.
-        return [{'pred_logits': a, 'pred_boxes': b}
-                for a, b in zip(outputs_class[:-1], outputs_coord[:-1])]
+        return [{'pred_logits': a, 'pred_boxes': b, 'pred_entire_logits': c}
+                for a, b, c in zip(outputs_class[:-1], outputs_coord[:-1], outputs_entire_class[:-1])]
 
 
 class SetCriterion_DINO(nn.Module):
@@ -328,45 +337,15 @@ class SetCriterion_DINO(nn.Module):
         self.losses = losses
         self.focal_alpha = focal_alpha
 
-    def loss_labels(self, outputs, targets, indices, num_boxes, layer=None, log=True):
-        """Classification loss (Binary focal loss)
-        targets dicts must contain the key "labels" containing a tensor of dim [nb_target_boxes]
-        """
-        assert 'pred_logits' in outputs
-        src_logits = outputs['pred_logits']
-
-        idx = self._get_src_permutation_idx(indices)
-        if layer is None:
-            target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
-        else:
-            target_classes_o = torch.cat(
-                [t["labels"].repeat(2 ** (5 - layer))[J] for t, (_, J) in zip(targets, indices)])
-        target_classes = torch.full(src_logits.shape[:2], self.num_classes,
-                                    dtype=torch.int64, device=src_logits.device)
-        target_classes[idx] = target_classes_o
-
-        target_classes_onehot = torch.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2] + 1],
-                                            dtype=src_logits.dtype, layout=src_logits.layout, device=src_logits.device)
-        target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
-
-        target_classes_onehot = target_classes_onehot[:, :, :-1]
-        if layer is not None:
-            num_boxes = num_boxes * (2 ** (5 - layer))
-        loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2) * \
-                  src_logits.shape[1]
-        losses = {'loss_ce': loss_ce}
-
-        if log:
-            # TODO this should probably be a separate loss, not hacked in this one here
-            losses['class_error'] = 100 - accuracy(src_logits[idx], target_classes_o)[0]
-        return losses
-
     def loss_labels(self, outputs, targets, indices, num_boxes, layer=None, log=True, name=None):
         """Classification loss (Binary focal loss)
         targets dicts must contain the key "labels" containing a tensor of dim [nb_target_boxes]
         """
         assert 'pred_logits' in outputs
-        src_logits = outputs['pred_logits']
+        if name is None:
+            src_logits = outputs['pred_logits']
+        else:
+            src_logits = outputs['pred_entire_logits']
 
         idx = self._get_src_permutation_idx(indices)
         if layer is None:

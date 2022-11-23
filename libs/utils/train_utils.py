@@ -784,7 +784,7 @@ def valid_one_epoch_phase_2(
             # boxes = boxes[..., :2]
             durations = [x["duration"] for x in video_list]
             boxes = boxes * torch.Tensor(durations)
-            logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
+            logits = detr_predictions["pred_entire_logits"].detach().cpu().sigmoid()
             detr_scores, labels = torch.max(logits, dim=-1)
             scores = detr_scores
 
