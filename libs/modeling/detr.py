@@ -193,7 +193,7 @@ class DINO(nn.Module):
             prop_box_embeds = self.feat_box_enc(prop_boxes)
             prop_label_embeds = self.feat_label_enc(prop_labels.long())
             prop_score_embeds = self.feat_score_enc(prop_scores)
-            prop_level_embeds = self.feat_level_enc(torch.ones_like(prop_labels.long()) * l)
+            # prop_level_embeds = self.feat_level_enc(torch.ones_like(prop_labels.long()) * l)
             box_src = (prop_box_embeds + prop_label_embeds + prop_score_embeds + prop_level_embeds).permute(0, 2, 1)
             # box_src = (prop_box_embeds + prop_score_embeds).permute(0, 2, 1)
             # src = feat
