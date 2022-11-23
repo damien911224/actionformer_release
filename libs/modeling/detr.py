@@ -588,7 +588,9 @@ class SetCriterion_DINO(nn.Module):
                 if return_indices:
                     indices_list.append(indices)
                 for loss in self.losses:
-                    kwargs = {'log': False}
+                    kwargs = {}
+                    if loss == "labels":
+                        kwargs['log'] = False
                     kwargs['layer'] = idx
                     l_dict = self.get_loss(loss, outputs_without_props, targets, indices, num_boxes, **kwargs)
                     l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
