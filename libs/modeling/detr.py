@@ -361,6 +361,42 @@ class SetCriterion_DINO(nn.Module):
             losses['class_error'] = 100 - accuracy(src_logits[idx], target_classes_o)[0]
         return losses
 
+    def loss_labels(self, outputs, targets, indices, num_boxes, layer=None, log=True, name=None):
+        """Classification loss (Binary focal loss)
+        targets dicts must contain the key "labels" containing a tensor of dim [nb_target_boxes]
+        """
+        assert 'pred_logits' in outputs
+        src_logits = outputs['pred_logits']
+
+        idx = self._get_src_permutation_idx(indices)
+        if layer is None:
+            target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
+        else:
+            target_classes_o = torch.cat(
+                [t["labels"].repeat(2 ** (5 - layer))[J] for t, (_, J) in zip(targets, indices)])
+        target_classes = torch.full(src_logits.shape[:2], self.num_classes,
+                                    dtype=torch.int64, device=src_logits.device)
+        target_classes[idx] = target_classes_o
+
+        target_classes_onehot = torch.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2] + 1],
+                                            dtype=src_logits.dtype, layout=src_logits.layout, device=src_logits.device)
+        target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
+
+        target_classes_onehot = target_classes_onehot[:, :, :-1]
+        if layer is not None:
+            num_boxes = num_boxes * (2 ** (5 - layer))
+        loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2) * \
+                  src_logits.shape[1]
+        if name is None:
+            losses = {'loss_ce': loss_ce}
+        else:
+            losses = {name: loss_ce}
+
+        if log and name is None:
+            # TODO this should probably be a separate loss, not hacked in this one here
+            losses['class_error'] = 100 - accuracy(src_logits[idx], target_classes_o)[0]
+        return losses
+
     @torch.no_grad()
     def loss_cardinality(self, outputs, targets, indices, num_boxes, layer=None):
         """ Compute the cardinality error, ie the absolute error in the number of predicted non-empty boxes
@@ -474,7 +510,9 @@ class SetCriterion_DINO(nn.Module):
         """
         outputs_without_aux = {k: v for k, v in outputs.items() if k != 'aux_outputs'}
         device = next(iter(outputs.values())).device
-        indices = self.matcher(outputs_without_aux, targets)
+        outputs_without_aux_and_props = {k: v[:, :100] for k, v in outputs.items()}
+        indices = self.matcher(outputs_without_aux_and_props, targets)
+        entire_indices = self.matcher(outputs_without_aux, targets)
 
         if return_indices:
             indices0_copy = indices
@@ -533,27 +571,31 @@ class SetCriterion_DINO(nn.Module):
             losses.update(l_dict)
 
         for loss in self.losses:
-            losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
+            # losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
+            losses.update(self.get_loss(loss, outputs_without_aux_and_props, targets, indices, num_boxes))
+        losses.update(self.get_loss("labels", outputs_without_aux, targets, entire_indices, num_boxes,
+                                    name="loss_entire_ce"))
 
         # In case of auxiliary losses, we repeat this process with the output of each intermediate layer.
         if 'aux_outputs' in outputs:
             for idx, aux_outputs in enumerate(outputs['aux_outputs']):
                 # indices = self.matcher(aux_outputs, targets)
-                indices = self.matcher(aux_outputs, targets, layer=idx)
+                outputs_without_props = {k: v[:, :100] for k, v in aux_outputs.items()}
+                indices = self.matcher(outputs_without_props, targets, layer=idx)
+                entire_indices = self.matcher(aux_outputs, targets, layer=idx)
                 if return_indices:
                     indices_list.append(indices)
                 for loss in self.losses:
-                    if loss == 'masks':
-                        # Intermediate masks losses are too costly to compute, we ignore them.
-                        continue
-                    kwargs = {}
-                    if loss == 'labels':
-                        # Logging is enabled only for the last layer
-                        kwargs = {'log': False}
+                    kwargs = {'log': False}
                     kwargs['layer'] = idx
-                    l_dict = self.get_loss(loss, aux_outputs, targets, indices, num_boxes, **kwargs)
+                    l_dict = self.get_loss(loss, outputs_without_props, targets, indices, num_boxes, **kwargs)
                     l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
                     losses.update(l_dict)
+                kwargs = {'log': False}
+                kwargs['layer'] = idx
+                kwargs['name'] = "loss_entire_ce"
+                l_dict = self.get_loss("labels", aux_outputs, targets, entire_indices, num_boxes, **kwargs)
+                losses.update(l_dict)
 
                 if self.training and dn_meta and 'output_known_lbs_bboxes' in dn_meta:
                     aux_outputs_known = output_known_lbs_bboxes['aux_outputs'][idx]
