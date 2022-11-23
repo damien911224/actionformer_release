@@ -510,7 +510,8 @@ class SetCriterion_DINO(nn.Module):
         """
         outputs_without_aux = {k: v for k, v in outputs.items() if k != 'aux_outputs'}
         device = next(iter(outputs.values())).device
-        outputs_without_aux_and_props = {k: v[:, :100] for k, v in outputs_without_aux.items()}
+        outputs_without_aux_and_props = {k: v[:, :100] for k, v in outputs_without_aux.items()
+                                         if k in ["pred_logits", "pred_boxes"]}
         indices = self.matcher(outputs_without_aux_and_props, targets)
         entire_indices = self.matcher(outputs_without_aux, targets)
 
@@ -580,7 +581,8 @@ class SetCriterion_DINO(nn.Module):
         if 'aux_outputs' in outputs:
             for idx, aux_outputs in enumerate(outputs['aux_outputs']):
                 # indices = self.matcher(aux_outputs, targets)
-                outputs_without_props = {k: v[:, :100] for k, v in aux_outputs.items()}
+                outputs_without_props = {k: v[:, :100] for k, v in aux_outputs.items()
+                                         if k in ["pred_logits", "pred_boxes"]}
                 indices = self.matcher(outputs_without_props, targets, layer=idx)
                 entire_indices = self.matcher(aux_outputs, targets, layer=idx)
                 if return_indices:
