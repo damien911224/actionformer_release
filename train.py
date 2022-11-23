@@ -274,8 +274,8 @@ def main(args):
     # tensorboard writer
     tb_writer = SummaryWriter(os.path.join(ckpt_folder, 'logs'))
 
-    if not base_trained:
-    # if not base_trained or True:
+    # if not base_trained:
+    if not base_trained or True:
         valid_one_epoch_phase_1(
             val_loader,
             models if base_trained else [m.module for m in model_emas],
@@ -287,7 +287,7 @@ def main(args):
             ext_score_file=cfg['test_cfg']['ext_score_file'],
             tb_writer=tb_writer,
             print_freq=args.print_freq)
-    exit()
+
     is_best = False
     best_mAP = -1
     for epoch in range(args.start_epoch, max_epochs):
