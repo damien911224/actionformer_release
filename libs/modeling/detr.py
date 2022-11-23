@@ -234,7 +234,7 @@ class DINO(nn.Module):
             dino_query_label, dino_query_bbox, attn_mask, dn_meta = \
                 prepare_for_cdn(dn_args=(targets, self.dn_number, self.dn_label_noise_ratio, self.dn_box_noise_scale),
                                 training=self.training, num_queries=self.num_queries, num_classes=self.num_classes,
-                                hidden_dim=self.hidden_dim, label_enc=self.label_enc)
+                                hidden_dim=self.hidden_dim, label_enc=self.feat_label_enc)
             input_query_label = torch.cat((dino_query_label, input_query_label), dim=1)
             input_query_bbox = torch.cat((dino_query_bbox, input_query_bbox), dim=1)
         else:
