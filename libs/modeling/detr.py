@@ -228,7 +228,7 @@ class DINO(nn.Module):
         # prop_label_embeds = self.query_label_enc(prop_labels.long())
         # prop_score_embeds = self.query_score_enc(prop_scores)
         # prop_query_label = prop_label_embeds + prop_score_embeds
-        prop_query_label = torch.cat(box_srcs, dim=2).permute(0, 2, 1)
+        prop_query_label = torch.cat(box_srcs, dim=2).unsqueeze(-1).permute(0, 2, 1)
         prop_query_bbox = torch.cat([proposals[..., 1:-1],
                                       ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
                                       (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
