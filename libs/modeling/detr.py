@@ -557,8 +557,7 @@ class SetCriterion_DINO(nn.Module):
 
         for loss in self.losses:
             # losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
-            if loss != "labels":
-                losses.update(self.get_loss(loss, outputs_without_aux_and_props, targets, indices, num_boxes))
+            losses.update(self.get_loss(loss, outputs_without_aux_and_props, targets, indices, num_boxes))
         losses.update(self.get_loss("labels", outputs_without_aux, targets, entire_indices, num_boxes,
                                     name="loss_entire_ce"))
 
@@ -579,10 +578,9 @@ class SetCriterion_DINO(nn.Module):
                     if loss == "labels":
                         kwargs['log'] = False
                     # kwargs['layer'] = idx
-                    if loss != "labels":
-                        l_dict = self.get_loss(loss, outputs_without_props, targets, indices, num_boxes, **kwargs)
-                        l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
-                        losses.update(l_dict)
+                    l_dict = self.get_loss(loss, outputs_without_props, targets, indices, num_boxes, **kwargs)
+                    l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
+                    losses.update(l_dict)
                 kwargs = {'log': False}
                 # kwargs['layer'] = idx
                 kwargs['name'] = "loss_entire_ce"
