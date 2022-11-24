@@ -217,8 +217,8 @@ class DINO(nn.Module):
             assert NotImplementedError
 
         input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
-        input_type_embeds = self.query_type_enc.weight[0].view(1, 1, -1)
-        input_query_label = input_query_label + input_type_embeds
+        # input_type_embeds = self.query_type_enc.weight[0].view(1, 1, -1)
+        # input_query_label = input_query_label + input_type_embeds
         input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
 
         proposals = torch.cat(proposals, dim=1)
@@ -227,7 +227,8 @@ class DINO(nn.Module):
         prop_label_embeds = self.query_label_enc(prop_labels.long())
         prop_score_embeds = self.query_score_enc(prop_scores)
         prop_type_embeds = self.query_type_enc.weight[1].view(1, 1, -1)
-        prop_query_label = prop_label_embeds + prop_score_embeds + prop_type_embeds
+        prop_query_label = prop_label_embeds + prop_score_embeds
+        # prop_query_label = prop_label_embeds + prop_score_embeds + prop_type_embeds
         prop_query_bbox = torch.cat([proposals[..., 1:-1],
                                       ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
                                       (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
