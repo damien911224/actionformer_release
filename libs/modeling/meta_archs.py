@@ -698,8 +698,8 @@ class PtTransformer(nn.Module):
                 # cls_idxs = cls_idxs[idxs[:num_topk]].clone()
 
             # fix a warning in pytorch 1.9
-            # pt_idxs = torch.div(topk_idxs, self.num_classes, rounding_mode='floor')
-            # cls_idxs = torch.fmod(topk_idxs, self.num_classes)
+            pt_idxs = torch.div(topk_idxs, self.num_classes, rounding_mode='floor')
+            cls_idxs = torch.fmod(topk_idxs, self.num_classes)
 
             # 3. gather predicted offsets
             offsets = offsets_i[pt_idxs]
