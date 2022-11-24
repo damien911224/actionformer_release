@@ -69,7 +69,7 @@ detr: {
   dec_n_points: 4,
   two_stage: False,
   eos_coef: 0.1,
-  set_cost_class: 2, # 6
+  set_cost_class: 0, # 6
   set_cost_bbox: 5, # 5
   set_cost_giou: 2, # 2
   weight_loss_ce: 2, # 2
