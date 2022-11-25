@@ -286,6 +286,7 @@ def main(args):
             ext_score_file=cfg['test_cfg']['ext_score_file'],
             tb_writer=tb_writer,
             print_freq=args.print_freq)
+    exit()
 
     is_best = False
     best_mAP = -1
