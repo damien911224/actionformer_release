@@ -74,10 +74,10 @@ detr: {
   num_classes: 1,
   num_queries: 100, # 756
   temporal_length: 192,
-  lr: 1.0e-3, # 1.0e-3
+  lr: 1.0e-4, # 1.0e-3
   lr_linear_proj_mult: 0.1,
   lr_linear_proj_names: ['reference_points', 'sampling_offsets'],
-  hidden_dim: 256,
+  hidden_dim: 64,
   num_feature_levels: 6,
   input_dim: 256,
   aux_loss: True,
@@ -93,10 +93,10 @@ detr: {
   weight_loss_ce: 2, # 2
   weight_loss_bbox: 5, # 5
   weight_loss_giou: 2, # 2
-  weight_decay: 1.0e-3,
+  weight_decay: 5.0e-2,
   nhead: 8,
-  dropout: 0.1,
-  dim_feedforward: 1024,
+  dropout: 0.2,
+  dim_feedforward: 256,
   pre_norm: False,
   scalar: 5,
   label_noise_scale: 0.2,
