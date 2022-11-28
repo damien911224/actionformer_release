@@ -273,8 +273,8 @@ def main(args):
     # tensorboard writer
     tb_writer = SummaryWriter(os.path.join(ckpt_folder, 'logs'))
 
-    # if not base_trained:
-    if not base_trained or True:
+    if not base_trained:
+    # if not base_trained or True:
         valid_one_epoch_phase_1(
             val_loader,
             models if base_trained else [m.module for m in model_emas],
@@ -329,8 +329,6 @@ def main(args):
             is_best = mAP >= best_mAP
             if is_best:
                 best_mAP = mAP
-
-        exit()
 
         # save ckpt once in a while
         if (
