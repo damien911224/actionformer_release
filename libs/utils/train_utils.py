@@ -789,8 +789,9 @@ def valid_one_epoch_phase_2(
             detr_scores, labels = torch.max(logits, dim=-1)
             scores = detr_scores
 
-            # boxes = boxes[:, :100]
-            # labels = labels[:, :100]
+            boxes = boxes[:, :100]
+            labels = labels[:, :100]
+            scores = scores[:, :100]
             # scores = logits[:, :100] * inside_logits[:, :100]
             # scores = scores.squeeze(-1)
 
