@@ -788,6 +788,7 @@ def valid_one_epoch_phase_2(
             detr_scores, labels = torch.max(logits, dim=-1)
             scores = detr_scores
 
+            print(boxes)
             print(scores)
             exit()
 
