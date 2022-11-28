@@ -787,9 +787,10 @@ def valid_one_epoch_phase_2(
             logits = detr_predictions["pred_entire_logits"].detach().cpu().sigmoid()
             inside_logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
             detr_scores, labels = torch.max(logits, dim=-1)
+            detr_inside_scores, _ = torch.max(logits, dim=-1)
             scores = detr_scores
 
-            scores = logits[:, :100] * inside_logits[:, :100]
+            scores = scores[:, :100] * detr_inside_scores[:, :100]
 
             # dense_onehot = F.one_hot(dense_labels, num_classes=20).sum(dim=1)
             # labels = torch.argsort(dense_onehot, dim=-1, descending=True)[..., 0].unsqueeze(1).repeat(1, labels.size(1))
