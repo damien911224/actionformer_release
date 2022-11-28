@@ -67,7 +67,7 @@ class DINO(nn.Module):
         self.query_label_enc = nn.Embedding(200 + 1, hidden_dim)
         self.query_score_enc = nn.Linear(1, hidden_dim)
         self.query_box_enc = nn.Linear(2, hidden_dim)
-        # self.query_type_enc = nn.Embedding(2, hidden_dim)
+        self.query_type_enc = nn.Embedding(2, hidden_dim)
         self.feat_label_enc = nn.Embedding(200 + 1, hidden_dim)
         self.feat_score_enc = nn.Linear(1, hidden_dim)
         self.feat_box_enc = nn.Linear(2, hidden_dim)
