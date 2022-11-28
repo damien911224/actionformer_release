@@ -790,6 +790,7 @@ def valid_one_epoch_phase_2(
             scores = detr_scores
 
             boxes = boxes[:, :100]
+            labels = labels[:, :100]
             scores = logits[:, :100] * inside_logits[:, :100]
 
             # dense_onehot = F.one_hot(dense_labels, num_classes=20).sum(dim=1)
