@@ -796,6 +796,7 @@ def valid_one_epoch_phase_2(
             dense_labels = mean_proposals[..., 0].long()
 
             print(dense_scores)
+            exit()
 
             # dense_onehot = F.one_hot(dense_labels, num_classes=20).sum(dim=1)
             # labels = torch.argsort(dense_onehot, dim=-1, descending=True)[..., 0].unsqueeze(1).repeat(1, labels.size(1))
