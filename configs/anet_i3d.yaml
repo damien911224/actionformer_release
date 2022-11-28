@@ -82,7 +82,7 @@ detr: {
   input_dim: 256,
   aux_loss: True,
   enc_layers: 0,
-  dec_layers: 3,
+  dec_layers: 4,
   enc_n_points: 4,
   dec_n_points: 4,
   two_stage: False,
