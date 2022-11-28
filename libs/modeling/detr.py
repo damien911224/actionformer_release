@@ -227,7 +227,7 @@ class DINO(nn.Module):
         prop_scores = proposals[..., -1].unsqueeze(-1)
         prop_label_embeds = self.query_label_enc(prop_labels.long())
         prop_type_embeds = self.query_type_enc.weight[1].view(1, 1, -1)
-        # prop_label_embeds = prop_label_embeds + prop_type_embeds
+        prop_label_embeds = prop_label_embeds + prop_type_embeds
         prop_score_embeds = self.query_score_enc(prop_scores)
         prop_query_label = prop_label_embeds + prop_score_embeds
         prop_query_bbox = torch.cat([proposals[..., 1:-1],
