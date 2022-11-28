@@ -785,15 +785,18 @@ def valid_one_epoch_phase_2(
             durations = [x["duration"] for x in video_list]
             boxes = boxes * torch.Tensor(durations)
             logits = detr_predictions["pred_entire_logits"].detach().cpu().sigmoid()
-            inside_logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
             detr_scores, labels = torch.max(logits, dim=-1)
             scores = detr_scores
 
-            boxes = boxes[:, :100]
-            labels = labels[:, :100]
-            scores = scores[:, :100]
-            # scores = logits[:, :100] * inside_logits[:, :100]
-            # scores = scores.squeeze(-1)
+            # mean_proposals = torch.mean(torch.stack(proposals, dim=0), dim=0)
+            # dense_boxes = mean_proposals[..., 1:3]
+            # durations = [x["duration"] for x in video_list]
+            # dense_boxes = dense_boxes * torch.Tensor(durations)
+            # dense_scores = mean_proposals[..., -1]
+            # dense_labels = mean_proposals[..., 0].long()
+            #
+            # dense_scores = (dense_scores - dense_scores.min()) / (dense_scores.max() - dense_scores.min())
+            # dense_scores = dense_scores * scores[:, 100:].mean()
 
             # dense_onehot = F.one_hot(dense_labels, num_classes=20).sum(dim=1)
             # labels = torch.argsort(dense_onehot, dim=-1, descending=True)[..., 0].unsqueeze(1).repeat(1, labels.size(1))

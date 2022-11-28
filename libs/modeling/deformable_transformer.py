@@ -643,7 +643,8 @@ class DeformableTransformerDecoder(nn.Module):
             # hack implementation for iterative bounding box refinement
             if self.bbox_embed is not None:
                 tmp = self.bbox_embed[lid](output)
-                tmp[100:] = tmp[100:] * torch.zeros_like(tmp[100:])
+                # tmp[100:] = tmp[100:] * torch.zeros_like(tmp[100:])
+                tmp[200:] = tmp[200:] * torch.zeros_like(tmp[200:])
                 if reference_points.shape[-1] == 4:
                     new_reference_points = tmp + inverse_sigmoid(reference_points)
                     new_reference_points = new_reference_points.sigmoid()
