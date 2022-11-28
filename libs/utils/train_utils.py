@@ -787,7 +787,7 @@ def valid_one_epoch_phase_2(
             logits = detr_predictions["pred_entire_logits"].detach().cpu().sigmoid()
             inside_logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
             detr_scores, labels = torch.max(logits, dim=-1)
-            detr_inside_scores, _ = torch.max(logits, dim=-1)
+            detr_inside_scores, _ = torch.max(inside_logits, dim=-1)
             scores = detr_scores
 
             scores = scores[:, :100] * detr_inside_scores[:, :100]
