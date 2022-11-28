@@ -788,6 +788,11 @@ def valid_one_epoch_phase_2(
             detr_scores, labels = torch.max(logits, dim=-1)
             scores = detr_scores
 
+            print(scores.min())
+            print(scores.max())
+            print(scores.mean())
+            print(scores.median())
+
             # mean_proposals = torch.mean(torch.stack(proposals, dim=0), dim=0)
             # dense_boxes = mean_proposals[..., 1:3]
             # durations = [x["duration"] for x in video_list]
