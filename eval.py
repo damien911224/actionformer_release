@@ -72,6 +72,7 @@ def main(args):
     # load ema model instead
     print("Loading from EMA model ...")
     model.load_state_dict(checkpoint['state_dict_ema'])
+    # detr.load_state_dict(checkpoint['state_dict_ema'])
     detr.load_state_dict(checkpoint['detr'])
     del checkpoint
 
