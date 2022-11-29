@@ -728,59 +728,59 @@ def valid_one_epoch_phase_2(
     for iter_idx, video_list in enumerate(val_loader, 0):
         # forward the model (wo. grad)
         with torch.no_grad():
-            proposals = list()
-            backbone_features = list()
-            for m_i, model in enumerate(proposal_models):
-                data_type = data_types[m_i]
-                output, this_backbone_features = model(video_list, data_type=data_type)
-                backbone_features.extend(this_backbone_features)
-
-                labels = list()
-                scores = list()
-                segments = list()
-                for p, x in zip(output, video_list):
-                    this_labels = p["labels"].float()
-                    this_scores = p["scores"]
-                    this_segments = p["segments"] / x["duration"]
-                    # if len(this_labels) < 378:
-                    #     this_labels = F.pad(this_labels, (0, 378 - len(this_labels)))
-                    #     this_scores = F.pad(this_scores, (0, 378 - len(this_scores)))
-                    #     this_segments = F.pad(this_segments, (0, 0, 0, 378 - len(this_segments)))
-                    # elif len(this_labels) > 378:
-                    #     sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:378]
-                    #     this_labels = this_labels[sorted_indices]
-                    #     this_scores = this_scores[sorted_indices]
-                    #     this_segments = this_segments[sorted_indices]
-                    labels.append(this_labels)
-                    scores.append(this_scores)
-                    segments.append(this_segments)
-                labels = torch.stack(labels, dim=0)
-                scores = torch.stack(scores, dim=0)
-                segments = torch.stack(segments, dim=0)
-                this_proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1)
-                proposals.append(this_proposals)
-            cat_proposals = torch.cat(proposals, dim=1).cuda()
-
-            # features = [torch.stack([x["resize_feats"] for x in video_list], dim=0).cuda()]
-            # features = [feat for feat in features]
-            # features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
-            # features = torch.stack([F.interpolate(x["feats"].unsqueeze(0),
-            #                                       size=192, mode='linear', align_corners=False).squeeze(0)
-            #                         for x in video_list], dim=0).cuda()
-            # features = [features]
-            features = [feat.detach() for feat in backbone_features]
-
-            start_index = 0
-            pyramidal_proposals = list()
-            for feat in backbone_features:
-                this_len = feat.size(2)
-                this_proposals = cat_proposals[:, start_index:start_index + this_len]
-                pyramidal_proposals.append(this_proposals)
-                start_index += this_len
-
-            detr_predictions = detr(features, pyramidal_proposals)
-
             if one_boxes is None:
+                proposals = list()
+                backbone_features = list()
+                for m_i, model in enumerate(proposal_models):
+                    data_type = data_types[m_i]
+                    output, this_backbone_features = model(video_list, data_type=data_type)
+                    backbone_features.extend(this_backbone_features)
+
+                    labels = list()
+                    scores = list()
+                    segments = list()
+                    for p, x in zip(output, video_list):
+                        this_labels = p["labels"].float()
+                        this_scores = p["scores"]
+                        this_segments = p["segments"] / x["duration"]
+                        # if len(this_labels) < 378:
+                        #     this_labels = F.pad(this_labels, (0, 378 - len(this_labels)))
+                        #     this_scores = F.pad(this_scores, (0, 378 - len(this_scores)))
+                        #     this_segments = F.pad(this_segments, (0, 0, 0, 378 - len(this_segments)))
+                        # elif len(this_labels) > 378:
+                        #     sorted_indices = torch.argsort(this_scores, dim=0, descending=True)[:378]
+                        #     this_labels = this_labels[sorted_indices]
+                        #     this_scores = this_scores[sorted_indices]
+                        #     this_segments = this_segments[sorted_indices]
+                        labels.append(this_labels)
+                        scores.append(this_scores)
+                        segments.append(this_segments)
+                    labels = torch.stack(labels, dim=0)
+                    scores = torch.stack(scores, dim=0)
+                    segments = torch.stack(segments, dim=0)
+                    this_proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1)
+                    proposals.append(this_proposals)
+                cat_proposals = torch.cat(proposals, dim=1).cuda()
+
+                # features = [torch.stack([x["resize_feats"] for x in video_list], dim=0).cuda()]
+                # features = [feat for feat in features]
+                # features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
+                # features = torch.stack([F.interpolate(x["feats"].unsqueeze(0),
+                #                                       size=192, mode='linear', align_corners=False).squeeze(0)
+                #                         for x in video_list], dim=0).cuda()
+                # features = [features]
+                features = [feat.detach() for feat in backbone_features]
+
+                start_index = 0
+                pyramidal_proposals = list()
+                for feat in backbone_features:
+                    this_len = feat.size(2)
+                    this_proposals = cat_proposals[:, start_index:start_index + this_len]
+                    pyramidal_proposals.append(this_proposals)
+                    start_index += this_len
+
+                detr_predictions = detr(features, pyramidal_proposals)
+
                 boxes = detr_predictions["pred_boxes"].detach().cpu()
                 boxes = (boxes[..., :2] +
                          torch.stack((torch.clamp(boxes[..., 2] - boxes[..., 3] / 2.0, 0.0, 1.0),
