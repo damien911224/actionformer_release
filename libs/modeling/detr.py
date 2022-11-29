@@ -493,7 +493,7 @@ class SetCriterion_DINO(nn.Module):
         outputs_without_aux_and_props = {k: v[:, :100] for k, v in outputs_without_aux.items()
                                          if k in ["pred_logits", "pred_boxes"]}
         indices = self.matcher(outputs_without_aux_and_props, targets)
-        entire_indices = self.matcher(outputs_without_aux, targets)
+        entire_indices = self.matcher(outputs_without_aux, targets, layer=4)
 
         if return_indices:
             indices0_copy = indices
@@ -555,7 +555,7 @@ class SetCriterion_DINO(nn.Module):
             # losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
             losses.update(self.get_loss(loss, outputs_without_aux_and_props, targets, indices, num_boxes))
         losses.update(self.get_loss("labels", outputs_without_aux, targets, entire_indices, num_boxes,
-                                    name="loss_entire_ce"))
+                                    name="loss_entire_ce"), layer=4)
 
         # In case of auxiliary losses, we repeat this process with the output of each intermediate layer.
         if 'aux_outputs' in outputs:
@@ -566,7 +566,7 @@ class SetCriterion_DINO(nn.Module):
                 # indices = self.matcher(outputs_without_props, targets, layer=idx)
                 indices = self.matcher(outputs_without_props, targets)
                 # entire_indices = self.matcher(aux_outputs, targets, layer=idx)
-                entire_indices = self.matcher(aux_outputs, targets)
+                entire_indices = self.matcher(aux_outputs, targets, layer=4)
                 if return_indices:
                     indices_list.append(indices)
                 for loss in self.losses:
@@ -578,7 +578,7 @@ class SetCriterion_DINO(nn.Module):
                     l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
                     losses.update(l_dict)
                 kwargs = {'log': False}
-                # kwargs['layer'] = 4
+                kwargs['layer'] = 4
                 kwargs['name'] = "loss_entire_ce"
                 l_dict = self.get_loss("labels", aux_outputs, targets, entire_indices, num_boxes, **kwargs)
                 l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
