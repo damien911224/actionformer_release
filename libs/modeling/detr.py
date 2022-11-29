@@ -352,7 +352,7 @@ class SetCriterion_DINO(nn.Module):
         assert 'pred_logits' in outputs
         if name is None:
             src_logits = outputs['pred_logits']
-        else:
+        elif name == "loss_entire_ce":
             src_logits = outputs['pred_entire_logits']
 
         idx = self._get_src_permutation_idx(indices)
