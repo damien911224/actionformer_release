@@ -119,7 +119,6 @@ class DINO(nn.Module):
         prior_prob = 0.01
         bias_value = -math.log((1 - prior_prob) / prior_prob)
         self.class_embed.bias.data = torch.ones(num_classes) * bias_value
-        self.prop_class_embed.bias.data = torch.ones(num_classes) * bias_value
         self.entire_class_embed.bias.data = torch.ones(num_classes) * bias_value
         nn.init.constant_(self.bbox_embed.layers[-1].weight.data, 0)
         nn.init.constant_(self.bbox_embed.layers[-1].bias.data, 0)
@@ -131,7 +130,6 @@ class DINO(nn.Module):
         num_pred = transformer.decoder.num_layers
         if with_box_refine:
             self.class_embed = _get_clones(self.class_embed, num_pred)
-            self.prop_class_embed = _get_clones(self.entire_class_embed, num_pred)
             self.entire_class_embed = _get_clones(self.entire_class_embed, num_pred)
             self.bbox_embed = _get_clones(self.bbox_embed, num_pred)
             nn.init.constant_(self.bbox_embed[0].layers[-1].bias.data[2:], -2.0)
@@ -140,7 +138,6 @@ class DINO(nn.Module):
         else:
             nn.init.constant_(self.bbox_embed.layers[-1].bias.data[2:], -2.0)
             self.class_embed = nn.ModuleList([self.class_embed for _ in range(num_pred)])
-            self.prop_class_embed = nn.ModuleList([self.prop_class_embed for _ in range(num_pred)])
             self.entire_class_embed = nn.ModuleList([self.entire_class_embed for _ in range(num_pred)])
             self.bbox_embed = nn.ModuleList([self.bbox_embed for _ in range(num_pred)])
             self.transformer.decoder.bbox_embed = None
@@ -270,7 +267,7 @@ class DINO(nn.Module):
 
         hs, init_reference, inter_references, _, _ = \
             self.transformer(srcs, pos_1d, pos_2d, box_srcs, box_pos_1d, box_pos_2d,
-                             query_embeds, attn_mask, self.feat_label_enc)
+                             query_embeds, attn_mask, self.label_enc)
 
         # In case num object=0
         hs[0] += self.label_enc.weight[0, 0] * 0.0
@@ -502,7 +499,10 @@ class SetCriterion_DINO(nn.Module):
         device = next(iter(outputs.values())).device
         outputs_without_aux_and_props = {k: v[:, :100] for k, v in outputs_without_aux.items()
                                          if k in ["pred_logits", "pred_boxes"]}
+        outputs_without_aux_and_base = {k: v[:, 100:] for k, v in outputs_without_aux.items()
+                                         if k in ["pred_logits", "pred_boxes"]}
         indices = self.matcher(outputs_without_aux_and_props, targets)
+        prop_indices = self.matcher(outputs_without_aux_and_base, targets)
         entire_indices = self.matcher(outputs_without_aux, targets)
 
         if return_indices:
@@ -564,6 +564,8 @@ class SetCriterion_DINO(nn.Module):
         for loss in self.losses:
             # losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
             losses.update(self.get_loss(loss, outputs_without_aux_and_props, targets, indices, num_boxes))
+        losses.update(self.get_loss("labels", outputs_without_aux_and_base, targets, prop_indices, num_boxes,
+                                    name="loss_prop_ce"))
         losses.update(self.get_loss("labels", outputs_without_aux, targets, entire_indices, num_boxes,
                                     name="loss_entire_ce"))
 
@@ -573,9 +575,12 @@ class SetCriterion_DINO(nn.Module):
                 # indices = self.matcher(aux_outputs, targets)
                 outputs_without_props = {k: v[:, :100] for k, v in aux_outputs.items()
                                          if k in ["pred_logits", "pred_boxes"]}
+                outputs_without_base = {k: v[:, 100:] for k, v in aux_outputs.items()
+                                         if k in ["pred_logits", "pred_boxes"]}
                 # indices = self.matcher(outputs_without_props, targets, layer=idx)
                 indices = self.matcher(outputs_without_props, targets)
                 # entire_indices = self.matcher(aux_outputs, targets, layer=idx)
+                prop_indices = self.matcher(outputs_without_base, targets)
                 entire_indices = self.matcher(aux_outputs, targets)
                 if return_indices:
                     indices_list.append(indices)
@@ -591,6 +596,11 @@ class SetCriterion_DINO(nn.Module):
                 # kwargs['layer'] = idx
                 kwargs['name'] = "loss_entire_ce"
                 l_dict = self.get_loss("labels", aux_outputs, targets, entire_indices, num_boxes, **kwargs)
+                l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
+                losses.update(l_dict)
+
+                kwargs['name'] = "loss_prop_ce"
+                l_dict = self.get_loss("labels", outputs_without_base, targets, prop_indices, num_boxes, **kwargs)
                 l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
                 losses.update(l_dict)
 
