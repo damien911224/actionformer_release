@@ -792,15 +792,15 @@ def valid_one_epoch_phase_2(
             labels = labels[:, :100]
             scores = scores[:, :100]
 
-            print(boxes[0, 50:100])
-            print(scores[0, 50:100])
+            # print(boxes[0, 50:100])
+            # print(scores[0, 50:100])
 
-            # mean_proposals = torch.mean(torch.stack(proposals, dim=0), dim=0)
-            # dense_boxes = mean_proposals[..., 1:3]
+            mean_proposals = torch.mean(torch.stack(proposals, dim=0), dim=0)
+            dense_boxes = mean_proposals[..., 1:3]
             # durations = [x["duration"] for x in video_list]
             # dense_boxes = dense_boxes * torch.Tensor(durations)
-            # dense_scores = mean_proposals[..., -1]
-            # dense_labels = mean_proposals[..., 0].long()
+            dense_scores = mean_proposals[..., -1]
+            dense_labels = mean_proposals[..., 0].long()
             # dense_scores = (dense_scores - dense_scores.min()) / (dense_scores.max() - dense_scores.min())
             # dense_scores = dense_scores * scores[:, :100].max()
 
@@ -813,9 +813,9 @@ def valid_one_epoch_phase_2(
             # scores = torch.cat((scores, dense_scores), dim=1)
             # labels = torch.cat((labels, dense_labels), dim=1)
 
-            # boxes = dense_boxes
-            # scores = dense_scores
-            # labels = dense_labels
+            boxes = dense_boxes
+            scores = dense_scores
+            labels = dense_labels
 
             # dense_onehot = F.one_hot(dense_labels, num_classes=20).sum(dim=1)
             # labels = torch.argsort(dense_onehot, dim=-1, descending=True)[..., 0].unsqueeze(1).repeat(1, labels.size(1))
