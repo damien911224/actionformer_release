@@ -555,7 +555,7 @@ class SetCriterion_DINO(nn.Module):
             # losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
             losses.update(self.get_loss(loss, outputs_without_aux_and_props, targets, indices, num_boxes))
         losses.update(self.get_loss("labels", outputs_without_aux, targets, entire_indices, num_boxes,
-                                    name="loss_entire_ce"), layer=4)
+                                    name="loss_entire_ce", layer=4))
 
         # In case of auxiliary losses, we repeat this process with the output of each intermediate layer.
         if 'aux_outputs' in outputs:
