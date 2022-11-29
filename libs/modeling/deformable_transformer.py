@@ -523,9 +523,9 @@ class DeformableTransformerDecoderLayer(nn.Module):
         self.norm1 = nn.LayerNorm(d_model)
 
         # cross attention
-        # self.cross_attn_2 = MSDeformAttn(d_model, n_levels, n_heads, n_points)
-        # self.dropout1_2 = nn.Dropout(dropout)
-        # self.norm1_2 = nn.LayerNorm(d_model)
+        self.cross_attn_2 = MSDeformAttn(d_model, n_levels, n_heads, n_points)
+        self.dropout1_2 = nn.Dropout(dropout)
+        self.norm1_2 = nn.LayerNorm(d_model)
 
         # self attention
         self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
@@ -569,12 +569,12 @@ class DeformableTransformerDecoderLayer(nn.Module):
         # tgt = tgt + self.dropout1(tgt2)
         # tgt = self.norm1(tgt)
 
-        # tgt2 = self.cross_attn_2(self.with_pos_embed(tgt, query_pos),
-        #                          reference_points,
-        #                          self.with_pos_embed(box_src, box_src_pos),
-        #                          box_src_spatial_shapes, box_level_start_index, box_src_padding_mask)
-        # tgt = tgt + self.dropout1_2(tgt2)
-        # tgt = self.norm1_2(tgt)
+        tgt2 = self.cross_attn_2(self.with_pos_embed(tgt, query_pos),
+                                 reference_points,
+                                 self.with_pos_embed(box_src, box_src_pos),
+                                 box_src_spatial_shapes, box_level_start_index, box_src_padding_mask)
+        tgt = tgt + self.dropout1_2(tgt2)
+        tgt = self.norm1_2(tgt)
 
         # ffn
         tgt = self.forward_ffn(tgt)
