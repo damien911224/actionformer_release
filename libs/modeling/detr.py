@@ -267,10 +267,10 @@ class DINO(nn.Module):
 
         hs, init_reference, inter_references, _, _ = \
             self.transformer(srcs, pos_1d, pos_2d, box_srcs, box_pos_1d, box_pos_2d,
-                             query_embeds, attn_mask, self.label_enc)
+                             query_embeds, attn_mask, self.feat_label_enc)
 
         # In case num object=0
-        hs[0] += self.label_enc.weight[0, 0] * 0.0
+        hs[0] += self.feat_label_enc.weight[0, 0] * 0.0
 
         outputs_classes = []
         outputs_coords = []
