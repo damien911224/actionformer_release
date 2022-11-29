@@ -350,7 +350,7 @@ class SetCriterion_DINO(nn.Module):
         targets dicts must contain the key "labels" containing a tensor of dim [nb_target_boxes]
         """
         assert 'pred_logits' in outputs
-        if name is None:
+        if name is None or name == "loss_prop_ce":
             src_logits = outputs['pred_logits']
         elif name == "loss_entire_ce":
             src_logits = outputs['pred_entire_logits']
