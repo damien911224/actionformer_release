@@ -469,6 +469,24 @@ def train_one_epoch_phase_2(
         scheduler.step()
         detr_model_ema.update(detr)
 
+        boxes = detr_predictions["pred_boxes"].detach().cpu()
+        boxes = (boxes[..., :2] +
+                 torch.stack((torch.clamp(boxes[..., 2] - boxes[..., 3] / 2.0, 0.0, 1.0),
+                              torch.clamp(boxes[..., 2] + boxes[..., 3] / 2.0, 0.0, 1.0)), dim=-1)) / 2.0
+        # boxes = boxes[..., :2]
+        durations = [x["duration"] for x in video_list]
+        # boxes = boxes * torch.Tensor(durations)
+        logits = detr_predictions["pred_entire_logits"].detach().cpu().sigmoid()
+        detr_scores, labels = torch.max(logits, dim=-1)
+        scores = detr_scores
+
+        boxes = boxes[:, :100]
+        labels = labels[:, :100]
+        scores = scores[:, :100]
+
+        print(boxes[0, 50:100])
+        print(scores[0, 50:100])
+
         # printing (only check the stats when necessary to avoid extra cost)
         if (iter_idx != 0) and (iter_idx % print_freq) == 0:
             # measure elapsed time (sync all kernels)
