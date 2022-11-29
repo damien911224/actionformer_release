@@ -806,9 +806,9 @@ def valid_one_epoch_phase_2(
             # labels = labels[np.arange(len(sorted_indices)), sorted_indices[np.arange(len(sorted_indices))]]
             # scores = scores[np.arange(len(sorted_indices)), sorted_indices[np.arange(len(sorted_indices))]]
 
-            boxes = torch.cat((boxes, dense_boxes), dim=1)
-            scores = torch.cat((scores, dense_scores), dim=1)
-            labels = torch.cat((labels, dense_labels), dim=1)
+            # boxes = torch.cat((boxes, dense_boxes), dim=1)
+            # scores = torch.cat((scores, dense_scores), dim=1)
+            # labels = torch.cat((labels, dense_labels), dim=1)
 
             # boxes = dense_boxes
             # scores = dense_scores
