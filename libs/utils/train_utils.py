@@ -799,7 +799,7 @@ def valid_one_epoch_phase_2(
             dense_scores = mean_proposals[..., -1]
             dense_labels = mean_proposals[..., 0].long()
             dense_scores = (dense_scores - dense_scores.min()) / (dense_scores.max() - dense_scores.min())
-            dense_scores = dense_scores * scores[:, :100].mean()
+            dense_scores = dense_scores * scores[:, :100].min()
 
             boxes = torch.cat((boxes, dense_boxes), dim=1)
             scores = torch.cat((scores, dense_scores), dim=1)
