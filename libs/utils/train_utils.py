@@ -722,6 +722,9 @@ def valid_one_epoch_phase_2(
 
     # loop over validation set
     start = time.time()
+    boxes = None
+    labels = None
+    scores = None
     for iter_idx, video_list in enumerate(val_loader, 0):
         # forward the model (wo. grad)
         with torch.no_grad():
@@ -777,20 +780,21 @@ def valid_one_epoch_phase_2(
 
             detr_predictions = detr(features, pyramidal_proposals)
 
-            boxes = detr_predictions["pred_boxes"].detach().cpu()
-            boxes = (boxes[..., :2] +
-                     torch.stack((torch.clamp(boxes[..., 2] - boxes[..., 3] / 2.0, 0.0, 1.0),
-                                  torch.clamp(boxes[..., 2] + boxes[..., 3] / 2.0, 0.0, 1.0)), dim=-1)) / 2.0
-            boxes = boxes[..., :2]
+            if boxes is None:
+                boxes = detr_predictions["pred_boxes"].detach().cpu()
+                boxes = (boxes[..., :2] +
+                         torch.stack((torch.clamp(boxes[..., 2] - boxes[..., 3] / 2.0, 0.0, 1.0),
+                                      torch.clamp(boxes[..., 2] + boxes[..., 3] / 2.0, 0.0, 1.0)), dim=-1)) / 2.0
+                boxes = boxes[..., :2]
+                logits = detr_predictions["pred_entire_logits"].detach().cpu().sigmoid()
+                detr_scores, labels = torch.max(logits, dim=-1)
+                scores = detr_scores
+
+                boxes = boxes[:, :100]
+                labels = labels[:, :100]
+                scores = scores[:, :100]
             durations = [x["duration"] for x in video_list]
             boxes = boxes * torch.Tensor(durations)
-            logits = detr_predictions["pred_entire_logits"].detach().cpu().sigmoid()
-            detr_scores, labels = torch.max(logits, dim=-1)
-            scores = detr_scores
-
-            boxes = boxes[:, :100]
-            labels = labels[:, :100]
-            scores = scores[:, :100]
 
             # print(boxes[0, 50:100])
             # print(torch.argsort(scores, dim=1, descending=True)[:10])
