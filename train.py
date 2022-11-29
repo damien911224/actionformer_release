@@ -330,6 +330,8 @@ def main(args):
             if is_best:
                 best_mAP = mAP
 
+        exit()
+
         # save ckpt once in a while
         if (
                 (epoch == max_epochs - 1) or
@@ -355,8 +357,6 @@ def main(args):
                 file_folder=ckpt_folder,
                 file_name='epoch_{:03d}.pth.tar'.format(epoch)
             )
-
-        exit()
 
     # wrap up
     tb_writer.close()
