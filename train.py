@@ -291,7 +291,7 @@ def main(args):
     best_mAP = -1
     for epoch in range(args.start_epoch, max_epochs):
         detr.load_state_dict(detr_model_ema.module.state_dict())
-        train for one epoch
+        # train for one epoch
         train_one_epoch_phase_2(
             train_loader,
             detr,
