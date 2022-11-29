@@ -778,12 +778,12 @@ def valid_one_epoch_phase_2(
             detr_predictions = detr(features, pyramidal_proposals)
 
             boxes = detr_predictions["pred_boxes"].detach().cpu()
-            # boxes = (boxes[..., :2] +
-            #          torch.stack((torch.clamp(boxes[..., 2] - boxes[..., 3] / 2.0, 0.0, 1.0),
-            #                       torch.clamp(boxes[..., 2] + boxes[..., 3] / 2.0, 0.0, 1.0)), dim=-1)) / 2.0
-            boxes = boxes[..., :2].contiguous()
+            boxes = (boxes[..., :2] +
+                     torch.stack((torch.clamp(boxes[..., 2] - boxes[..., 3] / 2.0, 0.0, 1.0),
+                                  torch.clamp(boxes[..., 2] + boxes[..., 3] / 2.0, 0.0, 1.0)), dim=-1)) / 2.0
+            boxes = boxes[..., :2]
             durations = [x["duration"] for x in video_list]
-            # boxes = boxes * torch.Tensor(durations)
+            boxes = boxes * torch.Tensor(durations)
             logits = detr_predictions["pred_entire_logits"].detach().cpu().sigmoid()
             detr_scores, labels = torch.max(logits, dim=-1)
             scores = detr_scores
@@ -792,17 +792,16 @@ def valid_one_epoch_phase_2(
             labels = labels[:, :100]
             scores = scores[:, :100]
 
-            print(boxes[0, 50:100])
-
+            # print(boxes[0, 50:100])
             # print(torch.argsort(scores, dim=1, descending=True)[:10])
             # print(scores[0, 50:100])
 
-            # mean_proposals = torch.mean(torch.stack(proposals, dim=0), dim=0)
-            # dense_boxes = mean_proposals[..., 1:3]
-            # durations = [x["duration"] for x in video_list]
+            mean_proposals = torch.mean(torch.stack(proposals, dim=0), dim=0)
+            dense_boxes = mean_proposals[..., 1:3].contiguous
+            durations = [x["duration"] for x in video_list]
             # dense_boxes = dense_boxes * torch.Tensor(durations)
-            # dense_scores = mean_proposals[..., -1]
-            # dense_labels = mean_proposals[..., 0].long()
+            dense_scores = mean_proposals[..., -1].contiguous
+            dense_labels = mean_proposals[..., 0].long()
             # dense_scores = (dense_scores - dense_scores.min()) / (dense_scores.max() - dense_scores.min())
             # dense_scores = dense_scores * scores[:, :100].max()
 
@@ -815,9 +814,9 @@ def valid_one_epoch_phase_2(
             # scores = torch.cat((scores, dense_scores), dim=1)
             # labels = torch.cat((labels, dense_labels), dim=1)
 
-            # boxes = dense_boxes
-            # scores = dense_scores
-            # labels = dense_labels
+            boxes = dense_boxes
+            scores = dense_scores
+            labels = dense_labels
 
             # dense_onehot = F.one_hot(dense_labels, num_classes=20).sum(dim=1)
             # labels = torch.argsort(dense_onehot, dim=-1, descending=True)[..., 0].unsqueeze(1).repeat(1, labels.size(1))
