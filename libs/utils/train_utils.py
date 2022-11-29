@@ -722,9 +722,9 @@ def valid_one_epoch_phase_2(
 
     # loop over validation set
     start = time.time()
-    boxes = None
-    labels = None
-    scores = None
+    one_boxes = None
+    one_labels = None
+    one_scores = None
     for iter_idx, video_list in enumerate(val_loader, 0):
         # forward the model (wo. grad)
         with torch.no_grad():
@@ -780,7 +780,7 @@ def valid_one_epoch_phase_2(
 
             detr_predictions = detr(features, pyramidal_proposals)
 
-            if boxes is None:
+            if one_boxes is None:
                 boxes = detr_predictions["pred_boxes"].detach().cpu()
                 boxes = (boxes[..., :2] +
                          torch.stack((torch.clamp(boxes[..., 2] - boxes[..., 3] / 2.0, 0.0, 1.0),
@@ -793,6 +793,15 @@ def valid_one_epoch_phase_2(
                 boxes = boxes[:, :100]
                 labels = labels[:, :100]
                 scores = scores[:, :100]
+
+                one_boxes = boxes
+                one_labels = labels
+                one_scores = scores
+            else:
+                boxes = one_boxes
+                labels = one_labels
+                scores = one_scores
+
             durations = [x["duration"] for x in video_list]
             boxes = boxes * torch.Tensor(durations)
 
