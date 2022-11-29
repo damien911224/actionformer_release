@@ -792,7 +792,7 @@ def valid_one_epoch_phase_2(
             labels = labels[:, :100]
             scores = scores[:, :100]
 
-            print(torch.argsort(scores, dim=1, descending=True)[:10])
+            # print(torch.argsort(scores, dim=1, descending=True)[:10])
             # print(scores[0, 50:100])
 
             # mean_proposals = torch.mean(torch.stack(proposals, dim=0), dim=0)
@@ -865,6 +865,8 @@ def valid_one_epoch_phase_2(
                     detr_results['t-end'].append(boxes[vid_idx][:, 1])
                     detr_results['label'].append(labels[vid_idx])
                     detr_results['score'].append(scores[vid_idx])
+
+                    print(boxes[vid_idx])
 
         # printing
         if (iter_idx != 0) and iter_idx % (print_freq) == 0:
