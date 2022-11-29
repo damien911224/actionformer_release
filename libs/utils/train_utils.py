@@ -799,7 +799,7 @@ def valid_one_epoch_phase_2(
             dense_boxes = mean_proposals[..., 1:3]
             durations = [x["duration"] for x in video_list]
             # dense_boxes = dense_boxes * torch.Tensor(durations)
-            dense_scores = mean_proposals[..., -1].suqeeze(-1)
+            dense_scores = mean_proposals[..., -1]
             dense_labels = mean_proposals[..., 0].long()
             # dense_scores = (dense_scores - dense_scores.min()) / (dense_scores.max() - dense_scores.min())
             # dense_scores = dense_scores * scores[:, :100].max()
