@@ -370,6 +370,8 @@ class DeformableTransformerEncoderLayer(nn.Module):
         # ffn
         src = self.forward_ffn(src)
 
+        print("3")
+
         return src
 
 
@@ -465,6 +467,8 @@ class DeformableTransformerCrossEncoderLayer(nn.Module):
 
         # ffn
         src = self.forward_ffn(src)
+
+        print("2")
 
         return src
 
@@ -578,7 +582,9 @@ class DeformableTransformerDecoderLayer(nn.Module):
 
         # ffn
         # tgt = self.forward_ffn(tgt)
-
+        
+        print("1")
+        
         return tgt
 
 
