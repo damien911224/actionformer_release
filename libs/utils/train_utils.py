@@ -801,7 +801,7 @@ def valid_one_epoch_phase_2(
             dense_scores = (dense_scores - dense_scores.min()) / (dense_scores.max() - dense_scores.min())
             dense_scores = dense_scores * scores[:, :100].max()
 
-            sorted_indices = torch.argsort(scores, dim=1, descending=True)[:10]
+            sorted_indices = torch.argsort(scores, dim=1, descending=True)[:, :10]
             boxes = boxes[sorted_indices]
             labels = labels[sorted_indices]
             scores = scores[sorted_indices]
