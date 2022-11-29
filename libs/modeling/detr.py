@@ -554,8 +554,8 @@ class SetCriterion_DINO(nn.Module):
         for loss in self.losses:
             # losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
             losses.update(self.get_loss(loss, outputs_without_aux_and_props, targets, indices, num_boxes))
-        losses.update(self.get_loss("labels", outputs_without_aux, targets, entire_indices, num_boxes,
-                                    name="loss_entire_ce"))
+        # losses.update(self.get_loss("labels", outputs_without_aux, targets, entire_indices, num_boxes,
+        #                             name="loss_entire_ce"))
 
         # In case of auxiliary losses, we repeat this process with the output of each intermediate layer.
         if 'aux_outputs' in outputs:
@@ -581,9 +581,9 @@ class SetCriterion_DINO(nn.Module):
                 kwargs = {'log': False}
                 # kwargs['layer'] = 4
                 kwargs['name'] = "loss_entire_ce"
-                l_dict = self.get_loss("labels", aux_outputs, targets, entire_indices, num_boxes, **kwargs)
-                l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
-                losses.update(l_dict)
+                # l_dict = self.get_loss("labels", aux_outputs, targets, entire_indices, num_boxes, **kwargs)
+                # l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
+                # losses.update(l_dict)
 
                 if self.training and dn_meta and 'output_known_lbs_bboxes' in dn_meta:
                     aux_outputs_known = output_known_lbs_bboxes['aux_outputs'][idx]

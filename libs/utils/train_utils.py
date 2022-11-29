@@ -792,14 +792,14 @@ def valid_one_epoch_phase_2(
             labels = labels[:, :100]
             scores = scores[:, :100]
 
-            mean_proposals = torch.mean(torch.stack(proposals, dim=0), dim=0)
-            dense_boxes = mean_proposals[..., 1:3]
-            durations = [x["duration"] for x in video_list]
-            dense_boxes = dense_boxes * torch.Tensor(durations)
-            dense_scores = mean_proposals[..., -1]
-            dense_labels = mean_proposals[..., 0].long()
-            dense_scores = (dense_scores - dense_scores.min()) / (dense_scores.max() - dense_scores.min())
-            dense_scores = dense_scores * scores[:, :100].max()
+            # mean_proposals = torch.mean(torch.stack(proposals, dim=0), dim=0)
+            # dense_boxes = mean_proposals[..., 1:3]
+            # durations = [x["duration"] for x in video_list]
+            # dense_boxes = dense_boxes * torch.Tensor(durations)
+            # dense_scores = mean_proposals[..., -1]
+            # dense_labels = mean_proposals[..., 0].long()
+            # dense_scores = (dense_scores - dense_scores.min()) / (dense_scores.max() - dense_scores.min())
+            # dense_scores = dense_scores * scores[:, :100].max()
 
             # sorted_indices = torch.argsort(scores, dim=1, descending=True)[:, :5]
             # boxes = boxes[np.arange(len(sorted_indices)), sorted_indices[np.arange(len(sorted_indices))]]
