@@ -792,8 +792,8 @@ def valid_one_epoch_phase_2(
             labels = labels[:, :100]
             scores = scores[:, :100]
 
-            print(boxes[0, :10])
-            print(scores[0, :10])
+            print(boxes[0, 50:100])
+            print(scores[0, 50:100])
 
             # mean_proposals = torch.mean(torch.stack(proposals, dim=0), dim=0)
             # dense_boxes = mean_proposals[..., 1:3]
