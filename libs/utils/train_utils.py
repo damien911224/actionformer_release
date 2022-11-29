@@ -810,6 +810,10 @@ def valid_one_epoch_phase_2(
             scores = torch.cat((scores, dense_scores), dim=1)
             labels = torch.cat((labels, dense_labels), dim=1)
 
+            boxes = dense_boxes
+            scores = dense_scores
+            labels = dense_labels
+
             # dense_onehot = F.one_hot(dense_labels, num_classes=20).sum(dim=1)
             # labels = torch.argsort(dense_onehot, dim=-1, descending=True)[..., 0].unsqueeze(1).repeat(1, labels.size(1))
             # top_2_labels = torch.argsort(dense_onehot, dim=-1, descending=True)[..., 1].unsqueeze(1).repeat(1, labels.size(1))
