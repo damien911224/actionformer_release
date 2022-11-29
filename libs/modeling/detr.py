@@ -63,7 +63,7 @@ class DINO(nn.Module):
         self.use_dab = use_dab
         self.num_patterns = num_patterns
         self.random_refpoints_xy = random_refpoints_xy
-        # self.label_enc = nn.Embedding(dn_labelbook_size + 1, hidden_dim)
+        self.label_enc = nn.Embedding(dn_labelbook_size + 1, hidden_dim)
         self.query_label_enc = nn.Embedding(200 + 1, hidden_dim)
         self.query_score_enc = nn.Linear(1, hidden_dim)
         self.query_box_enc = nn.Linear(2, hidden_dim)
@@ -244,7 +244,7 @@ class DINO(nn.Module):
             dino_query_label, dino_query_bbox, attn_mask, dn_meta = \
                 prepare_for_cdn(dn_args=(targets, self.dn_number, self.dn_label_noise_ratio, self.dn_box_noise_scale),
                                 training=self.training, num_queries=self.num_queries, num_classes=self.num_classes,
-                                hidden_dim=self.hidden_dim, label_enc=self.feat_label_enc)
+                                hidden_dim=self.hidden_dim, label_enc=self.label_enc)
             input_query_label = torch.cat((dino_query_label, input_query_label), dim=1)
             input_query_bbox = torch.cat((dino_query_bbox, input_query_bbox), dim=1)
         else:
@@ -269,7 +269,7 @@ class DINO(nn.Module):
                              query_embeds, attn_mask, self.feat_label_enc)
 
         # In case num object=0
-        hs[0] += self.feat_label_enc.weight[0, 0] * 0.0
+        hs[0] += self.label_enc.weight[0, 0] * 0.0
 
         outputs_classes = []
         outputs_coords = []
