@@ -291,19 +291,19 @@ def main(args):
     best_mAP = -1
     for epoch in range(args.start_epoch, max_epochs):
         # detr.load_state_dict(detr_model_ema.module.state_dict())
-        # train for one epoch
-        # train_one_epoch_phase_2(
-        #     train_loader,
-        #     detr,
-        #     detr_model_ema,
-        #     detr_criterion,
-        #     detr_optimizer,
-        #     detr_scheduler,
-        #     data_types,
-        #     models if base_trained else [m.module for m in model_emas],
-        #     epoch,
-        #     tb_writer=tb_writer,
-        #     print_freq=args.print_freq)
+        train for one epoch
+        train_one_epoch_phase_2(
+            train_loader,
+            detr,
+            detr_model_ema,
+            detr_criterion,
+            detr_optimizer,
+            detr_scheduler,
+            data_types,
+            models if base_trained else [m.module for m in model_emas],
+            epoch,
+            tb_writer=tb_writer,
+            print_freq=args.print_freq)
 
         ckpt_file = os.path.join(ckpt_folder, 'model_best.pth.tar')
         # load ckpt, reset epoch / best rmse
@@ -329,8 +329,6 @@ def main(args):
             is_best = mAP >= best_mAP
             if is_best:
                 best_mAP = mAP
-
-        exit()
 
         # save ckpt once in a while
         if (
