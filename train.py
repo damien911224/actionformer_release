@@ -313,8 +313,8 @@ def main(args):
         if (epoch >= 0 and epoch % 1 == 0) or epoch == max_epochs - 1:
             mAP = valid_one_epoch_phase_2(
                 val_loader,
-                detr_model_ema.module,
-                # detr,
+                # detr_model_ema.module,
+                detr,
                 data_types,
                 models if base_trained else [m.module for m in model_emas],
                 epoch,
