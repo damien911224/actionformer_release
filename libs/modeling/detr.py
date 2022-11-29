@@ -56,6 +56,7 @@ class DINO(nn.Module):
         self.pos_2d_embeds = pos_2d_embeds
         self.class_embed = nn.Linear(hidden_dim, num_classes)
         self.bbox_embed = MLP(hidden_dim, hidden_dim, 4, 3)
+        self.prop_class_embed = nn.Linear(hidden_dim, num_classes)
         self.entire_class_embed = nn.Linear(hidden_dim, num_classes)
         self.num_feature_levels = num_feature_levels
         self.input_dim = input_dim
@@ -118,6 +119,7 @@ class DINO(nn.Module):
         prior_prob = 0.01
         bias_value = -math.log((1 - prior_prob) / prior_prob)
         self.class_embed.bias.data = torch.ones(num_classes) * bias_value
+        self.prop_class_embed.bias.data = torch.ones(num_classes) * bias_value
         self.entire_class_embed.bias.data = torch.ones(num_classes) * bias_value
         nn.init.constant_(self.bbox_embed.layers[-1].weight.data, 0)
         nn.init.constant_(self.bbox_embed.layers[-1].bias.data, 0)
@@ -129,6 +131,7 @@ class DINO(nn.Module):
         num_pred = transformer.decoder.num_layers
         if with_box_refine:
             self.class_embed = _get_clones(self.class_embed, num_pred)
+            self.prop_class_embed = _get_clones(self.entire_class_embed, num_pred)
             self.entire_class_embed = _get_clones(self.entire_class_embed, num_pred)
             self.bbox_embed = _get_clones(self.bbox_embed, num_pred)
             nn.init.constant_(self.bbox_embed[0].layers[-1].bias.data[2:], -2.0)
@@ -137,6 +140,7 @@ class DINO(nn.Module):
         else:
             nn.init.constant_(self.bbox_embed.layers[-1].bias.data[2:], -2.0)
             self.class_embed = nn.ModuleList([self.class_embed for _ in range(num_pred)])
+            self.prop_class_embed = nn.ModuleList([self.prop_class_embed for _ in range(num_pred)])
             self.entire_class_embed = nn.ModuleList([self.entire_class_embed for _ in range(num_pred)])
             self.bbox_embed = nn.ModuleList([self.bbox_embed for _ in range(num_pred)])
             self.transformer.decoder.bbox_embed = None

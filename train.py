@@ -252,17 +252,17 @@ def main(args):
                     file_name='epoch_{:03d}.pth.tar'.format(epoch)
                 )
 
-            valid_one_epoch_phase_1(
-                val_loader,
-                (model_ema.module, ),
-                (data_type, ),
-                epoch,
-                cfg['test_cfg'],
-                evaluator=det_eval,
-                output_file=output_file,
-                ext_score_file=cfg['test_cfg']['ext_score_file'],
-                tb_writer=tb_writer,
-                print_freq=args.print_freq)
+            # valid_one_epoch_phase_1(
+            #     val_loader,
+            #     (model_ema.module, ),
+            #     (data_type, ),
+            #     epoch,
+            #     cfg['test_cfg'],
+            #     evaluator=det_eval,
+            #     output_file=output_file,
+            #     ext_score_file=cfg['test_cfg']['ext_score_file'],
+            #     tb_writer=tb_writer,
+            #     print_freq=args.print_freq)
 
         # wrap up
         tb_writer.close()
