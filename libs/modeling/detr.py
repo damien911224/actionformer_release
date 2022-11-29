@@ -56,7 +56,6 @@ class DINO(nn.Module):
         self.pos_2d_embeds = pos_2d_embeds
         self.class_embed = nn.Linear(hidden_dim, num_classes)
         self.bbox_embed = MLP(hidden_dim, hidden_dim, 4, 3)
-        self.prop_class_embed = nn.Linear(hidden_dim, num_classes)
         self.entire_class_embed = nn.Linear(hidden_dim, num_classes)
         self.num_feature_levels = num_feature_levels
         self.input_dim = input_dim
@@ -64,11 +63,10 @@ class DINO(nn.Module):
         self.use_dab = use_dab
         self.num_patterns = num_patterns
         self.random_refpoints_xy = random_refpoints_xy
-        self.label_enc = nn.Embedding(dn_labelbook_size + 1, hidden_dim)
+        # self.label_enc = nn.Embedding(dn_labelbook_size + 1, hidden_dim)
         self.query_label_enc = nn.Embedding(200 + 1, hidden_dim)
         self.query_score_enc = nn.Linear(1, hidden_dim)
         self.query_box_enc = nn.Linear(2, hidden_dim)
-        self.query_type_enc = nn.Embedding(2, hidden_dim)
         self.feat_label_enc = nn.Embedding(200 + 1, hidden_dim)
         self.feat_score_enc = nn.Linear(1, hidden_dim)
         self.feat_box_enc = nn.Linear(2, hidden_dim)
@@ -191,7 +189,7 @@ class DINO(nn.Module):
             prop_labels = feat[..., 0]
             prop_scores = feat[..., -1].unsqueeze(-1)
             prop_box_embeds = self.feat_box_enc(prop_boxes)
-            prop_label_embeds = self.feat_label_enc(torch.zeros_like(prop_labels.long()))
+            prop_label_embeds = self.feat_label_enc(prop_labels.long())
             prop_score_embeds = self.feat_score_enc(prop_scores)
             box_src = (prop_box_embeds + prop_label_embeds + prop_score_embeds).permute(0, 2, 1)
             # box_src = (prop_box_embeds + prop_score_embeds).permute(0, 2, 1)
@@ -219,18 +217,13 @@ class DINO(nn.Module):
             assert NotImplementedError
 
         input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
-        # input_query_type = self.query_type_enc.weight[0].view(1, 1, -1)
-        # input_query_label = input_query_label + input_query_type
         input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
 
         proposals = torch.cat(proposals, dim=1)
         prop_labels = proposals[..., 0]
         prop_scores = proposals[..., -1].unsqueeze(-1)
-        prop_label_embeds = self.query_label_enc(torch.zeros_like(prop_labels.long()))
-        # prop_type_embeds = self.query_type_enc.weight[1].view(1, 1, -1)
-        # prop_label_embeds = prop_label_embeds + prop_type_embeds
+        prop_label_embeds = self.query_label_enc(prop_labels.long())
         prop_score_embeds = self.query_score_enc(prop_scores)
-        # prop_query_label = prop_score_embeds
         prop_query_label = prop_label_embeds + prop_score_embeds
         prop_query_bbox = torch.cat([proposals[..., 1:-1],
                                       ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
@@ -245,7 +238,7 @@ class DINO(nn.Module):
             dino_query_label, dino_query_bbox, attn_mask, dn_meta = \
                 prepare_for_cdn(dn_args=(targets, self.dn_number, self.dn_label_noise_ratio, self.dn_box_noise_scale),
                                 training=self.training, num_queries=self.num_queries, num_classes=self.num_classes,
-                                hidden_dim=self.hidden_dim, label_enc=self.label_enc)
+                                hidden_dim=self.hidden_dim, label_enc=self.feat_label_enc)
             input_query_label = torch.cat((dino_query_label, input_query_label), dim=1)
             input_query_bbox = torch.cat((dino_query_bbox, input_query_bbox), dim=1)
         else:
@@ -350,9 +343,9 @@ class SetCriterion_DINO(nn.Module):
         targets dicts must contain the key "labels" containing a tensor of dim [nb_target_boxes]
         """
         assert 'pred_logits' in outputs
-        if name is None or name == "loss_prop_ce":
+        if name is None:
             src_logits = outputs['pred_logits']
-        elif name == "loss_entire_ce":
+        else:
             src_logits = outputs['pred_entire_logits']
 
         idx = self._get_src_permutation_idx(indices)
@@ -499,10 +492,7 @@ class SetCriterion_DINO(nn.Module):
         device = next(iter(outputs.values())).device
         outputs_without_aux_and_props = {k: v[:, :100] for k, v in outputs_without_aux.items()
                                          if k in ["pred_logits", "pred_boxes"]}
-        outputs_without_aux_and_base = {k: v[:, 100:] for k, v in outputs_without_aux.items()
-                                         if k in ["pred_logits", "pred_boxes"]}
         indices = self.matcher(outputs_without_aux_and_props, targets)
-        prop_indices = self.matcher(outputs_without_aux_and_base, targets)
         entire_indices = self.matcher(outputs_without_aux, targets)
 
         if return_indices:
@@ -564,8 +554,6 @@ class SetCriterion_DINO(nn.Module):
         for loss in self.losses:
             # losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
             losses.update(self.get_loss(loss, outputs_without_aux_and_props, targets, indices, num_boxes))
-        # losses.update(self.get_loss("labels", outputs_without_aux_and_base, targets, prop_indices, num_boxes,
-        #                             name="loss_prop_ce"))
         losses.update(self.get_loss("labels", outputs_without_aux, targets, entire_indices, num_boxes,
                                     name="loss_entire_ce"))
 
@@ -575,12 +563,9 @@ class SetCriterion_DINO(nn.Module):
                 # indices = self.matcher(aux_outputs, targets)
                 outputs_without_props = {k: v[:, :100] for k, v in aux_outputs.items()
                                          if k in ["pred_logits", "pred_boxes"]}
-                outputs_without_base = {k: v[:, 100:] for k, v in aux_outputs.items()
-                                         if k in ["pred_logits", "pred_boxes"]}
                 # indices = self.matcher(outputs_without_props, targets, layer=idx)
                 indices = self.matcher(outputs_without_props, targets)
                 # entire_indices = self.matcher(aux_outputs, targets, layer=idx)
-                prop_indices = self.matcher(outputs_without_base, targets)
                 entire_indices = self.matcher(aux_outputs, targets)
                 if return_indices:
                     indices_list.append(indices)
@@ -598,11 +583,6 @@ class SetCriterion_DINO(nn.Module):
                 l_dict = self.get_loss("labels", aux_outputs, targets, entire_indices, num_boxes, **kwargs)
                 l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
                 losses.update(l_dict)
-
-                # kwargs['name'] = "loss_prop_ce"
-                # l_dict = self.get_loss("labels", outputs_without_base, targets, prop_indices, num_boxes, **kwargs)
-                # l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
-                # losses.update(l_dict)
 
                 if self.training and dn_meta and 'output_known_lbs_bboxes' in dn_meta:
                     aux_outputs_known = output_known_lbs_bboxes['aux_outputs'][idx]
