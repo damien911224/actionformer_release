@@ -792,7 +792,7 @@ def valid_one_epoch_phase_2(
             labels = labels[:, :100]
             scores = scores[:, :100]
 
-            print(boxes[0, :100])
+            print(torch.argsort(scores, dim=1, descending=True)[:10])
             # print(scores[0, 50:100])
 
             # mean_proposals = torch.mean(torch.stack(proposals, dim=0), dim=0)
