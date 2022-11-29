@@ -789,6 +789,7 @@ def valid_one_epoch_phase_2(
             scores = detr_scores
 
             print(scores)
+            exit()
 
             boxes = boxes[:, :100]
             labels = labels[:, :100]
