@@ -290,25 +290,25 @@ def main(args):
     is_best = False
     best_mAP = -1
     for epoch in range(args.start_epoch, max_epochs):
-        # detr.load_state_dict(detr_model_ema.module.state_dict())
-        # train for one epoch
-        # train_one_epoch_phase_2(
-        #     train_loader,
-        #     detr,
-        #     detr_model_ema,
-        #     detr_criterion,
-        #     detr_optimizer,
-        #     detr_scheduler,
-        #     data_types,
-        #     models if base_trained else [m.module for m in model_emas],
-        #     epoch,
-        #     tb_writer=tb_writer,
-        #     print_freq=args.print_freq)
+        detr.load_state_dict(detr_model_ema.module.state_dict())
+        train for one epoch
+        train_one_epoch_phase_2(
+            train_loader,
+            detr,
+            detr_model_ema,
+            detr_criterion,
+            detr_optimizer,
+            detr_scheduler,
+            data_types,
+            models if base_trained else [m.module for m in model_emas],
+            epoch,
+            tb_writer=tb_writer,
+            print_freq=args.print_freq)
 
-        ckpt_file = os.path.join(ckpt_folder, 'model_best.pth.tar')
-        # load ckpt, reset epoch / best rmse
-        checkpoint = torch.load(ckpt_file, map_location=lambda storage, loc: storage.cuda(cfg['devices'][0]))
-        detr.load_state_dict(checkpoint['detr'])
+        # ckpt_file = os.path.join(ckpt_folder, 'model_best.pth.tar')
+        # # load ckpt, reset epoch / best rmse
+        # checkpoint = torch.load(ckpt_file, map_location=lambda storage, loc: storage.cuda(cfg['devices'][0]))
+        # detr.load_state_dict(checkpoint['detr'])
 
         if (epoch >= 0 and epoch % 1 == 0) or epoch == max_epochs - 1:
             mAP = valid_one_epoch_phase_2(
