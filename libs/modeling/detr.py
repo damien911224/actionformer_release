@@ -564,8 +564,8 @@ class SetCriterion_DINO(nn.Module):
         for loss in self.losses:
             # losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
             losses.update(self.get_loss(loss, outputs_without_aux_and_props, targets, indices, num_boxes))
-        losses.update(self.get_loss("labels", outputs_without_aux_and_base, targets, prop_indices, num_boxes,
-                                    name="loss_prop_ce"))
+        # losses.update(self.get_loss("labels", outputs_without_aux_and_base, targets, prop_indices, num_boxes,
+        #                             name="loss_prop_ce"))
         losses.update(self.get_loss("labels", outputs_without_aux, targets, entire_indices, num_boxes,
                                     name="loss_entire_ce"))
 
@@ -599,10 +599,10 @@ class SetCriterion_DINO(nn.Module):
                 l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
                 losses.update(l_dict)
 
-                kwargs['name'] = "loss_prop_ce"
-                l_dict = self.get_loss("labels", outputs_without_base, targets, prop_indices, num_boxes, **kwargs)
-                l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
-                losses.update(l_dict)
+                # kwargs['name'] = "loss_prop_ce"
+                # l_dict = self.get_loss("labels", outputs_without_base, targets, prop_indices, num_boxes, **kwargs)
+                # l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
+                # losses.update(l_dict)
 
                 if self.training and dn_meta and 'output_known_lbs_bboxes' in dn_meta:
                     aux_outputs_known = output_known_lbs_bboxes['aux_outputs'][idx]
