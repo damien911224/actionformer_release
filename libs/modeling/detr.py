@@ -551,7 +551,7 @@ class SetCriterion_DINO(nn.Module):
             l_dict['cardinality_error_dn'] = torch.as_tensor(0.).to('cuda')
             losses.update(l_dict)
 
-        for loss in self.losses:
+        # for loss in self.losses:
             # losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
             # losses.update(self.get_loss(loss, outputs_without_aux_and_props, targets, indices, num_boxes))
         # losses.update(self.get_loss("labels", outputs_without_aux, targets, entire_indices, num_boxes,
