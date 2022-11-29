@@ -801,13 +801,14 @@ def valid_one_epoch_phase_2(
             dense_scores = (dense_scores - dense_scores.min()) / (dense_scores.max() - dense_scores.min())
             dense_scores = dense_scores * scores[:, :100].max()
 
-            # boxes = torch.cat((boxes, dense_boxes), dim=1)
-            # scores = torch.cat((scores, dense_scores), dim=1)
-            # labels = torch.cat((labels, dense_labels), dim=1)
+            sorted_indices = torch.argsort(scores, dim=1, descending=True)[:10]
+            boxes = boxes[sorted_indices]
+            labels = labels[sorted_indices]
+            scores = scores[sorted_indices]
 
-            boxes = dense_boxes
-            scores = dense_scores
-            labels = dense_labels
+            boxes = torch.cat((boxes, dense_boxes), dim=1)
+            scores = torch.cat((scores, dense_scores), dim=1)
+            labels = torch.cat((labels, dense_labels), dim=1)
 
             # dense_onehot = F.one_hot(dense_labels, num_classes=20).sum(dim=1)
             # labels = torch.argsort(dense_onehot, dim=-1, descending=True)[..., 0].unsqueeze(1).repeat(1, labels.size(1))
