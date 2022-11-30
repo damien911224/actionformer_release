@@ -189,20 +189,108 @@ def main(args):
     max_epochs = cfg['opt'].get(
         'early_stop_epochs',
         cfg['opt']['epochs'] + cfg['opt']['warmup_epochs'])
+    base_trained = False
+    for m_i, data_type in enumerate(data_types):
+        model = models[m_i]
+        optimizer = optimizers[m_i]
+        scheduler = schedulers[m_i]
+        model_ema = model_emas[m_i]
+        ckpt_folder = os.path.join(ckpt_base_folder, data_type)
+        if not os.path.exists(ckpt_folder):
+            os.mkdir(ckpt_folder)
 
-    backbone_ckpt_folder = os.path.join(ckpt_root_folder, "backbone")
-    if not os.path.exists(backbone_ckpt_folder):
-        os.mkdir(backbone_ckpt_folder)
-    detr_ckpt_folder = os.path.join(ckpt_root_folder, "detr")
-    if not os.path.exists(detr_ckpt_folder):
-        os.mkdir(detr_ckpt_folder)
+        ckpt_file_list = sorted(glob.glob(os.path.join(ckpt_folder, '*.pth.tar')))
+        if len(ckpt_file_list):
+            ckpt_file = sorted(ckpt_file_list)[-1]
+
+            # load ckpt, reset epoch / best rmse
+            checkpoint = torch.load(ckpt_file, map_location=lambda storage, loc: storage.cuda(cfg['devices'][0]))
+            model.load_state_dict(checkpoint['state_dict_ema'])
+            del checkpoint
+            base_trained = True
+            continue
+
+        # tensorboard writer
+        tb_writer = SummaryWriter(os.path.join(ckpt_folder, 'logs'))
+
+        for epoch in range(args.start_epoch, max_epochs):
+            # train for one epoch
+            train_one_epoch_phase_1(
+                train_loader,
+                model,
+                optimizer,
+                scheduler,
+                epoch,
+                data_type=data_type,
+                model_ema=model_ema,
+                clip_grad_l2norm=cfg['train_cfg']['clip_grad_l2norm'],
+                tb_writer=tb_writer,
+                print_freq=args.print_freq)
+
+            # save ckpt once in a while
+            if (
+                (epoch == max_epochs - 1) or
+                (
+                    (args.ckpt_freq > 0) and
+                    (epoch % args.ckpt_freq == 0) and
+                    (epoch > 0)
+                )
+            ):
+                save_states = {
+                    'epoch': epoch,
+                    'state_dict': model.state_dict(),
+                    'scheduler': scheduler.state_dict(),
+                    'optimizer': optimizer.state_dict(),
+                    'detr': detr.state_dict()
+                }
+
+                save_states['state_dict_ema'] = model_ema.module.state_dict()
+                save_checkpoint(
+                    save_states,
+                    False,
+                    file_folder=ckpt_folder,
+                    file_name='epoch_{:03d}.pth.tar'.format(epoch)
+                )
+
+            # valid_one_epoch_phase_1(
+            #     val_loader,
+            #     (model_ema.module, ),
+            #     (data_type, ),
+            #     epoch,
+            #     cfg['test_cfg'],
+            #     evaluator=det_eval,
+            #     output_file=output_file,
+            #     ext_score_file=cfg['test_cfg']['ext_score_file'],
+            #     tb_writer=tb_writer,
+            #     print_freq=args.print_freq)
+
+        # wrap up
+        tb_writer.close()
+
+    ckpt_folder = os.path.join(ckpt_root_folder, "detr")
+    if not os.path.exists(ckpt_folder):
+        os.mkdir(ckpt_folder)
     # tensorboard writer
-    tb_writer = SummaryWriter(os.path.join(ckpt_root_folder, 'logs'))
+    tb_writer = SummaryWriter(os.path.join(ckpt_folder, 'logs'))
+
+    if not base_trained:
+    # if not base_trained or True:
+        valid_one_epoch_phase_1(
+            val_loader,
+            models if base_trained else [m.module for m in model_emas],
+            data_types,
+            -1,
+            cfg['test_cfg'],
+            evaluator=det_eval,
+            output_file=output_file,
+            ext_score_file=cfg['test_cfg']['ext_score_file'],
+            tb_writer=tb_writer,
+            print_freq=args.print_freq)
 
     is_best = False
     best_mAP = -1
     for epoch in range(args.start_epoch, max_epochs):
-        detr.load_state_dict(detr_model_ema.module.state_dict())
+        # detr.load_state_dict(detr_model_ema.module.state_dict())
         # train for one epoch
         # train_one_epoch_phase_2(
         #     train_loader,
