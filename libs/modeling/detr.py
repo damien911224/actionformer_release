@@ -193,7 +193,6 @@ class DINO(nn.Module):
             if t > this_max_len:
                 box_src = F.interpolate(box_src, size=this_max_len, mode="linear")
                 t = this_max_len
-            box_src = box_src.unsqueeze(-1)
             pos_1d_l = F.interpolate(raw_pos_1d, size=t, mode="linear")
             pos_2d_l = F.interpolate(raw_pos_2d, size=(t, t), mode="bilinear")
             box_pos_1d.append(pos_1d_l)
