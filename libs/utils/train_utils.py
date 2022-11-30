@@ -808,7 +808,7 @@ def valid_one_epoch(
                      torch.stack((torch.clamp(boxes[..., 2] - boxes[..., 3] / 2.0, 0.0, 1.0),
                                   torch.clamp(boxes[..., 2] + boxes[..., 3] / 2.0, 0.0, 1.0)), dim=-1)) / 2.0
             # boxes = boxes[..., :2]
-            logits = detr_predictions["pred_entire_logits"].detach().cpu().sigmoid()
+            logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
             scores, labels = torch.max(logits, dim=-1)
 
             nmsed_boxes = list()
