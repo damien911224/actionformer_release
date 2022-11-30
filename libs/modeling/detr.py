@@ -258,7 +258,7 @@ class DINO(nn.Module):
             self.transformer(srcs, pos_1d, pos_2d, query_embeds, attn_mask, self.label_enc)
 
         # In case num object=0
-        hs[0] += self.feat_label_enc.weight[0, 0] * 0.0
+        hs[0] += self.label_enc.weight[0, 0] * 0.0
 
         outputs_classes = []
         outputs_coords = []
