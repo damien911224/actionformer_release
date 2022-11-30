@@ -56,20 +56,18 @@ class DINO(nn.Module):
         self.pos_2d_embeds = pos_2d_embeds
         self.class_embed = nn.Linear(hidden_dim, num_classes)
         self.bbox_embed = MLP(hidden_dim, hidden_dim, 4, 3)
-        self.entire_class_embed = nn.Linear(hidden_dim, num_classes)
         self.num_feature_levels = num_feature_levels
         self.input_dim = input_dim
         self.max_input_len = 1024
         self.use_dab = use_dab
         self.num_patterns = num_patterns
         self.random_refpoints_xy = random_refpoints_xy
-        # self.label_enc = nn.Embedding(dn_labelbook_size + 1, hidden_dim)
-        self.query_label_enc = nn.Embedding(200 + 1, hidden_dim)
-        self.query_score_enc = nn.Linear(1, hidden_dim)
-        self.query_box_enc = nn.Linear(2, hidden_dim)
-        self.feat_label_enc = nn.Embedding(200 + 1, hidden_dim)
-        self.feat_score_enc = nn.Linear(1, hidden_dim)
-        self.feat_box_enc = nn.Linear(2, hidden_dim)
+        self.label_enc = nn.Embedding(dn_labelbook_size + 1, hidden_dim)
+        self.prop_label_enc = nn.Embedding(200 + 1, hidden_dim)
+        self.prop_score_enc = nn.Linear(1, hidden_dim)
+        self.prop_box_enc = nn.Linear(2, hidden_dim)
+        self.prop_level_enc = nn.Embedding(6, hidden_dim)
+        self.query_type_enc = nn.Embedding(2, hidden_dim)
         if not use_dab:
             self.query_embed = nn.Embedding(num_queries, hidden_dim * 2)
         else:
@@ -117,7 +115,6 @@ class DINO(nn.Module):
         prior_prob = 0.01
         bias_value = -math.log((1 - prior_prob) / prior_prob)
         self.class_embed.bias.data = torch.ones(num_classes) * bias_value
-        self.entire_class_embed.bias.data = torch.ones(num_classes) * bias_value
         nn.init.constant_(self.bbox_embed.layers[-1].weight.data, 0)
         nn.init.constant_(self.bbox_embed.layers[-1].bias.data, 0)
         for proj in self.input_proj:
@@ -128,7 +125,6 @@ class DINO(nn.Module):
         num_pred = transformer.decoder.num_layers
         if with_box_refine:
             self.class_embed = _get_clones(self.class_embed, num_pred)
-            self.entire_class_embed = _get_clones(self.entire_class_embed, num_pred)
             self.bbox_embed = _get_clones(self.bbox_embed, num_pred)
             nn.init.constant_(self.bbox_embed[0].layers[-1].bias.data[2:], -2.0)
             # hack implementation for iterative bounding box refinement
@@ -136,7 +132,6 @@ class DINO(nn.Module):
         else:
             nn.init.constant_(self.bbox_embed.layers[-1].bias.data[2:], -2.0)
             self.class_embed = nn.ModuleList([self.class_embed for _ in range(num_pred)])
-            self.entire_class_embed = nn.ModuleList([self.entire_class_embed for _ in range(num_pred)])
             self.bbox_embed = nn.ModuleList([self.bbox_embed for _ in range(num_pred)])
             self.transformer.decoder.bbox_embed = None
 
@@ -188,12 +183,11 @@ class DINO(nn.Module):
             prop_boxes = feat[..., 1:3]
             prop_labels = feat[..., 0]
             prop_scores = feat[..., -1].unsqueeze(-1)
-            prop_box_embeds = self.feat_box_enc(prop_boxes)
-            prop_label_embeds = self.feat_label_enc(torch.zeros_like(prop_labels.long()))
-            prop_score_embeds = self.feat_score_enc(prop_scores)
-            box_src = (prop_box_embeds + prop_label_embeds + prop_score_embeds).permute(0, 2, 1)
-            # box_src = (prop_box_embeds + prop_score_embeds).permute(0, 2, 1)
-            # src = feat
+            prop_box_embeds = self.prop_box_enc(prop_boxes)
+            prop_label_embeds = self.prop_label_enc(torch.zeros_like(prop_labels.long()))
+            prop_score_embeds = self.prop_score_enc(prop_scores)
+            prop_level_embeds = self.prop_level_enc.weight[l].view(1, 1, -1)
+            box_src = (prop_box_embeds + prop_label_embeds + prop_score_embeds + prop_level_embeds).permute(0, 2, 1)
             n, c, t = box_src.shape
             this_max_len = self.max_input_len // (2 ** l)
             if t > this_max_len:
@@ -217,14 +211,17 @@ class DINO(nn.Module):
             assert NotImplementedError
 
         input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
+        input_query_label = input_query_label + self.query_type_enc.weight[0].view(1, 1, -1)
         input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
 
-        proposals = torch.cat(proposals, dim=1)
-        prop_labels = proposals[..., 0]
-        prop_scores = proposals[..., -1].unsqueeze(-1)
-        prop_label_embeds = self.query_label_enc(torch.zeros_like(prop_labels.long()))
-        prop_score_embeds = self.query_score_enc(prop_scores)
-        prop_query_label = prop_label_embeds + prop_score_embeds
+        # proposals = torch.cat(proposals, dim=1)
+        # prop_labels = proposals[..., 0]
+        # prop_scores = proposals[..., -1].unsqueeze(-1)
+        # prop_label_embeds = self.query_label_enc(torch.zeros_like(prop_labels.long()))
+        # prop_score_embeds = self.query_score_enc(prop_scores)
+        # prop_query_label = prop_label_embeds + prop_score_embeds
+        prop_query_label = torch.cat(box_srcs, dim=-1).permute(0, 2, 1)
+        prop_query_label = prop_query_label + self.query_type_enc.weight[1].view(1, 1, -1)
         prop_query_bbox = torch.cat([proposals[..., 1:-1],
                                       ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
                                       (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
@@ -238,7 +235,7 @@ class DINO(nn.Module):
             dino_query_label, dino_query_bbox, attn_mask, dn_meta = \
                 prepare_for_cdn(dn_args=(targets, self.dn_number, self.dn_label_noise_ratio, self.dn_box_noise_scale),
                                 training=self.training, num_queries=self.num_queries, num_classes=self.num_classes,
-                                hidden_dim=self.hidden_dim, label_enc=self.feat_label_enc)
+                                hidden_dim=self.hidden_dim, label_enc=self.label_enc)
             input_query_label = torch.cat((dino_query_label, input_query_label), dim=1)
             input_query_bbox = torch.cat((dino_query_bbox, input_query_bbox), dim=1)
         else:
@@ -259,15 +256,13 @@ class DINO(nn.Module):
         # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
 
         hs, init_reference, inter_references, _, _ = \
-            self.transformer(srcs, pos_1d, pos_2d, box_srcs, box_pos_1d, box_pos_2d,
-                             query_embeds, attn_mask, self.feat_label_enc)
+            self.transformer(srcs, pos_1d, pos_2d, query_embeds, attn_mask, self.label_enc)
 
         # In case num object=0
         hs[0] += self.feat_label_enc.weight[0, 0] * 0.0
 
         outputs_classes = []
         outputs_coords = []
-        outputs_entire_classes = []
         for lvl in range(hs.shape[0]):
             if lvl == 0:
                 reference = init_reference
@@ -281,38 +276,32 @@ class DINO(nn.Module):
                 assert reference.shape[-1] == 2
                 tmp[..., :2] += reference
             outputs_coord = tmp.sigmoid()
-            # outputs_coord = init_reference
             outputs_class = self.class_embed[lvl](hs[lvl])
-            outputs_entire_class = self.entire_class_embed[lvl](hs[lvl])
             outputs_classes.append(outputs_class)
-            outputs_entire_classes.append(outputs_entire_class)
             outputs_coords.append(outputs_coord)
         outputs_class = torch.stack(outputs_classes)
         outputs_coord = torch.stack(outputs_coords)
-        outputs_entire_class = torch.stack(outputs_entire_classes)
 
         # dn post process
         if self.dn_number > 0 and dn_meta is not None:
             outputs_class, outputs_coord = \
                 cdn_post_process(outputs_class, outputs_coord, dn_meta, self.aux_loss, self._set_aux_loss)
 
-        # out = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord[-1]}
-        out = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord[-1],
-               'pred_entire_logits': outputs_entire_class[-1]}
+        out = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord[-1]}
         if self.aux_loss:
-            out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord, outputs_entire_class)
+            out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord)
 
         out['dn_meta'] = dn_meta
 
         return out
 
     @torch.jit.unused
-    def _set_aux_loss(self, outputs_class, outputs_coord, outputs_entire_class):
+    def _set_aux_loss(self, outputs_class, outputs_coord):
         # this is a workaround to make torchscript happy, as torchscript
         # doesn't support dictionary with non-homogeneous values, such
         # as a dict having both a Tensor and a list.
-        return [{'pred_logits': a, 'pred_boxes': b, 'pred_entire_logits': c}
-                for a, b, c in zip(outputs_class[:-1], outputs_coord[:-1], outputs_entire_class[:-1])]
+        return [{'pred_logits': a, 'pred_boxes': b}
+                for a, b in zip(outputs_class[:-1], outputs_coord[:-1])]
 
 
 class SetCriterion_DINO(nn.Module):
