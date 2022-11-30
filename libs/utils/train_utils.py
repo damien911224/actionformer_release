@@ -1129,6 +1129,8 @@ def valid_one_epoch_phase_2(
             labels = labels[:, :100]
             scores = scores[:, :100]
 
+            print(boxes)
+
             durations = [x["duration"] for x in video_list]
             boxes = boxes * torch.Tensor(durations)
 
