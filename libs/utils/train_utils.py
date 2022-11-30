@@ -418,10 +418,9 @@ def train_one_epoch(
             # )
             block4 = ''
             for key, value in losses_tracker.items():
-                if "final_loss" in key:
-                    block4 += '\t{:s} {:.2f} ({:.2f})'.format(
-                        key, value.val, value.avg
-                    )
+                block4 += '\t{:s} {:.2f} ({:.2f})'.format(
+                    key, value.val, value.avg
+                )
 
             print('\t'.join([block1, block2, block4]))
 
