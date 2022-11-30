@@ -783,7 +783,7 @@ def valid_one_epoch(
             labels = torch.stack(labels, dim=0)
             scores = torch.stack(scores, dim=0)
             segments = torch.stack(segments, dim=0)
-            proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1)
+            proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
 
             # boxes = proposals[..., 1:3]
             # durations = [x["duration"] for x in video_list]
