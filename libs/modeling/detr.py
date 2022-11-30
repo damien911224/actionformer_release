@@ -478,10 +478,7 @@ class SetCriterion_DINO(nn.Module):
         """
         outputs_without_aux = {k: v for k, v in outputs.items() if k != 'aux_outputs'}
         device = next(iter(outputs.values())).device
-        outputs_without_aux_and_props = {k: v[:, :100] for k, v in outputs_without_aux.items()
-                                         if k in ["pred_logits", "pred_boxes"]}
-        indices = self.matcher(outputs_without_aux_and_props, targets)
-        entire_indices = self.matcher(outputs_without_aux, targets)
+        indices = self.matcher(outputs_without_aux, targets)
 
         if return_indices:
             indices0_copy = indices
@@ -540,21 +537,13 @@ class SetCriterion_DINO(nn.Module):
             losses.update(l_dict)
 
         for loss in self.losses:
-            # losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
-            losses.update(self.get_loss(loss, outputs_without_aux_and_props, targets, indices, num_boxes))
-        losses.update(self.get_loss("labels", outputs_without_aux, targets, entire_indices, num_boxes,
-                                    name="loss_entire_ce"))
+            losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
 
         # In case of auxiliary losses, we repeat this process with the output of each intermediate layer.
         if 'aux_outputs' in outputs:
             for idx, aux_outputs in enumerate(outputs['aux_outputs']):
-                # indices = self.matcher(aux_outputs, targets)
-                outputs_without_props = {k: v[:, :100] for k, v in aux_outputs.items()
-                                         if k in ["pred_logits", "pred_boxes"]}
+                indices = self.matcher(aux_outputs, targets)
                 # indices = self.matcher(outputs_without_props, targets, layer=idx)
-                indices = self.matcher(outputs_without_props, targets)
-                # entire_indices = self.matcher(aux_outputs, targets, layer=idx)
-                entire_indices = self.matcher(aux_outputs, targets)
                 if return_indices:
                     indices_list.append(indices)
                 for loss in self.losses:
@@ -562,16 +551,9 @@ class SetCriterion_DINO(nn.Module):
                     if loss == "labels":
                         kwargs['log'] = False
                     # kwargs['layer'] = idx
-                    # kwargs['layer'] = 4
-                    l_dict = self.get_loss(loss, outputs_without_props, targets, indices, num_boxes, **kwargs)
+                    l_dict = self.get_loss(loss, aux_outputs, targets, indices, num_boxes, **kwargs)
                     l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
                     losses.update(l_dict)
-                kwargs = {'log': False}
-                # kwargs['layer'] = 4
-                kwargs['name'] = "loss_entire_ce"
-                l_dict = self.get_loss("labels", aux_outputs, targets, entire_indices, num_boxes, **kwargs)
-                l_dict = {k + f'_{idx}': v for k, v in l_dict.items()}
-                losses.update(l_dict)
 
                 if self.training and dn_meta and 'output_known_lbs_bboxes' in dn_meta:
                     aux_outputs_known = output_known_lbs_bboxes['aux_outputs'][idx]
