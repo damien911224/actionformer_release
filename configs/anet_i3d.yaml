@@ -95,7 +95,7 @@ detr: {
   weight_loss_giou: 2, # 2
   weight_decay: 5.0e-2,
   nhead: 8,
-  dropout: 0.2,
+  dropout: 0.1,
   dim_feedforward: 1024,
   pre_norm: False,
   scalar: 5,
