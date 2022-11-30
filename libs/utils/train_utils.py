@@ -879,7 +879,7 @@ def valid_one_epoch(
 
     # log mAP to tb_writer
     if tb_writer is not None:
-        tb_writer.add_scalar('validation/backbone_mAP', mAP, curr_epoch)
+        tb_writer.add_scalar('validation/mAP', mAP, curr_epoch)
 
     return mAP
 
