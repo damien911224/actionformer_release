@@ -859,6 +859,7 @@ def valid_one_epoch(
                     results['label'].append(labels[vid_idx])
                     results['score'].append(scores[vid_idx])
 
+            proposals = proposals.detach().cpu()
             backbone_boxes = proposals[..., 1:3]
             durations = [x["duration"] for x in video_list]
             backbone_boxes = backbone_boxes * torch.Tensor(durations)
