@@ -189,11 +189,12 @@ class DINO(nn.Module):
             prop_level_embeds = self.prop_level_enc.weight[l].view(1, 1, -1)
             box_src = (prop_box_embeds + prop_label_embeds + prop_score_embeds + prop_level_embeds).permute(0, 2, 1)
             n, c, t = box_src.shape
-            this_max_len = self.max_input_len // (2 ** l)
-            if t > this_max_len:
-                box_src = F.interpolate(box_src, size=this_max_len, mode="linear")
-                t = this_max_len
+            # this_max_len = self.max_input_len // (2 ** l)
+            # if t > this_max_len:
+            #     box_src = F.interpolate(box_src, size=this_max_len, mode="linear")
+            #     t = this_max_len
             pos_1d_l = F.interpolate(raw_pos_1d, size=t, mode="linear")
+            box_src = box_src + pos_1d_l
             pos_2d_l = F.interpolate(raw_pos_2d, size=(t, t), mode="bilinear")
             box_pos_1d.append(pos_1d_l)
             box_pos_2d.append(pos_2d_l)
