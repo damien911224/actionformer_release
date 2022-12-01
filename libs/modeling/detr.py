@@ -165,10 +165,10 @@ class DINO(nn.Module):
         for l, feat in enumerate(features):
             src = self.input_proj[l](feat)
             n, c, t = src.shape
-            this_max_len = self.max_input_len // (2 ** l)
-            if t > this_max_len:
-                src = F.interpolate(src, size=this_max_len, mode="linear")
-                t = this_max_len
+            # this_max_len = self.max_input_len // (2 ** l)
+            # if t > this_max_len:
+            #     src = F.interpolate(src, size=this_max_len, mode="linear")
+            #     t = this_max_len
             src = src.unsqueeze(-1)
             pos_1d_l = F.interpolate(raw_pos_1d, size=t, mode="linear")
             pos_2d_l = F.interpolate(raw_pos_2d, size=(t, t), mode="bilinear")
@@ -183,19 +183,20 @@ class DINO(nn.Module):
             prop_boxes = feat[..., 1:3]
             prop_labels = feat[..., 0]
             prop_scores = feat[..., -1].unsqueeze(-1)
-            # prop_box_embeds = self.prop_box_enc(prop_boxes)
+            prop_box_embeds = self.prop_box_enc(prop_boxes)
             prop_label_embeds = self.prop_label_enc(torch.zeros_like(prop_labels.long()))
             prop_score_embeds = self.prop_score_enc(prop_scores)
             prop_level_embeds = self.prop_level_enc.weight[l].view(1, 1, -1)
-            box_src = (prop_label_embeds + prop_score_embeds + prop_level_embeds).permute(0, 2, 1)
-            # box_src = (prop_box_embeds + prop_label_embeds + prop_score_embeds + prop_level_embeds).permute(0, 2, 1)
+            # box_src = (prop_label_embeds + prop_score_embeds + prop_level_embeds).permute(0, 2, 1)
+            box_src = (prop_box_embeds + prop_label_embeds + prop_score_embeds + prop_level_embeds).permute(0, 2, 1)
             n, c, t = box_src.shape
+            box_src = box_src.unsqueeze(-1)
             # this_max_len = self.max_input_len // (2 ** l)
             # if t > this_max_len:
             #     box_src = F.interpolate(box_src, size=this_max_len, mode="linear")
             #     t = this_max_len
             pos_1d_l = F.interpolate(raw_pos_1d, size=t, mode="linear")
-            box_src = box_src + pos_1d_l
+            # box_src = box_src + pos_1d_l
             pos_2d_l = F.interpolate(raw_pos_2d, size=(t, t), mode="bilinear")
             box_pos_1d.append(pos_1d_l)
             box_pos_2d.append(pos_2d_l)
@@ -212,24 +213,24 @@ class DINO(nn.Module):
             assert NotImplementedError
 
         input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
-        input_query_label = input_query_label + self.query_type_enc.weight[0].view(1, 1, -1)
+        # input_query_label = input_query_label + self.query_type_enc.weight[0].view(1, 1, -1)
         input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
 
-        proposals = torch.cat(proposals, dim=1)
+        # proposals = torch.cat(proposals, dim=1)
         # prop_labels = proposals[..., 0]
         # prop_scores = proposals[..., -1].unsqueeze(-1)
         # prop_label_embeds = self.query_label_enc(torch.zeros_like(prop_labels.long()))
         # prop_score_embeds = self.query_score_enc(prop_scores)
         # prop_query_label = prop_label_embeds + prop_score_embeds
-        prop_query_label = torch.cat(box_srcs, dim=-1).permute(0, 2, 1)
-        prop_query_label = prop_query_label + self.query_type_enc.weight[1].view(1, 1, -1)
-        prop_query_bbox = torch.cat([proposals[..., 1:-1],
-                                      ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
-                                      (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
-        prop_query_bbox = inverse_sigmoid(prop_query_bbox)
+        # prop_query_label = torch.cat(box_srcs, dim=-1).permute(0, 2, 1)
+        # prop_query_label = prop_query_label + self.query_type_enc.weight[1].view(1, 1, -1)
+        # prop_query_bbox = torch.cat([proposals[..., 1:-1],
+        #                               ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
+        #                               (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
+        # prop_query_bbox = inverse_sigmoid(prop_query_bbox)
 
-        input_query_label = torch.cat((input_query_label, prop_query_label), dim=1)
-        input_query_bbox = torch.cat((input_query_bbox, prop_query_bbox), dim=1)
+        # input_query_label = torch.cat((input_query_label, prop_query_label), dim=1)
+        # input_query_bbox = torch.cat((input_query_bbox, prop_query_bbox), dim=1)
 
         # prepare for dn
         if self.dn_number > 0 and self.training:
@@ -257,7 +258,8 @@ class DINO(nn.Module):
         # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
 
         hs, init_reference, inter_references, _, _ = \
-            self.transformer(srcs, pos_1d, pos_2d, query_embeds, attn_mask, self.label_enc)
+            self.transformer(srcs, box_srcs, pos_1d, pos_2d,
+                             query_embeds, attn_mask, self.label_enc)
 
         # In case num object=0
         hs[0] += self.label_enc.weight[0, 0] * 0.0
