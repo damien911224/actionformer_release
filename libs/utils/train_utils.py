@@ -753,6 +753,13 @@ def valid_one_epoch(
         'label': [],
         'score': []
     }
+    backbone_results = {
+        'video-id': [],
+        't-start': [],
+        't-end': [],
+        'label': [],
+        'score': []
+    }
 
     # loop over validation set
     start = time.time()
@@ -852,6 +859,51 @@ def valid_one_epoch(
                     results['label'].append(labels[vid_idx])
                     results['score'].append(scores[vid_idx])
 
+            backbone_boxes = proposals[..., 1:3]
+            durations = [x["duration"] for x in video_list]
+            backbone_boxes = backbone_boxes * torch.Tensor(durations)
+            backbone_scores = proposals[..., -1]
+            backbone_labels = proposals[..., 0].long()
+
+            nmsed_boxes = list()
+            nmsed_labels = list()
+            nmsed_scores = list()
+            for b, l, s in zip(backbone_boxes, backbone_labels, backbone_scores):
+                if test_cfg['nms_method'] != 'none':
+                    # 2: batched nms (only implemented on CPU)
+                    b, s, l = batched_nms(
+                        b.contiguous(), s.contiguous(), l.contiguous(),
+                        test_cfg['iou_threshold'],
+                        test_cfg['min_score'],
+                        test_cfg['max_seg_num'],
+                        use_soft_nms=(test_cfg['nms_method'] == 'soft'),
+                        multiclass=test_cfg['multiclass_nms'],
+                        sigma=test_cfg['nms_sigma'],
+                        voting_thresh=test_cfg['voting_thresh']
+                    )
+                nmsed_boxes.append(b)
+                nmsed_labels.append(l)
+                nmsed_scores.append(s)
+            backbone_boxes = torch.stack(nmsed_boxes, dim=0)
+            backbone_boxes = torch.where(backbone_boxes.isnan(), torch.zeros_like(backbone_boxes), backbone_boxes)
+            backbone_labels = torch.stack(nmsed_labels, dim=0)
+            backbone_labels = torch.where(backbone_labels.isnan(), torch.zeros_like(backbone_labels), backbone_labels)
+            backbone_scores = torch.stack(nmsed_scores, dim=0)
+            backbone_scores = torch.where(backbone_scores.isnan(), torch.zeros_like(backbone_scores), backbone_scores)
+
+            # upack the results into ANet format
+            num_vids = len(backbone_boxes)
+            for vid_idx in range(num_vids):
+                if backbone_boxes[vid_idx].shape[0] > 0:
+                    backbone_results['video-id'].extend(
+                        [video_list[vid_idx]['video_id']] *
+                        backbone_boxes[vid_idx].shape[0]
+                    )
+                    backbone_results['t-start'].append(backbone_boxes[vid_idx][:, 0])
+                    backbone_results['t-end'].append(backbone_boxes[vid_idx][:, 1])
+                    backbone_results['label'].append(backbone_labels[vid_idx])
+                    backbone_results['score'].append(backbone_scores[vid_idx])
+
         # printing
         if (iter_idx != 0) and iter_idx % (print_freq) == 0:
             # measure elapsed time (sync all kernels)
@@ -870,20 +922,29 @@ def valid_one_epoch(
     results['label'] = torch.cat(results['label']).numpy()
     results['score'] = torch.cat(results['score']).numpy()
 
+    backbone_results['t-start'] = torch.cat(backbone_results['t-start']).numpy()
+    backbone_results['t-end'] = torch.cat(backbone_results['t-end']).numpy()
+    backbone_results['label'] = torch.cat(backbone_results['label']).numpy()
+    backbone_results['score'] = torch.cat(backbone_results['score']).numpy()
+
     if evaluator is not None:
         if (ext_score_file is not None) and isinstance(ext_score_file, str):
             results = postprocess_results(results, ext_score_file)
+            backbone_results = postprocess_results(backbone_results, ext_score_file)
         # call the evaluator
         _, mAP = evaluator.evaluate(results, verbose=True)
+        _, backbone_mAP = evaluator.evaluate(backbone_results, verbose=True)
     else:
         # dump to a pickle file that can be directly used for evaluation
         with open(output_file, "wb") as f:
             pickle.dump(results, f)
         mAP = 0.0
+        backbone_mAP = 0.0
 
     # log mAP to tb_writer
     if tb_writer is not None:
         tb_writer.add_scalar('validation/mAP', mAP, curr_epoch)
+        tb_writer.add_scalar('validation/backbone_mAP', backbone_mAP, curr_epoch)
 
     return mAP
 
