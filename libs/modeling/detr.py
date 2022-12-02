@@ -503,9 +503,8 @@ class SetCriterion_DINO(nn.Module):
                     if reg_ranges[l] <= box[-1] < reg_ranges[l + 1]:
                         target_dict["boxes"].append(box)
                         target_dict["labels"].append(this_target_labels[b_i])
-                if len(target_dict["boxes"]):
-                    target_dict["boxes"] = torch.stack(target_dict["boxes"], dim=0)
-                    target_dict["labels"] = torch.stack(target_dict["labels"], dim=0)
+                target_dict["boxes"] = torch.stack(target_dict["boxes"], dim=0)
+                target_dict["labels"] = torch.stack(target_dict["labels"], dim=0)
 
                 this_targets.append(target_dict)
             multiscale_targets.append(this_targets)
@@ -625,9 +624,8 @@ class SetCriterion_DINO(nn.Module):
                             if reg_ranges[l] <= box[-1] < reg_ranges[l + 1]:
                                 target_dict["boxes"].append(box)
                                 target_dict["labels"].append(this_target_labels[b_i])
-                        if len(target_dict["boxes"]):
-                            target_dict["boxes"] = torch.stack(target_dict["boxes"], dim=0)
-                            target_dict["labels"] = torch.stack(target_dict["labels"], dim=0)
+                        target_dict["boxes"] = torch.stack(target_dict["boxes"], dim=0)
+                        target_dict["labels"] = torch.stack(target_dict["labels"], dim=0)
 
                         this_targets.append(target_dict)
                     multiscale_targets.append(this_targets)
