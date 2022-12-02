@@ -332,15 +332,12 @@ class SetCriterion_DINO(nn.Module):
         self.losses = losses
         self.focal_alpha = focal_alpha
 
-    def loss_labels(self, outputs, targets, indices, num_boxes, layer=None, log=True, name=None):
+    def loss_labels(self, outputs, targets, indices, num_boxes, layer=None, log=True):
         """Classification loss (Binary focal loss)
         targets dicts must contain the key "labels" containing a tensor of dim [nb_target_boxes]
         """
         assert 'pred_logits' in outputs
-        if name is None:
-            src_logits = outputs['pred_logits']
-        else:
-            src_logits = outputs['pred_entire_logits']
+        src_logits = outputs['pred_logits']
 
         idx = self._get_src_permutation_idx(indices)
         if layer is None:
@@ -361,10 +358,8 @@ class SetCriterion_DINO(nn.Module):
             num_boxes = num_boxes * (2 ** (5 - layer))
         loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2) * \
                   src_logits.shape[1]
-        if name is None:
-            losses = {'loss_ce': loss_ce}
-        else:
-            losses = {name: loss_ce}
+
+        losses = {'loss_ce': loss_ce}
 
         if log and name is None:
             # TODO this should probably be a separate loss, not hacked in this one here
@@ -404,19 +399,19 @@ class SetCriterion_DINO(nn.Module):
             num_boxes = num_boxes * (2 ** (5 - layer))
 
         losses = {}
-        losses['loss_bbox'] = loss_bbox.sum() / num_boxes
+        losses["loss_bbox"] = loss_bbox.sum() / num_boxes
 
         loss_giou = ((1 - torch.diag(segment_ops.segment_iou(
             segment_ops.segment_cw_to_t1t2(src_boxes[..., 2:]),
             segment_ops.segment_cw_to_t1t2(target_boxes[..., 2:])))) +
                      (1 - torch.diag(segment_ops.segment_iou(
                          src_boxes[..., :2], target_boxes[..., :2])))) / 2
-        losses['loss_giou'] = loss_giou.sum() / num_boxes
+        losses["loss_giou"] = loss_giou.sum() / num_boxes
 
         # calculate the x,y and h,w loss
         with torch.no_grad():
-            losses['loss_xy'] = loss_bbox[..., :2].sum() / num_boxes
-            losses['loss_hw'] = loss_bbox[..., 2:].sum() / num_boxes
+            losses["loss_xy"] = loss_bbox[..., :2].sum() / num_boxes
+            losses["loss_hw"] = loss_bbox[..., 2:].sum() / num_boxes
 
         return losses
 
@@ -486,6 +481,35 @@ class SetCriterion_DINO(nn.Module):
         device = next(iter(outputs.values())).device
         indices = self.matcher(outputs_without_aux, targets)
 
+        base_len = 192
+        num_levels = 6
+        reg_ranges = [0, 4, 8, 16, 32, 64, 10000]
+        multiscale_outputs = list()
+        multiscale_targets = list()
+        prev_start_idx = 0
+        for l in range(num_levels):
+            target_len = base_len / (2 ** l)
+            this_pred_boxes = outputs_without_aux["pred_boxes"][:, prev_start_idx:prev_start_idx + target_len]
+            this_pred_logits = outputs_without_aux["pred_logits"][:, prev_start_idx:prev_start_idx + target_len]
+            this_outputs = dict({"pred_boxes": this_pred_boxes, "pred_logits": this_pred_logits})
+            multiscale_outputs.append(this_outputs)
+
+            this_targets = list()
+            for t in targets:
+                target_dict = dict({"boxes": list(), "labels": list()})
+                this_target_boxes = t["boxes"]
+                this_target_labels = t["labels"]
+                for b_i, box in enumerate(this_target_boxes):
+                    if reg_ranges[l] <= box[-1] < reg_ranges[l + 1]:
+                        target_dict["boxes"].append(box)
+                        target_dict["labels"].append(this_target_labels[b_i])
+                if len(target_dict["boxes"]):
+                    target_dict["boxes"] = torch.stack(target_dict["boxes"], dim=0)
+                    target_dict["labels"] = torch.stack(target_dict["labels"], dim=0)
+
+                this_targets.append(target_dict)
+            multiscale_targets.append(this_targets)
+
         if return_indices:
             indices0_copy = indices
             indices_list = []
@@ -544,6 +568,21 @@ class SetCriterion_DINO(nn.Module):
 
         for loss in self.losses:
             losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
+
+        for l in range(num_levels):
+            this_outputs = multiscale_outputs[l]
+            this_targets = multiscale_targets[l]
+            this_indices = self.matcher(this_outputs, this_targets)
+            this_num_boxes = sum(len(t["labels"]) for t in targets)
+            this_num_boxes = torch.as_tensor([this_num_boxes], dtype=torch.float, device=device)
+            if is_dist_avail_and_initialized():
+                torch.distributed.all_reduce(this_num_boxes)
+            this_num_boxes = torch.clamp(this_num_boxes / get_world_size(), min=1).item()
+            for loss in self.losses:
+                l_dict = self.get_loss(loss, this_outputs, this_targets, this_indices, this_num_boxes)
+                l_dict = {'s{:02d}_'.format(l + 1) + k: v for k, v in l_dict.items()}
+                losses.update(l_dict)
+
 
         # In case of auxiliary losses, we repeat this process with the output of each intermediate layer.
         if 'aux_outputs' in outputs:
@@ -719,7 +758,8 @@ def build_dino(args):
             aux_weight_dict.update({k + f'_{i}': v for k, v in clean_weight_dict.items()})
         weight_dict.update(aux_weight_dict)
 
-    losses = ['labels', 'boxes', 'cardinality']
+    losses = ['labels', 'boxes']
+    # losses = ['labels', 'boxes', 'cardinality']
     criterion = SetCriterion_DINO(num_classes, matcher=matcher, weight_dict=weight_dict,
                                   focal_alpha=args["focal_alpha"], losses=losses)
     criterion.to(device)
