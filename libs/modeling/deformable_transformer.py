@@ -517,6 +517,10 @@ class DeformableTransformerDecoderLayer(nn.Module):
         # q = k = self.with_pos_embed(tgt, query_pos)
         # tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1), attn_mask=self_attn_mask)[
         #     0].transpose(0, 1)
+        print(tgt.shape)
+        print(src_pos.shape)
+        print(query_pos.shape)
+        exit()
         tgt2 = self.self_attn(self.with_pos_embed(tgt, src_pos + query_pos),
                                reference_points,
                                tgt, src_spatial_shapes, level_start_index)
