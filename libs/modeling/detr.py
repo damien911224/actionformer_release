@@ -513,6 +513,7 @@ class SetCriterion_DINO(nn.Module):
             multiscale_targets.append(this_targets)
 
             prev_start_idx += target_len
+        exit()
 
         if return_indices:
             indices0_copy = indices
