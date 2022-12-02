@@ -569,8 +569,8 @@ class DeformableTransformerDecoder(nn.Module):
     def forward(self, tgt, reference_points, src, src_pos, src_spatial_shapes, src_level_start_index,
                 query_pos=None, src_padding_mask=None, attn_mask=None):
         output = tgt
-        if self.use_dab:
-            assert query_pos is None
+        # if self.use_dab:
+        #     assert query_pos is None
         # bs = src.shape[0]
         # reference_points = reference_points[None].repeat(bs, 1, 1) # bs, nq, 4(xywh)
 
