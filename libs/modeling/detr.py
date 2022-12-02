@@ -494,6 +494,8 @@ class SetCriterion_DINO(nn.Module):
             this_outputs = dict({"pred_boxes": this_pred_boxes, "pred_logits": this_pred_logits})
             multiscale_outputs.append(this_outputs)
 
+            print(this_pred_boxes.shape)
+
             this_targets = list()
             for t in targets:
                 target_dict = dict({"boxes": list(), "labels": list()})
@@ -503,8 +505,9 @@ class SetCriterion_DINO(nn.Module):
                     if reg_ranges[l] <= box[-1] < reg_ranges[l + 1]:
                         target_dict["boxes"].append(box)
                         target_dict["labels"].append(this_target_labels[b_i])
-                target_dict["boxes"] = torch.stack(target_dict["boxes"], dim=0)
-                target_dict["labels"] = torch.stack(target_dict["labels"], dim=0)
+                if len(target_dict["boxes"]):
+                    target_dict["boxes"] = torch.stack(target_dict["boxes"], dim=0)
+                    target_dict["labels"] = torch.stack(target_dict["labels"], dim=0)
 
                 this_targets.append(target_dict)
             multiscale_targets.append(this_targets)
