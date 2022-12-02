@@ -494,8 +494,6 @@ class SetCriterion_DINO(nn.Module):
             this_outputs = dict({"pred_boxes": this_pred_boxes, "pred_logits": this_pred_logits})
             multiscale_outputs.append(this_outputs)
 
-            print(this_pred_boxes.shape)
-
             this_targets = list()
             for t in targets:
                 target_dict = dict({"boxes": list(), "labels": list()})
@@ -513,7 +511,6 @@ class SetCriterion_DINO(nn.Module):
             multiscale_targets.append(this_targets)
 
             prev_start_idx += target_len
-        exit()
 
         if return_indices:
             indices0_copy = indices
