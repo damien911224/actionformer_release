@@ -489,8 +489,8 @@ class SetCriterion_DINO(nn.Module):
         prev_start_idx = 0
         for l in range(num_levels):
             target_len = base_len // (2 ** l)
-            this_pred_boxes = outputs_without_aux["pred_boxes"][prev_start_idx:prev_start_idx + target_len]
-            this_pred_logits = outputs_without_aux["pred_logits"][prev_start_idx:prev_start_idx + target_len]
+            this_pred_boxes = outputs_without_aux["pred_boxes"][:, prev_start_idx:prev_start_idx + target_len]
+            this_pred_logits = outputs_without_aux["pred_logits"][:, prev_start_idx:prev_start_idx + target_len]
             this_outputs = dict({"pred_boxes": this_pred_boxes, "pred_logits": this_pred_logits})
             multiscale_outputs.append(this_outputs)
 
@@ -613,8 +613,8 @@ class SetCriterion_DINO(nn.Module):
                 prev_start_idx = 0
                 for l in range(num_levels):
                     target_len = base_len // (2 ** l)
-                    this_pred_boxes = aux_outputs["pred_boxes"][prev_start_idx:prev_start_idx + target_len]
-                    this_pred_logits = aux_outputs["pred_logits"][prev_start_idx:prev_start_idx + target_len]
+                    this_pred_boxes = aux_outputs["pred_boxes"][:, prev_start_idx:prev_start_idx + target_len]
+                    this_pred_logits = aux_outputs["pred_logits"][:, prev_start_idx:prev_start_idx + target_len]
                     this_outputs = dict({"pred_boxes": this_pred_boxes, "pred_logits": this_pred_logits})
                     multiscale_outputs.append(this_outputs)
 
