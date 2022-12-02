@@ -288,8 +288,9 @@ class DeformableTransformer(nn.Module):
         #                                     lvl_pos_2d_embed_flatten, spatial_shapes_2d, level_start_index_2d,
         #                                     query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
         hs, inter_references = self.decoder(tgt, reference_points, memory_2d,
+                                            lvl_pos_1d_embed_flatten, spatial_shapes_1d, level_start_index_1d,
                                             lvl_pos_2d_embed_flatten, spatial_shapes_2d, level_start_index_2d,
-                                            query_pos=lvl_pos_1d_embed_flatten, attn_mask=attn_mask)
+                                            query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
 
         inter_references_out = inter_references
         return hs, init_reference_out, inter_references_out, None, None
@@ -514,15 +515,16 @@ class DeformableTransformerDecoderLayer(nn.Module):
 
     def forward(self, tgt, query_pos, reference_points,
                 src, src_pos, src_spatial_shapes, level_start_index,
+                src_pos_1d, src_spatial_shapes_1d, level_start_index_1d,
                 src_padding_mask=None, self_attn_mask=None):
 
         # self attention
         # q = k = self.with_pos_embed(tgt, query_pos)
         # tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1), attn_mask=self_attn_mask)[
         #     0].transpose(0, 1)
-        tgt2 = self.self_attn(self.with_pos_embed(tgt, query_pos),
-                               reference_points,
-                               tgt, src_spatial_shapes, level_start_index)
+        tgt2 = self.self_attn(self.with_pos_embed(tgt, src_pos_1d),
+                               reference_points[..., :2],
+                               tgt, src_spatial_shapes_1d, level_start_index_1d)
         tgt = tgt + self.dropout2(tgt2)
         tgt = self.norm2(tgt)
 
@@ -567,6 +569,7 @@ class DeformableTransformerDecoder(nn.Module):
             self.high_dim_query_proj = MLP(d_model, d_model, d_model, 2)
 
     def forward(self, tgt, reference_points, src, src_pos, src_spatial_shapes, src_level_start_index,
+                src_pos_1d, src_spatial_shapes_1d, src_level_start_index_1d,
                 query_pos=None, src_padding_mask=None, attn_mask=None):
         output = tgt
         # if self.use_dab:
@@ -597,6 +600,7 @@ class DeformableTransformerDecoder(nn.Module):
 
             output = layer(output, query_pos, reference_points_input, src, src_pos,
                            src_spatial_shapes, src_level_start_index,
+                           src_pos_1d, src_spatial_shapes_1d, src_level_start_index_1d,
                            src_padding_mask, self_attn_mask=attn_mask)
 
             # hack implementation for iterative bounding box refinement
