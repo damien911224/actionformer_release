@@ -616,6 +616,8 @@ class SetCriterion_DINO(nn.Module):
                     this_outputs = dict({"pred_boxes": this_pred_boxes, "pred_logits": this_pred_logits})
                     multiscale_outputs.append(this_outputs)
 
+                    print(this_pred_boxes.shape)
+
                     this_targets = list()
                     for t in targets:
                         target_dict = dict({"boxes": list(), "labels": list()})
