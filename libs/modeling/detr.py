@@ -580,7 +580,7 @@ class SetCriterion_DINO(nn.Module):
         for l in range(num_levels):
             this_outputs = multiscale_outputs[l]
             this_targets = multiscale_targets[l]
-            this_num_boxes = sum(len(t["labels"]) for t in targets)
+            this_num_boxes = sum(len(t["labels"]) for t in this_targets)
             this_num_boxes = torch.as_tensor([this_num_boxes], dtype=torch.float, device=device)
             if is_dist_avail_and_initialized():
                 torch.distributed.all_reduce(this_num_boxes)
@@ -588,7 +588,6 @@ class SetCriterion_DINO(nn.Module):
             if this_num_boxes <= 0.0:
                 this_indices = None
             else:
-                print(this_num_boxes)
                 this_indices = self.matcher(this_outputs, this_targets)
             for loss in self.losses:
                 l_dict = self.get_loss(loss, this_outputs, this_targets, this_indices, this_num_boxes)
@@ -647,7 +646,7 @@ class SetCriterion_DINO(nn.Module):
                 for l in range(num_levels):
                     this_outputs = multiscale_outputs[l]
                     this_targets = multiscale_targets[l]
-                    this_num_boxes = sum(len(t["labels"]) for t in targets)
+                    this_num_boxes = sum(len(t["labels"]) for t in this_targets)
                     this_num_boxes = torch.as_tensor([this_num_boxes], dtype=torch.float, device=device)
                     if is_dist_avail_and_initialized():
                         torch.distributed.all_reduce(this_num_boxes)
