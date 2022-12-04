@@ -584,11 +584,9 @@ class SetCriterion_DINO(nn.Module):
             this_num_boxes = torch.as_tensor([this_num_boxes], dtype=torch.float, device=device)
             if is_dist_avail_and_initialized():
                 torch.distributed.all_reduce(this_num_boxes)
-            this_num_boxes = torch.clamp(this_num_boxes / get_world_size(), min=1).item()
             if this_num_boxes <= 0.0:
                 this_indices = None
             else:
-                print(this_num_boxes)
                 this_indices = self.matcher(this_outputs, this_targets)
             for loss in self.losses:
                 l_dict = self.get_loss(loss, this_outputs, this_targets, this_indices, this_num_boxes)
@@ -651,7 +649,6 @@ class SetCriterion_DINO(nn.Module):
                     this_num_boxes = torch.as_tensor([this_num_boxes], dtype=torch.float, device=device)
                     if is_dist_avail_and_initialized():
                         torch.distributed.all_reduce(this_num_boxes)
-                    this_num_boxes = torch.clamp(this_num_boxes / get_world_size(), min=1).item()
                     if this_num_boxes <= 0.0:
                         this_indices = None
                     else:
