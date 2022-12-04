@@ -793,12 +793,6 @@ def valid_one_epoch(
             segments = torch.stack(segments, dim=0)
             proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
 
-            # boxes = proposals[..., 1:3]
-            # durations = [x["duration"] for x in video_list]
-            # boxes = boxes * torch.Tensor(durations)
-            # scores = proposals[..., -1]
-            # labels = proposals[..., 0].long()
-
             features = [feat.detach() for feat in backbone_features]
 
             start_index = 0
@@ -816,10 +810,19 @@ def valid_one_epoch(
                      torch.stack((torch.clamp(boxes[..., 2] - boxes[..., 3] / 2.0, 0.0, 1.0),
                                   torch.clamp(boxes[..., 2] + boxes[..., 3] / 2.0, 0.0, 1.0)), dim=-1)) / 2.0
             # boxes = boxes[..., :2]
-            durations = [x["duration"] for x in video_list]
-            boxes = boxes * torch.Tensor(durations)
             logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
             scores, labels = torch.max(logits, dim=-1)
+
+            proposals = proposals.cpu()
+            backbone_boxes = proposals[..., 1:3]
+            backbone_scores = proposals[..., -1]
+            backbone_labels = proposals[..., 0].long()
+
+            boxes = torch.clamp((boxes + backbone_boxes) / 2.0, 0.0, 1.0)
+            scores = scores * backbone_scores
+
+            durations = [x["duration"] for x in video_list]
+            boxes = boxes * torch.Tensor(durations)
 
             nmsed_boxes = list()
             nmsed_labels = list()
@@ -860,12 +863,8 @@ def valid_one_epoch(
                     results['label'].append(labels[vid_idx])
                     results['score'].append(scores[vid_idx])
 
-            proposals = proposals.cpu()
-            backbone_boxes = proposals[..., 1:3]
             durations = [x["duration"] for x in video_list]
             backbone_boxes = backbone_boxes * torch.Tensor(durations)
-            backbone_scores = proposals[..., -1]
-            backbone_labels = proposals[..., 0].long()
 
             nmsed_boxes = list()
             nmsed_labels = list()
