@@ -585,7 +585,7 @@ class SetCriterion_DINO(nn.Module):
             if is_dist_avail_and_initialized():
                 torch.distributed.all_reduce(this_num_boxes)
             this_num_boxes = torch.clamp(this_num_boxes / get_world_size(), min=1).item()
-            if this_num_boxes.sum() <= 0.0:
+            if this_num_boxes <= 0.0:
                 this_indices = None
             else:
                 this_indices = self.matcher(this_outputs, this_targets)
@@ -651,7 +651,7 @@ class SetCriterion_DINO(nn.Module):
                     if is_dist_avail_and_initialized():
                         torch.distributed.all_reduce(this_num_boxes)
                     this_num_boxes = torch.clamp(this_num_boxes / get_world_size(), min=1).item()
-                    if this_num_boxes.sum() <= 0.0:
+                    if this_num_boxes <= 0.0:
                         this_indices = None
                     else:
                         this_indices = self.matcher(this_outputs, this_targets)
