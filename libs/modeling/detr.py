@@ -343,11 +343,11 @@ class SetCriterion_DINO(nn.Module):
             idx = self._get_src_permutation_idx(indices)
         else:
             num_boxes = torch.ones_like(num_boxes)
-        if layer is None:
-            target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices) if len(t["labels"])])
-        else:
-            target_classes_o = torch.cat(
-                [t["labels"].repeat(2 ** (5 - layer))[J] for t, (_, J) in zip(targets, indices)])
+            if layer is None:
+                target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices) if len(t["labels"])])
+            else:
+                target_classes_o = torch.cat(
+                    [t["labels"].repeat(2 ** (5 - layer))[J] for t, (_, J) in zip(targets, indices)])
         target_classes = torch.full(src_logits.shape[:2], self.num_classes,
                                     dtype=torch.int64, device=src_logits.device)
         if indices is not None:
