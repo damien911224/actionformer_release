@@ -588,6 +588,7 @@ class SetCriterion_DINO(nn.Module):
             if this_num_boxes <= 0.0:
                 this_indices = None
             else:
+                print(this_num_boxes)
                 this_indices = self.matcher(this_outputs, this_targets)
             for loss in self.losses:
                 l_dict = self.get_loss(loss, this_outputs, this_targets, this_indices, this_num_boxes)
