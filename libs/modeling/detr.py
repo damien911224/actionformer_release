@@ -489,7 +489,7 @@ class SetCriterion_DINO(nn.Module):
 
         base_len = 192
         num_levels = 6
-        reg_ranges = [0, 4, 8, 16, 32, 64, 10000]
+        reg_ranges = np.array([0, 4, 8, 16, 32, 64, 10000]) / base_len
         multiscale_outputs = list()
         multiscale_targets = list()
         prev_start_idx = 0
