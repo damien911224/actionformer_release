@@ -395,7 +395,7 @@ class SetCriterion_DINO(nn.Module):
         idx = self._get_src_permutation_idx(indices)
         src_boxes = outputs['pred_boxes'][idx]
         if layer is None:
-            target_boxes = torch.cat([t['boxes'][i] for t, (_, i) in zip(targets, indices)], dim=0)
+            target_boxes = torch.cat([t['boxes'][i] for t, (_, i) in zip(targets, indices) if len(t["boxes"])], dim=0)
         else:
             target_boxes = torch.cat([t['boxes'].repeat(2 ** (5 - layer), 1)[i] for t, (_, i) in zip(targets, indices)],
                                      dim=0)
