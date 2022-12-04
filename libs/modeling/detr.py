@@ -344,7 +344,7 @@ class SetCriterion_DINO(nn.Module):
         else:
             num_boxes = torch.ones_like(num_boxes)
         if layer is None:
-            target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
+            target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices) if len(t["labels"])])
         else:
             target_classes_o = torch.cat(
                 [t["labels"].repeat(2 ** (5 - layer))[J] for t, (_, J) in zip(targets, indices)])
