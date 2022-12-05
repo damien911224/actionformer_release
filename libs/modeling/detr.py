@@ -280,8 +280,8 @@ class DINO(nn.Module):
             # else:
             #     assert reference.shape[-1] == 2
             #     tmp[..., :2] += reference
-            tmp = init_reference
-            outputs_coord = tmp.sigmoid()
+            # outputs_coord = tmp.sigmoid()
+            outputs_coord = init_reference
             outputs_class = self.class_embed[lvl](hs[lvl])
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)
