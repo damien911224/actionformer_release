@@ -550,7 +550,7 @@ class DeformableTransformerDecoderLayer(nn.Module):
         # tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1), attn_mask=self_attn_mask)[
         #     0].transpose(0, 1)
         print("11")
-        tgt2 = self.self_attn(self.with_pos_embed(tgt, src_pos_1d),
+        tgt2 = self.self_attn(self.with_pos_embed(tgt, query_pos),
                                reference_points[..., :2],
                                tgt, src_spatial_shapes_1d, level_start_index_1d)
         tgt = tgt + self.dropout2(tgt2)
@@ -627,6 +627,8 @@ class DeformableTransformerDecoder(nn.Module):
                 query_pos = pos_scale * raw_query_pos
             if self.high_dim_query_update and lid != 0:
                 query_pos = query_pos + self.high_dim_query_proj(output)
+
+            query_pos = query_pos + src_pos_1d
 
             output = layer(output, query_pos, reference_points_input, src, src_pos,
                            src_spatial_shapes, src_level_start_index,
