@@ -565,7 +565,6 @@ class DeformableTransformerDecoderLayer(nn.Module):
         tgt = tgt + self.dropout1(tgt2)
         tgt = self.norm1(tgt)
 
-        print("33")
         # ffn
         tgt = self.forward_ffn(tgt)
         
