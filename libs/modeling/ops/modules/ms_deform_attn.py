@@ -94,7 +94,6 @@ class MSDeformAttn(nn.Module):
 
         print(Len_in)
         print(input_spatial_shapes)
-        exit()
 
         assert (input_spatial_shapes[:, 0] * input_spatial_shapes[:, 1]).sum() == Len_in
 
