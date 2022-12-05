@@ -7,7 +7,7 @@ dataset: {
   file_prefix: ~,
   file_ext: .npy,
   num_classes: 20, # 20
-  downsample_rate: 1, # 1
+  downsample_rate: 2, # 1
   input_dim: 2048,
   feat_stride: 4, # 4
   num_frames: 16,
