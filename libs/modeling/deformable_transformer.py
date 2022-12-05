@@ -68,7 +68,7 @@ class DeformableTransformer(nn.Module):
                                                     no_sine_embed=no_sine_embed)
 
         self.level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
-        self.box_level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
+        self.box_level_embed = nn.Parameter(torch.Tensor(6, d_model))
 
         # if two_stage:
         #     self.enc_output = nn.Linear(d_model, d_model)
