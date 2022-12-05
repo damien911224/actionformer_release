@@ -237,8 +237,6 @@ class DeformableTransformer(nn.Module):
             box_src_flatten.append(src)
         box_src_flatten = torch.cat(box_src_flatten, 1)  # bs, \sum{hxw}, c
         box_lvl_pos_1d_embed_flatten = torch.cat(box_lvl_pos_1d_embed_flatten, 1)
-        print(box_src_flatten.shape)
-        print(box_spatial_shapes_1d)
         box_lvl_pos_2d_embed_flatten = torch.cat(box_lvl_pos_2d_embed_flatten, 1)
         box_spatial_shapes_1d = torch.as_tensor(box_spatial_shapes_1d, dtype=torch.long, device=src_flatten.device)
         box_spatial_shapes_2d = torch.as_tensor(box_spatial_shapes_2d, dtype=torch.long, device=src_flatten.device)
