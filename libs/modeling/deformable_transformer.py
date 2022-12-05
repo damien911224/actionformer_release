@@ -210,7 +210,6 @@ class DeformableTransformer(nn.Module):
         lvl_pos_2d_embed_flatten = torch.cat(lvl_pos_2d_embed_flatten, 1)
         spatial_shapes_1d = torch.as_tensor(spatial_shapes_1d, dtype=torch.long, device=src_flatten.device)
         spatial_shapes_2d = torch.as_tensor(spatial_shapes_2d, dtype=torch.long, device=src_flatten.device)
-        print(spatial_shapes_2d)
         level_start_index_1d = torch.cat((spatial_shapes_1d.new_zeros((1,)), spatial_shapes_1d.prod(1).cumsum(0)[:-1]))
         level_start_index_2d = torch.cat((spatial_shapes_2d.new_zeros((1,)), spatial_shapes_2d.prod(1).cumsum(0)[:-1]))
 
@@ -560,8 +559,6 @@ class DeformableTransformerDecoderLayer(nn.Module):
         #                          reference_points,
         #                          self.with_pos_embed(src, src_pos),
         #                          src_spatial_shapes, level_start_index, src_padding_mask)
-        print(src.shape)
-        print(src_spatial_shapes)
         tgt2 = self.cross_attn(self.with_pos_embed(tgt, query_pos),
                                reference_points,
                                src, src_spatial_shapes, level_start_index, src_padding_mask)
