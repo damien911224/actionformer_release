@@ -518,7 +518,7 @@ class DeformableTransformerDecoderLayer(nn.Module):
 
         # self attention
         # self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
-        self.self_attn = MSDeformAttn(d_model, n_levels, n_heads, n_points)
+        self.self_attn = MSDeformAttn(d_model, 1, n_heads, n_points)
         self.dropout2 = nn.Dropout(dropout)
         self.norm2 = nn.LayerNorm(d_model)
 
@@ -559,11 +559,11 @@ class DeformableTransformerDecoderLayer(nn.Module):
         #                          reference_points,
         #                          self.with_pos_embed(src, src_pos),
         #                          src_spatial_shapes, level_start_index, src_padding_mask)
-        # tgt2 = self.cross_attn(self.with_pos_embed(tgt, query_pos),
-        #                        reference_points,
-        #                        src, src_spatial_shapes, level_start_index, src_padding_mask)
-        # tgt = tgt + self.dropout1(tgt2)
-        # tgt = self.norm1(tgt)
+        tgt2 = self.cross_attn(self.with_pos_embed(tgt, query_pos),
+                               reference_points,
+                               src, src_spatial_shapes, level_start_index, src_padding_mask)
+        tgt = tgt + self.dropout1(tgt2)
+        tgt = self.norm1(tgt)
 
         print("33")
         # ffn
