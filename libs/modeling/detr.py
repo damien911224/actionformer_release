@@ -260,7 +260,7 @@ class DINO(nn.Module):
         query_embeds = prop_query_embeds
 
         hs, init_reference, inter_references, _, _ = \
-            self.transformer(srcs, box_srcs, pos_1d, pos_2d,
+            self.transformer(srcs, box_srcs, pos_1d, pos_2d, box_pos_1d, box_pos_2d,
                              query_embeds, attn_mask, self.label_enc)
 
         # In case num object=0
