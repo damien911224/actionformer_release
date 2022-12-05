@@ -560,6 +560,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
         #                          reference_points,
         #                          self.with_pos_embed(src, src_pos),
         #                          src_spatial_shapes, level_start_index, src_padding_mask)
+        print(src.shape)
+        print(src_spatial_shapes)
         tgt2 = self.cross_attn(self.with_pos_embed(tgt, query_pos),
                                reference_points,
                                src, src_spatial_shapes, level_start_index, src_padding_mask)
