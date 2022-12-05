@@ -196,6 +196,7 @@ class ActivityNetDataset(Dataset):
                 align_corners=False
             )
             feats = resize_feats.squeeze(0)
+            print(feats.shape)
 
 
         # convert time stamp (in second) into temporal feature grids
