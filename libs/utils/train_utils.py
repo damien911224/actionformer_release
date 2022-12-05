@@ -281,7 +281,6 @@ def train_one_epoch(
     print("\n[Train|Phase 1]: Epoch {:d} started".format(curr_epoch))
     start = time.time()
     for iter_idx, video_list in enumerate(train_loader, 0):
-        features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
         # zero out optim
         backbone_optimizer.zero_grad(set_to_none=True)
         detr_optimizer.zero_grad(set_to_none=True)

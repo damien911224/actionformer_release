@@ -196,7 +196,6 @@ class ActivityNetDataset(Dataset):
                 align_corners=False
             )
             feats = resize_feats.squeeze(0)
-            print(feats.shape)
 
 
         # convert time stamp (in second) into temporal feature grids
@@ -241,9 +240,9 @@ class ActivityNetDataset(Dataset):
 
         # no truncation is needed
         # truncate the features during training
-        if self.is_training and (segments is not None):
-            data_dict = truncate_feats(
-                data_dict, self.max_seq_len, self.trunc_thresh, self.crop_ratio
-            )
+        # if self.is_training and (segments is not None):
+        #     data_dict = truncate_feats(
+        #         data_dict, self.max_seq_len, self.trunc_thresh, self.crop_ratio
+        #     )
 
         return data_dict
