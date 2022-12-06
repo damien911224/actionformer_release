@@ -921,7 +921,7 @@ def valid_one_epoch_zoom_in(
                                   torch.stack((torch.clamp(this_boxes[..., 2] - this_boxes[..., 3] / 2.0, 0.0, 1.0),
                                                torch.clamp(this_boxes[..., 2] + this_boxes[..., 3] / 2.0, 0.0, 1.0)),
                                               dim=-1)) / 2.0
-                    this_boxes = this_boxes / (2 ** l_i) + 1 / 2 ** l_i
+                    this_boxes = this_boxes / (2 ** l_i) + (1 / 2 ** l_i) * s_i
                     this_logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
                     this_scores, this_labels = torch.max(this_logits, dim=-1)
 
