@@ -898,7 +898,7 @@ def valid_one_epoch_zoom_in(
         with torch.no_grad():
             features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
 
-            feat_len = len(features.size(-1))
+            feat_len = eatures.size(-1)
             boxes = list()
             labels = list()
             scores = list()
