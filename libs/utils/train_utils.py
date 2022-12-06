@@ -928,7 +928,7 @@ def valid_one_epoch_zoom_in(
                     labels.append(this_labels)
                     scores.append(this_scores)
 
-            boxes = torch.cat(this_boxes, dim=1)
+            boxes = torch.cat(boxes, dim=1)
             labels = torch.cat(labels, dim=1)
             scores = torch.cat(scores, dim=1)
 
