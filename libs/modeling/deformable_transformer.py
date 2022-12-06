@@ -307,7 +307,6 @@ class DeformableTransformerEncoder(nn.Module):
 
     @staticmethod
     def get_reference_points(spatial_shapes, device):
-        print(spatial_shapes)
         reference_points_list = []
         for lvl, (H_, W_) in enumerate(spatial_shapes):
             ref_y, ref_x = torch.meshgrid(torch.linspace(0.5, H_ - 0.5, H_, dtype=torch.float32, device=device),
@@ -320,7 +319,7 @@ class DeformableTransformerEncoder(nn.Module):
         reference_points = reference_points[:, :, None]
         return reference_points
 
-    def forward(self, src, box_src, spatial_shapes, level_start_index, pos=None, padding_mask=None):
+    def forward(self, src, spatial_shapes, level_start_index, pos=None, padding_mask=None):
         """
         Input:
             - src: [bs, sum(hi*wi), 256]
@@ -337,7 +336,7 @@ class DeformableTransformerEncoder(nn.Module):
         # import ipdb; ipdb.set_trace()
         reference_points = self.get_reference_points(spatial_shapes, device=src.device)
         for _, layer in enumerate(self.layers):
-            output = layer(output, box_src, pos, reference_points, spatial_shapes, level_start_index, padding_mask)
+            output = layer(output, pos, reference_points, spatial_shapes, level_start_index, padding_mask)
 
         return output
 
