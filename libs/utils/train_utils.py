@@ -912,7 +912,7 @@ def valid_one_epoch_zoom_in(
                         this_features = features[..., s_i:e_i]
 
                     print(s_i)
-                    print(len(this_features))
+                    print(this_features.shape)
 
                     this_features = F.interpolate(this_features, size=192, mode='linear', align_corners=False)
 
