@@ -18,7 +18,7 @@ from tensorboardX import SummaryWriter
 from libs.core import load_config
 from libs.datasets import make_dataset, make_data_loader
 from libs.modeling import make_meta_arch
-from libs.utils import (train_one_epoch, valid_one_epoch, ANETdetection,
+from libs.utils import (train_one_epoch_zoom_in, valid_one_epoch_zoom_in, ANETdetection,
                         save_checkpoint, make_optimizer, make_scheduler,
                         fix_random_seed, ModelEma)
 from libs.modeling.detr import build_dino
@@ -66,37 +66,38 @@ def main(args):
     """3. create model, optimizer, and scheduler"""
     # model
     # data_types = ["rgb", "flow"]
-    data_types = ["fusion"]
-    models = list()
-    optimizers = list()
-    schedulers = list()
-    model_emas = list()
-    num_iters_per_epoch = len(train_loader)
-    for data_type in data_types:
-        this_cfg = dict(cfg)
-        if data_type in ["rgb", "flow"]:
-            this_cfg['model']['input_dim'] = this_cfg['dataset']['input_dim'] // 2
-        model = make_meta_arch(this_cfg['model_name'], **this_cfg['model'])
-        model_ = make_meta_arch(this_cfg['model_name'], **this_cfg['model'])
-        # not ideal for multi GPU training, ok for now
-        model = nn.DataParallel(model, device_ids=this_cfg['devices'])
-        model_ = nn.DataParallel(model_, device_ids=this_cfg['devices'])
-        model_.load_state_dict(model.state_dict())
-        # optimizer
-        optimizer = make_optimizer(model, this_cfg['opt'])
-        # schedule
-        scheduler = make_scheduler(optimizer, this_cfg['opt'], num_iters_per_epoch)
-        # enable model EMA
-        # model_ema = ModelEma(model)
-        model_ema = ModelEma(model_, copy_model=False)
-
-        models.append(model)
-        optimizers.append(optimizer)
-        schedulers.append(scheduler)
-        model_emas.append(model_ema)
+    # data_types = ["fusion"]
+    # models = list()
+    # optimizers = list()
+    # schedulers = list()
+    # model_emas = list()
+    # num_iters_per_epoch = len(train_loader)
+    # for data_type in data_types:
+    #     this_cfg = dict(cfg)
+    #     if data_type in ["rgb", "flow"]:
+    #         this_cfg['model']['input_dim'] = this_cfg['dataset']['input_dim'] // 2
+    #     model = make_meta_arch(this_cfg['model_name'], **this_cfg['model'])
+    #     model_ = make_meta_arch(this_cfg['model_name'], **this_cfg['model'])
+    #     # not ideal for multi GPU training, ok for now
+    #     model = nn.DataParallel(model, device_ids=this_cfg['devices'])
+    #     model_ = nn.DataParallel(model_, device_ids=this_cfg['devices'])
+    #     model_.load_state_dict(model.state_dict())
+    #     # optimizer
+    #     optimizer = make_optimizer(model, this_cfg['opt'])
+    #     # schedule
+    #     scheduler = make_scheduler(optimizer, this_cfg['opt'], num_iters_per_epoch)
+    #     # enable model EMA
+    #     # model_ema = ModelEma(model)
+    #     model_ema = ModelEma(model_, copy_model=False)
+    #
+    #     models.append(model)
+    #     optimizers.append(optimizer)
+    #     schedulers.append(scheduler)
+    #     model_emas.append(model_ema)
 
     """ DETR """
-    cfg['detr']['num_feature_levels'] *= len(data_types)
+    # cfg['detr']['num_feature_levels'] *= len(data_types)
+    num_iters_per_epoch = len(train_loader)
     detr, detr_criterion = build_dino(cfg['detr'])
     detr_, _ = build_dino(cfg['detr'])
     detr_.load_state_dict(detr.state_dict())
@@ -201,28 +202,21 @@ def main(args):
     best_mAP = -1
     for epoch in range(args.start_epoch, max_epochs):
         # train for one epoch
-        train_one_epoch(
+        train_one_epoch_zoom_in(
             train_loader,
-            models[0],
-            optimizers[0],
-            schedulers[0],
             detr,
             detr_optimizer,
             detr_scheduler,
             detr_criterion,
             epoch,
-            data_type=data_types[0],
-            backbone_model_ema=model_emas[0],
             detr_model_ema=detr_model_ema,
             tb_writer=tb_writer,
             print_freq=args.print_freq)
 
         if (epoch >= 0 and epoch % 1 == 0) or epoch == max_epochs - 1:
-            mAP = valid_one_epoch(
+            mAP = valid_one_epoch_zoom_in(
                 val_loader,
-                model_emas[0].module,
                 detr_model_ema.module,
-                data_types[0],
                 epoch,
                 cfg['test_cfg'],
                 evaluator=det_eval,
@@ -246,12 +240,12 @@ def main(args):
                         (epoch > 0)
                 )
         ):
-            backbone_save_states = {
-                'epoch': epoch,
-                'state_dict': models[0].state_dict(),
-                'scheduler': schedulers[0].state_dict(),
-                'optimizer': optimizers[0].state_dict()
-            }
+            # backbone_save_states = {
+            #     'epoch': epoch,
+            #     'state_dict': models[0].state_dict(),
+            #     'scheduler': schedulers[0].state_dict(),
+            #     'optimizer': optimizers[0].state_dict()
+            # }
             detr_save_states = {
                 'epoch': epoch,
                 'state_dict': detr.state_dict(),
@@ -259,13 +253,13 @@ def main(args):
                 'optimizer': detr_optimizer.state_dict()
             }
 
-            backbone_save_states['state_dict_ema'] = model_emas[0].module.state_dict()
-            save_checkpoint(
-                backbone_save_states,
-                is_best,
-                file_folder=backbone_ckpt_folder,
-                file_name='epoch_{:03d}.pth.tar'.format(epoch)
-            )
+            # backbone_save_states['state_dict_ema'] = model_emas[0].module.state_dict()
+            # save_checkpoint(
+            #     backbone_save_states,
+            #     is_best,
+            #     file_folder=backbone_ckpt_folder,
+            #     file_name='epoch_{:03d}.pth.tar'.format(epoch)
+            # )
             detr_save_states['state_dict_ema'] = detr_model_ema.module.state_dict()
             save_checkpoint(
                 detr_save_states,

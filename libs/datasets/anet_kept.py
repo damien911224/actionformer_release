@@ -187,6 +187,17 @@ class ActivityNetDataset(Dataset):
         # T x C -> C x T
         feats = torch.from_numpy(np.ascontiguousarray(feats.transpose()))
 
+        # resize the features if needed
+        if (feats.shape[-1] != self.max_seq_len) and self.force_upsampling:
+            resize_feats = F.interpolate(
+                feats.unsqueeze(0),
+                size=self.max_seq_len,
+                mode='linear',
+                align_corners=False
+            )
+            feats = resize_feats.squeeze(0)
+
+
         # convert time stamp (in second) into temporal feature grids
         # ok to have small negative values here
         if video_item['segments'] is not None:
@@ -229,19 +240,9 @@ class ActivityNetDataset(Dataset):
 
         # no truncation is needed
         # truncate the features during training
-        if self.is_training and (segments is not None):
-            data_dict = truncate_feats(
-                data_dict, self.max_seq_len, self.trunc_thresh, self.crop_ratio
-            )
-
-        # resize the features if needed
-        if self.is_training:
-            resize_feats = F.interpolate(
-                data_dict["feats"].unsqueeze(0),
-                size=self.max_seq_len,
-                mode='linear',
-                align_corners=False
-            )
-            data_dict["feats"] = resize_feats.squeeze(0)
+        # if self.is_training and (segments is not None):
+        #     data_dict = truncate_feats(
+        #         data_dict, self.max_seq_len, self.trunc_thresh, self.crop_ratio
+        #     )
 
         return data_dict
