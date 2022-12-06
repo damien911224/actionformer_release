@@ -449,10 +449,7 @@ class DeformableTransformerDecoderLayer(nn.Module):
         self.norm1 = nn.LayerNorm(d_model)
 
         # self attention
-        # self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
-        self.self_attn = MSDeformAttn(d_model, 6, n_heads, n_points)
-        self.dropout2 = nn.Dropout(dropout)
-        self.norm2 = nn.LayerNorm(d_model)
+        self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
 
         # ffn
         self.linear1 = nn.Linear(d_model, d_ffn)
