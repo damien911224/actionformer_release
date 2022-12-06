@@ -904,6 +904,7 @@ def valid_one_epoch_zoom_in(
             scores = list()
             num_levels = np.minimum(np.log2(max(feat_len // 192, 1)).astype(np.int32) + 1, 4)
             for l_i in range(num_levels):
+                print(feat_len, feat_len // (2 ** l_i))
                 start_indices = np.arange(0, feat_len, feat_len // (2 ** l_i))
                 print(start_indices)
                 for s_i, start_index in enumerate(start_indices):
