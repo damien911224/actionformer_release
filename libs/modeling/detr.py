@@ -153,7 +153,6 @@ class DINO(nn.Module):
         pos_2d = []
         for l, feat in enumerate(features):
             src = self.input_proj[l](feat)
-            print(src.shape)
             n, c, t = src.shape
             src = src.unsqueeze(-1)
             pos_1d_l = F.interpolate(raw_pos_1d, size=t, mode="linear")

@@ -214,8 +214,6 @@ class DeformableTransformer(nn.Module):
         level_start_index_1d = torch.cat((spatial_shapes_1d.new_zeros((1,)), spatial_shapes_1d.prod(1).cumsum(0)[:-1]))
         level_start_index_2d = torch.cat((spatial_shapes_2d.new_zeros((1,)), spatial_shapes_2d.prod(1).cumsum(0)[:-1]))
 
-        print(spatial_shapes_1d)
-
         # encoder
         memory = self.encoder(src_flatten, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
 
@@ -309,6 +307,7 @@ class DeformableTransformerEncoder(nn.Module):
 
     @staticmethod
     def get_reference_points(spatial_shapes, device):
+        print(spatial_shapes)
         reference_points_list = []
         for lvl, (H_, W_) in enumerate(spatial_shapes):
             ref_y, ref_x = torch.meshgrid(torch.linspace(0.5, H_ - 0.5, H_, dtype=torch.float32, device=device),
