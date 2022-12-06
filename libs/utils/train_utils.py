@@ -905,18 +905,13 @@ def valid_one_epoch_zoom_in(
             num_levels = np.minimum(np.log2(max(feat_len // 192, 1)).astype(np.int32) + 1, 4)
             print(num_levels)
             for l_i in range(num_levels):
-                print(feat_len, feat_len // (2 ** l_i))
                 start_indices = np.arange(0, feat_len, feat_len // (2 ** l_i))
-                print(start_indices)
                 for s_i, start_index in enumerate(start_indices):
                     if s_i >= len(start_indices) - 1:
                         this_features = features[..., start_index:]
                     else:
                         end_index = start_indices[s_i + 1]
                         this_features = features[..., start_index:end_index]
-
-                    print(start_index)
-                    print(this_features.shape)
 
                     this_features = F.interpolate(this_features, size=192, mode='linear', align_corners=False)
 
