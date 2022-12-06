@@ -912,6 +912,9 @@ def valid_one_epoch_zoom_in(
                         end_index = start_indices[s_i + 1]
                         this_features = features[..., start_index:end_index]
 
+                    print(start_index)
+                    print(this_features.shape)
+
                     this_features = F.interpolate(this_features, size=192, mode='linear', align_corners=False)
 
                     detr_predictions = detr([this_features])
