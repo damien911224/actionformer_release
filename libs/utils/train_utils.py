@@ -904,7 +904,11 @@ def valid_one_epoch_zoom_in(
             scores = list()
             num_levels = np.minimum(np.log2(max(feat_len // 192, 2)).astype(np.int32) + 1, 4)
             for l_i in range(num_levels):
-                start_indices = np.arange(0, feat_len, feat_len // max(2 ** l_i, 1))
+                try:
+                    start_indices = np.arange(0, feat_len, feat_len // max(2 ** l_i, 1))
+                except:
+                    print(feat_len)
+                    print(l_i)
                 for s_i, start_index in enumerate(start_indices):
                     if s_i >= len(start_indices) - 1:
                         this_features = features[..., start_index:]
