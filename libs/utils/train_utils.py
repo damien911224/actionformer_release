@@ -903,6 +903,7 @@ def valid_one_epoch_zoom_in(
             labels = list()
             scores = list()
             num_levels = np.minimum(np.log2(max(feat_len // 192, 1)).astype(np.int32) + 1, 4)
+            print(num_levels)
             for l_i in range(num_levels):
                 print(feat_len, feat_len // (2 ** l_i))
                 start_indices = np.arange(0, feat_len, feat_len // (2 ** l_i))
