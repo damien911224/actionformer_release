@@ -201,18 +201,6 @@ def main(args):
     is_best = False
     best_mAP = -1
     for epoch in range(args.start_epoch, max_epochs):
-        mAP = valid_one_epoch_zoom_in(
-            val_loader,
-            detr_model_ema.module,
-            epoch,
-            cfg['test_cfg'],
-            evaluator=det_eval,
-            output_file=output_file,
-            ext_score_file=cfg['test_cfg']['ext_score_file'],
-            tb_writer=tb_writer,
-            print_freq=args.print_freq
-        )
-
         # train for one epoch
         train_one_epoch_zoom_in(
             train_loader,
