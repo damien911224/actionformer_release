@@ -906,10 +906,10 @@ def valid_one_epoch_zoom_in(
                 start_indices = np.arange(0, feat_len, feat_len // (2 ** l_i))
                 for s_i, start_index in enumerate(start_indices):
                     if s_i >= len(start_indices) - 1:
-                        this_features = features[:, s_i:]
+                        this_features = features[..., s_i:]
                     else:
                         e_i = start_indices[s_i + 1]
-                        this_features = features[:, s_i:e_i]
+                        this_features = features[..., s_i:e_i]
 
                     this_features = F.interpolate(this_features, size=192, mode='linear', align_corners=False)
 
