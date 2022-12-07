@@ -121,12 +121,12 @@ class HungarianMatcher(nn.Module):
                 this_indices = [linear_sum_assignment(c[i]) for i, c in enumerate(C.split(sizes, -1))]
                 this_indices = [(torch.as_tensor(i, dtype=torch.int64), torch.as_tensor(j, dtype=torch.int64))
                                 for i, j in this_indices]
-                print(this_indices)
                 indices.append(this_indices)
                 src_idx = self._get_src_permutation_idx(this_indices)
+                print(src_idx)
                 C[src_idx] = 10000
 
-            print(indices)
+            # print(indices)
             exit()
             return indices
 
