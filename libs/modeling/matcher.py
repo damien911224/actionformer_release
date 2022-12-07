@@ -124,6 +124,7 @@ class HungarianMatcher(nn.Module):
                 indices.append(this_indices)
                 src_idx = self._get_src_permutation_idx(this_indices)
                 print(src_idx)
+                print()
                 C[src_idx] = 10000
 
             # print(indices)
