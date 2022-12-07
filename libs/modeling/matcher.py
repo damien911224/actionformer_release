@@ -117,6 +117,7 @@ class HungarianMatcher(nn.Module):
                 sizes = [len(v["boxes"].repeat(2 ** (5 - layer), 1)) for v in targets]
 
             print(C.shape)
+            print(sizes)
             exit()
 
             indices = list()
