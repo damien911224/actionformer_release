@@ -409,7 +409,6 @@ class SetCriterion_DINO(nn.Module):
                 num_boxes = num_boxes * (2 ** (5 - layer))
             losses["loss_bbox"] += (loss_bbox.sum() / num_boxes) * (1.0 - 0.2 * i)
 
-
             loss_giou = ((1 - torch.diag(segment_ops.segment_iou(
                 segment_ops.segment_cw_to_t1t2(src_boxes[..., 2:]),
                 segment_ops.segment_cw_to_t1t2(target_boxes[..., 2:])))) +
