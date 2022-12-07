@@ -126,7 +126,7 @@ class HungarianMatcher(nn.Module):
                                 for i, j in this_indices]
                 print(this_indices)
                 indices.append(this_indices)
-                C[this_indices] = -10000
+                C[this_indices] = 10000
 
             print(indices)
             exit()
