@@ -123,12 +123,18 @@ class HungarianMatcher(nn.Module):
                                 for i, j in this_indices]
                 print(this_indices)
                 indices.append(this_indices)
-                C[this_indices] = 10000
+                src_idx = self._get_src_permutation_idx(this_indices)
+                C[src_idx] = 10000
 
             print(indices)
             exit()
             return indices
 
+    def _get_src_permutation_idx(self, indices):
+        # permute predictions following indices
+        batch_idx = torch.cat([torch.full_like(src, i) for i, (src, _) in enumerate(indices)])
+        src_idx = torch.cat([src for (src, _) in indices])
+        return batch_idx, src_idx
 
 def build_matcher(args):
     return HungarianMatcher(cost_class=args["set_cost_class"], cost_bbox=args["set_cost_bbox"])
