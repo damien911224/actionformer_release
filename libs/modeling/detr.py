@@ -484,7 +484,6 @@ class SetCriterion_DINO(nn.Module):
         device = next(iter(outputs.values())).device
         indices = self.matcher(outputs_without_aux, targets)
         idx = self._get_src_permutation_idx(indices)
-        print(idx.shape)
         print(idx)
         exit()
 
