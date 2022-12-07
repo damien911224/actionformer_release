@@ -63,6 +63,11 @@ class DINO(nn.Module):
         self.num_patterns = num_patterns
         self.random_refpoints_xy = random_refpoints_xy
         self.label_enc = nn.Embedding(dn_labelbook_size + 1, hidden_dim)
+        self.prop_label_enc = nn.Embedding(200 + 1, hidden_dim)
+        self.prop_score_enc = nn.Linear(1, hidden_dim)
+        self.prop_box_enc = nn.Linear(2, hidden_dim)
+        self.prop_level_enc = nn.Embedding(6, hidden_dim)
+        self.query_type_enc = nn.Embedding(2, hidden_dim)
         if not use_dab:
             self.query_embed = nn.Embedding(num_queries, hidden_dim * 2)
         else:
@@ -131,7 +136,7 @@ class DINO(nn.Module):
             self.transformer.decoder.bbox_embed = None
 
 
-    def forward(self, features, targets=None):
+    def forward(self, features, proposals, targets=None):
         """ The forward expects a NestedTensor, which consists of:
                - samples.tensor: batched images, of shape [batch_size x 3 x H x W]
                - samples.mask: a binary mask of shape [batch_size x H x W], containing 1 on padded pixels
@@ -145,6 +150,12 @@ class DINO(nn.Module):
                - "aux_outputs": Optional, only returned when auxilary losses are activated. It is a list of
                                 dictionnaries containing the two above keys for each decoder layer.
         """
+        # features = list()
+        # backbone_features = self.backbone([samples[:, :, ::8], samples])
+        # for l, feat in enumerate(backbone_features):
+        #     feat = feat.mean(dim=(3, 4))
+        #     features.append(feat.unsqueeze(-1))
+
         raw_pos_1d = self.pos_1d_embeds.repeat(features[0].size(0), 1, 1)
         raw_pos_2d = self.pos_2d_embeds.repeat(features[0].size(0), 1, 1, 1)
 
@@ -154,12 +165,42 @@ class DINO(nn.Module):
         for l, feat in enumerate(features):
             src = self.input_proj[l](feat)
             n, c, t = src.shape
+            # this_max_len = self.max_input_len // (2 ** l)
+            # if t > this_max_len:
+            #     src = F.interpolate(src, size=this_max_len, mode="linear")
+            #     t = this_max_len
             src = src.unsqueeze(-1)
             pos_1d_l = F.interpolate(raw_pos_1d, size=t, mode="linear")
             pos_2d_l = F.interpolate(raw_pos_2d, size=(t, t), mode="bilinear")
             pos_1d.append(pos_1d_l)
             pos_2d.append(pos_2d_l)
             srcs.append(src)
+
+        box_srcs = []
+        box_pos_1d = []
+        box_pos_2d = []
+        for l, feat in enumerate(proposals):
+            prop_boxes = feat[..., 1:3]
+            prop_labels = feat[..., 0]
+            prop_scores = feat[..., -1].unsqueeze(-1)
+            prop_box_embeds = self.prop_box_enc(prop_boxes)
+            prop_label_embeds = self.prop_label_enc(torch.zeros_like(prop_labels.long()))
+            prop_score_embeds = self.prop_score_enc(prop_scores)
+            prop_level_embeds = self.prop_level_enc.weight[l].view(1, 1, -1)
+            # box_src = (prop_label_embeds + prop_score_embeds + prop_level_embeds).permute(0, 2, 1)
+            box_src = (prop_box_embeds + prop_label_embeds + prop_score_embeds + prop_level_embeds).permute(0, 2, 1)
+            n, c, t = box_src.shape
+            box_src = box_src.unsqueeze(-1)
+            # this_max_len = self.max_input_len // (2 ** l)
+            # if t > this_max_len:
+            #     box_src = F.interpolate(box_src, size=this_max_len, mode="linear")
+            #     t = this_max_len
+            pos_1d_l = F.interpolate(raw_pos_1d, size=t, mode="linear")
+            # box_src = box_src + pos_1d_l
+            pos_2d_l = F.interpolate(raw_pos_2d, size=(t, t), mode="bilinear")
+            box_pos_1d.append(pos_1d_l)
+            box_pos_2d.append(pos_2d_l)
+            box_srcs.append(box_src)
 
         if self.use_dab:
             if self.num_patterns == 0:
@@ -171,8 +212,25 @@ class DINO(nn.Module):
         else:
             assert NotImplementedError
 
-        input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
-        input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
+        # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
+        # input_query_label = input_query_label + self.query_type_enc.weight[0].view(1, 1, -1)
+        # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
+
+        # proposals = torch.cat(proposals, dim=1)
+        # prop_labels = proposals[..., 0]
+        # prop_scores = proposals[..., -1].unsqueeze(-1)
+        # prop_label_embeds = self.query_label_enc(torch.zeros_like(prop_labels.long()))
+        # prop_score_embeds = self.query_score_enc(prop_scores)
+        # prop_query_label = prop_label_embeds + prop_score_embeds
+        # prop_query_label = torch.cat(box_srcs, dim=-1).permute(0, 2, 1)
+        # prop_query_label = prop_query_label + self.query_type_enc.weight[1].view(1, 1, -1)
+        # prop_query_bbox = torch.cat([proposals[..., 1:-1],
+        #                               ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
+        #                               (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
+        # prop_query_bbox = inverse_sigmoid(prop_query_bbox)
+
+        # input_query_label = torch.cat((input_query_label, prop_query_label), dim=1)
+        # input_query_bbox = torch.cat((input_query_bbox, prop_query_bbox), dim=1)
 
         # prepare for dn
         if self.dn_number > 0 and self.training:
@@ -185,10 +243,25 @@ class DINO(nn.Module):
         else:
             attn_mask = dn_meta = None
 
-        query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
+            # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features.size(0), 1, 1)
+            # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features.size(0), 1, 1)
+
+        # query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
+
+        proposals = torch.cat(proposals, dim=1)
+        prop_query_label = self.prop_label_enc(proposals[..., 0].long())
+        prop_query_label = prop_query_label + self.prop_score_enc(proposals[..., -1].unsqueeze(-1))
+        prop_query_bbox = torch.cat([proposals[..., 1:-1],
+                                     ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
+                                     (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
+        prop_query_bbox = inverse_sigmoid(prop_query_bbox)
+        prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
+        # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
+        query_embeds = prop_query_embeds
 
         hs, init_reference, inter_references, _, _ = \
-            self.transformer(srcs, pos_1d, pos_2d, query_embeds, attn_mask, self.label_enc)
+            self.transformer(srcs, box_srcs, pos_1d, pos_2d, box_pos_1d, box_pos_2d,
+                             query_embeds, attn_mask, self.label_enc)
 
         # In case num object=0
         hs[0] += self.label_enc.weight[0, 0] * 0.0
@@ -196,18 +269,19 @@ class DINO(nn.Module):
         outputs_classes = []
         outputs_coords = []
         for lvl in range(hs.shape[0]):
-            if lvl == 0:
-                reference = init_reference
-            else:
-                reference = inter_references[lvl - 1]
-            reference = inverse_sigmoid(reference)
-            tmp = self.bbox_embed[lvl](hs[lvl])
-            if reference.shape[-1] == 4:
-                tmp += reference
-            else:
-                assert reference.shape[-1] == 2
-                tmp[..., :2] += reference
-            outputs_coord = tmp.sigmoid()
+            # if lvl == 0:
+            #     reference = init_reference
+            # else:
+            #     reference = inter_references[lvl - 1]
+            # reference = inverse_sigmoid(reference)
+            # tmp = self.bbox_embed[lvl](hs[lvl])
+            # if reference.shape[-1] == 4:
+            #     tmp += reference
+            # else:
+            #     assert reference.shape[-1] == 2
+            #     tmp[..., :2] += reference
+            # outputs_coord = tmp.sigmoid()
+            outputs_coord = init_reference
             outputs_class = self.class_embed[lvl](hs[lvl])
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)
