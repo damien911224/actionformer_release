@@ -340,19 +340,15 @@ class SetCriterion_DINO(nn.Module):
         assert 'pred_logits' in outputs
         src_logits = outputs['pred_logits']
 
-        if indices is not None:
-            idx = self._get_src_permutation_idx(indices)
-            if layer is None:
-                target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices) if len(t["labels"])])
-            else:
-                target_classes_o = torch.cat(
-                    [t["labels"].repeat(2 ** (5 - layer))[J] for t, (_, J) in zip(targets, indices)])
+        idx = self._get_src_permutation_idx(indices)
+        if layer is None:
+            target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices) if len(t["labels"])])
         else:
-            num_boxes = torch.ones_like(num_boxes)
+            target_classes_o = torch.cat(
+                [t["labels"].repeat(2 ** (5 - layer))[J] for t, (_, J) in zip(targets, indices)])
         target_classes = torch.full(src_logits.shape[:2], self.num_classes,
                                     dtype=torch.int64, device=src_logits.device)
-        if indices is not None:
-            target_classes[idx] = target_classes_o
+        target_classes[idx] = target_classes_o
 
         target_classes_onehot = torch.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2] + 1],
                                             dtype=src_logits.dtype, layout=src_logits.layout, device=src_logits.device)
@@ -366,7 +362,7 @@ class SetCriterion_DINO(nn.Module):
 
         losses = {'loss_ce': loss_ce}
 
-        if log and indices is not None:
+        if log:
             # TODO this should probably be a separate loss, not hacked in this one here
             losses['class_error'] = 100 - accuracy(src_logits[idx], target_classes_o)[0]
         return losses
@@ -487,6 +483,10 @@ class SetCriterion_DINO(nn.Module):
         outputs_without_aux = {k: v for k, v in outputs.items() if k != 'aux_outputs'}
         device = next(iter(outputs.values())).device
         indices = self.matcher(outputs_without_aux, targets)
+        idx = self._get_src_permutation_idx(indices)
+        print(idx.shape)
+        print(idx)
+        exit()
 
         # base_len = 192
         # num_levels = 6
