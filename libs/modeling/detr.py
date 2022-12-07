@@ -269,19 +269,19 @@ class DINO(nn.Module):
         outputs_classes = []
         outputs_coords = []
         for lvl in range(hs.shape[0]):
-            # if lvl == 0:
-            #     reference = init_reference
-            # else:
-            #     reference = inter_references[lvl - 1]
-            # reference = inverse_sigmoid(reference)
-            # tmp = self.bbox_embed[lvl](hs[lvl])
-            # if reference.shape[-1] == 4:
-            #     tmp += reference
-            # else:
-            #     assert reference.shape[-1] == 2
-            #     tmp[..., :2] += reference
-            # outputs_coord = tmp.sigmoid()
-            outputs_coord = init_reference
+            if lvl == 0:
+                reference = init_reference
+            else:
+                reference = inter_references[lvl - 1]
+            reference = inverse_sigmoid(reference)
+            tmp = self.bbox_embed[lvl](hs[lvl])
+            if reference.shape[-1] == 4:
+                tmp += reference
+            else:
+                assert reference.shape[-1] == 2
+                tmp[..., :2] += reference
+            outputs_coord = tmp.sigmoid()
+            # outputs_coord = init_reference
             outputs_class = self.class_embed[lvl](hs[lvl])
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)
@@ -389,33 +389,38 @@ class SetCriterion_DINO(nn.Module):
         """
         assert 'pred_boxes' in outputs
 
-        indices = indices[0]
-        idx = self._get_src_permutation_idx(indices)
-        src_boxes = outputs['pred_boxes'][idx]
-        if layer is None:
-            target_boxes = torch.cat([t['boxes'][i] for t, (_, i) in zip(targets, indices) if len(t["boxes"])], dim=0)
-        else:
-            target_boxes = torch.cat([t['boxes'].repeat(2 ** (5 - layer), 1)[i] for t, (_, i) in zip(targets, indices)],
-                                     dim=0)
-
-        loss_bbox = F.l1_loss(src_boxes, target_boxes, reduction='none')
-        if layer is not None:
-            num_boxes = num_boxes * (2 ** (5 - layer))
-
         losses = {}
-        losses["loss_bbox"] = loss_bbox.sum() / num_boxes
+        losses["loss_xy"] = 0.0
+        losses["loss_hw"] = 0.0
+        losses["loss_bbox"] = 0.0
+        losses["loss_giou"] = 0.0
+        for this_indices in indices:
+            idx = self._get_src_permutation_idx(this_indices)
+            src_boxes = outputs['pred_boxes'][idx]
+            if layer is None:
+                target_boxes = torch.cat([t['boxes'][i] for t, (_, i) in zip(targets, this_indices) if len(t["boxes"])],
+                                         dim=0)
+            else:
+                target_boxes = torch.cat([t['boxes'].repeat(2 ** (5 - layer), 1)[i]
+                                          for t, (_, i) in zip(targets, this_indices)], dim=0)
 
-        loss_giou = ((1 - torch.diag(segment_ops.segment_iou(
-            segment_ops.segment_cw_to_t1t2(src_boxes[..., 2:]),
-            segment_ops.segment_cw_to_t1t2(target_boxes[..., 2:])))) +
-                     (1 - torch.diag(segment_ops.segment_iou(
-                         src_boxes[..., :2], target_boxes[..., :2])))) / 2
-        losses["loss_giou"] = loss_giou.sum() / num_boxes
+            loss_bbox = F.l1_loss(src_boxes, target_boxes, reduction='none')
+            if layer is not None:
+                num_boxes = num_boxes * (2 ** (5 - layer))
+            losses["loss_bbox"] += loss_bbox.sum() / num_boxes
 
-        # calculate the x,y and h,w loss
-        with torch.no_grad():
-            losses["loss_xy"] = loss_bbox[..., :2].sum() / num_boxes
-            losses["loss_hw"] = loss_bbox[..., 2:].sum() / num_boxes
+
+            loss_giou = ((1 - torch.diag(segment_ops.segment_iou(
+                segment_ops.segment_cw_to_t1t2(src_boxes[..., 2:]),
+                segment_ops.segment_cw_to_t1t2(target_boxes[..., 2:])))) +
+                         (1 - torch.diag(segment_ops.segment_iou(
+                             src_boxes[..., :2], target_boxes[..., :2])))) / 2
+            losses["loss_giou"] = loss_giou.sum() / num_boxes
+
+            # calculate the x,y and h,w loss
+            with torch.no_grad():
+                losses["loss_xy"] = loss_bbox[..., :2].sum() / num_boxes
+                losses["loss_hw"] = loss_bbox[..., 2:].sum() / num_boxes
 
         return losses
 
