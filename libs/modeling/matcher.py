@@ -116,6 +116,9 @@ class HungarianMatcher(nn.Module):
             else:
                 sizes = [len(v["boxes"].repeat(2 ** (5 - layer), 1)) for v in targets]
 
+            print(C.min(), C.max())
+            exit()
+
             indices = list()
             for m_i in range(5):
                 this_indices = [linear_sum_assignment(c[i]) for i, c in enumerate(C.split(sizes, -1))]
