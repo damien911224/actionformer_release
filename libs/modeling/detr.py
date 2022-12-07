@@ -340,19 +340,19 @@ class SetCriterion_DINO(nn.Module):
         assert 'pred_logits' in outputs
         src_logits = outputs['pred_logits']
 
-        idx = self._get_src_permutation_idx(indices)
-        if layer is None:
-            target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices) if len(t["labels"])])
-        else:
-            target_classes_o = torch.cat(
-                [t["labels"].repeat(2 ** (5 - layer))[J] for t, (_, J) in zip(targets, indices)])
-        target_classes = torch.full(src_logits.shape[:2], self.num_classes,
-                                    dtype=torch.int64, device=src_logits.device)
-        target_classes[idx] = target_classes_o
-
+        target_classes = torch.full(src_logits.shape[:2], self.num_classes, dtype=torch.int64, device=src_logits.device)
         target_classes_onehot = torch.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2] + 1],
                                             dtype=src_logits.dtype, layout=src_logits.layout, device=src_logits.device)
-        target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
+        for i, this_indices in enumerate(indices):
+            idx = self._get_src_permutation_idx(indices)
+            if layer is None:
+                target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices) if len(t["labels"])])
+            else:
+                target_classes_o = torch.cat(
+                    [t["labels"].repeat(2 ** (5 - layer))[J] for t, (_, J) in zip(targets, indices)])
+            target_classes[idx] = target_classes_o
+
+            target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1.0 - 0.2 * i)
 
         target_classes_onehot = target_classes_onehot[:, :, :-1]
         if layer is not None:
@@ -387,9 +387,8 @@ class SetCriterion_DINO(nn.Module):
            The target boxes are expected in format (center_x, center_y, w, h), normalized by the image size.
         """
         assert 'pred_boxes' in outputs
-        if indices is None:
-            return {}
-        idx = self._get_src_permutation_idx(indices)
+
+        idx = self._get_src_permutation_idx(indices[0])
         src_boxes = outputs['pred_boxes'][idx]
         if layer is None:
             target_boxes = torch.cat([t['boxes'][i] for t, (_, i) in zip(targets, indices) if len(t["boxes"])], dim=0)
@@ -483,9 +482,6 @@ class SetCriterion_DINO(nn.Module):
         outputs_without_aux = {k: v for k, v in outputs.items() if k != 'aux_outputs'}
         device = next(iter(outputs.values())).device
         indices = self.matcher(outputs_without_aux, targets)
-        idx = self._get_src_permutation_idx(indices)
-        print(idx)
-        exit()
 
         # base_len = 192
         # num_levels = 6
