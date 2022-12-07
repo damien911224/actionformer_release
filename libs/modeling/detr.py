@@ -394,7 +394,7 @@ class SetCriterion_DINO(nn.Module):
         losses["loss_hw"] = 0.0
         losses["loss_bbox"] = 0.0
         losses["loss_giou"] = 0.0
-        for this_indices in indices:
+        for i, this_indices in enumerate(indices):
             idx = self._get_src_permutation_idx(this_indices)
             src_boxes = outputs['pred_boxes'][idx]
             if layer is None:
@@ -407,7 +407,7 @@ class SetCriterion_DINO(nn.Module):
             loss_bbox = F.l1_loss(src_boxes, target_boxes, reduction='none')
             if layer is not None:
                 num_boxes = num_boxes * (2 ** (5 - layer))
-            losses["loss_bbox"] += loss_bbox.sum() / num_boxes
+            losses["loss_bbox"] += (loss_bbox.sum() / num_boxes) * (1.0 - 0.2 * i)
 
 
             loss_giou = ((1 - torch.diag(segment_ops.segment_iou(
@@ -415,12 +415,12 @@ class SetCriterion_DINO(nn.Module):
                 segment_ops.segment_cw_to_t1t2(target_boxes[..., 2:])))) +
                          (1 - torch.diag(segment_ops.segment_iou(
                              src_boxes[..., :2], target_boxes[..., :2])))) / 2
-            losses["loss_giou"] = loss_giou.sum() / num_boxes
+            losses["loss_giou"] += (loss_giou.sum() / num_boxes) * (1.0 - 0.2 * i)
 
             # calculate the x,y and h,w loss
             with torch.no_grad():
-                losses["loss_xy"] = loss_bbox[..., :2].sum() / num_boxes
-                losses["loss_hw"] = loss_bbox[..., 2:].sum() / num_boxes
+                losses["loss_xy"] += (loss_bbox[..., :2].sum() / num_boxes) * (1.0 - 0.2 * i)
+                losses["loss_hw"] += (loss_bbox[..., 2:].sum() / num_boxes) * (1.0 - 0.2 * i)
 
         return losses
 
