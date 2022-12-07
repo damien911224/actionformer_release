@@ -115,8 +115,19 @@ class HungarianMatcher(nn.Module):
                 sizes = [len(v["boxes"]) for v in targets]
             else:
                 sizes = [len(v["boxes"].repeat(2 ** (5 - layer), 1)) for v in targets]
-            indices = [linear_sum_assignment(c[i]) for i, c in enumerate(C.split(sizes, -1))]
-            return [(torch.as_tensor(i, dtype=torch.int64), torch.as_tensor(j, dtype=torch.int64)) for i, j in indices]
+
+            indices = list()
+            for m_i in range(5):
+                this_indices = [linear_sum_assignment(c[i]) for i, c in enumerate(C.split(sizes, -1))]
+                this_indices = [(torch.as_tensor(i, dtype=torch.int64), torch.as_tensor(j, dtype=torch.int64))
+                                for i, j in this_indices]
+                print(this_indices)
+                indices.append(this_indices)
+                C[this_indices] = -10000
+
+            print(indices)
+            exit()
+            return indices
 
 
 def build_matcher(args):
