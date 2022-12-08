@@ -11,7 +11,7 @@ dataset: {
   feat_folder: ./data/anet_1.3/i3d_features,
   file_prefix: v_,
   file_ext: .npy,
-  num_classes: 1,
+  num_classes: 200,
   input_dim: 2048,
   feat_stride: 16, # 16
   num_frames: 16,
@@ -62,16 +62,16 @@ test_cfg: {
   max_seg_num: 100,
   min_score: 0.001,
   # score fusion
-  multiclass_nms: False,
+  multiclass_nms: True, # False
   nms_sigma : 0.75,
-  ext_score_file: ./data/anet_1.3/annotations/cuhk_val_simp_share.json,
+#  ext_score_file: ./data/anet_1.3/annotations/cuhk_val_simp_share.json,
   duration_thresh: 0.001,
 }
 output_folder: ./ckpt/
 
 # DINO DETR
 detr: {
-  num_classes: 1,
+  num_classes: 200,
   num_queries: 300, # 756
   temporal_length: 192,
   lr: 1.0e-4, # 1.0e-3
