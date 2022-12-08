@@ -1115,31 +1115,31 @@ def valid_one_epoch(
             durations = [x["duration"] for x in video_list]
             boxes = boxes * torch.Tensor(durations)
 
-            nmsed_boxes = list()
-            nmsed_labels = list()
-            nmsed_scores = list()
-            for b, l, s in zip(boxes, labels, scores):
-                if test_cfg['nms_method'] != 'none':
-                    # 2: batched nms (only implemented on CPU)
-                    b, s, l = batched_nms(
-                        b.contiguous(), s.contiguous(), l.contiguous(),
-                        test_cfg['iou_threshold'],
-                        test_cfg['min_score'],
-                        test_cfg['max_seg_num'],
-                        use_soft_nms=(test_cfg['nms_method'] == 'soft'),
-                        multiclass=test_cfg['multiclass_nms'],
-                        sigma=test_cfg['nms_sigma'],
-                        voting_thresh=test_cfg['voting_thresh']
-                    )
-                nmsed_boxes.append(b)
-                nmsed_labels.append(l)
-                nmsed_scores.append(s)
-            boxes = torch.stack(nmsed_boxes, dim=0)
-            boxes = torch.where(boxes.isnan(), torch.zeros_like(boxes), boxes)
-            labels = torch.stack(nmsed_labels, dim=0)
-            labels = torch.where(labels.isnan(), torch.zeros_like(labels), labels)
-            scores = torch.stack(nmsed_scores, dim=0)
-            scores = torch.where(scores.isnan(), torch.zeros_like(scores), scores)
+            # nmsed_boxes = list()
+            # nmsed_labels = list()
+            # nmsed_scores = list()
+            # for b, l, s in zip(boxes, labels, scores):
+            #     if test_cfg['nms_method'] != 'none':
+            #         # 2: batched nms (only implemented on CPU)
+            #         b, s, l = batched_nms(
+            #             b.contiguous(), s.contiguous(), l.contiguous(),
+            #             test_cfg['iou_threshold'],
+            #             test_cfg['min_score'],
+            #             test_cfg['max_seg_num'],
+            #             use_soft_nms=(test_cfg['nms_method'] == 'soft'),
+            #             multiclass=test_cfg['multiclass_nms'],
+            #             sigma=test_cfg['nms_sigma'],
+            #             voting_thresh=test_cfg['voting_thresh']
+            #         )
+            #     nmsed_boxes.append(b)
+            #     nmsed_labels.append(l)
+            #     nmsed_scores.append(s)
+            # boxes = torch.stack(nmsed_boxes, dim=0)
+            # boxes = torch.where(boxes.isnan(), torch.zeros_like(boxes), boxes)
+            # labels = torch.stack(nmsed_labels, dim=0)
+            # labels = torch.where(labels.isnan(), torch.zeros_like(labels), labels)
+            # scores = torch.stack(nmsed_scores, dim=0)
+            # scores = torch.where(scores.isnan(), torch.zeros_like(scores), scores)
 
             # upack the results into ANet format
             num_vids = len(boxes)
