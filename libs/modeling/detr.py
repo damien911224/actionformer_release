@@ -248,16 +248,16 @@ class DINO(nn.Module):
 
         query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
 
-        # proposals = torch.cat(proposals, dim=1)
-        # prop_query_label = self.prop_label_enc(proposals[..., 0].long())
-        # prop_query_label = prop_query_label + self.prop_score_enc(proposals[..., -1].unsqueeze(-1))
-        # prop_query_bbox = torch.cat([proposals[..., 1:-1],
-        #                              ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
-        #                              (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
-        # prop_query_bbox = inverse_sigmoid(prop_query_bbox)
-        # prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
-        # # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
-        # query_embeds = prop_query_embeds
+        proposals = torch.cat(proposals, dim=1)
+        prop_query_label = self.prop_label_enc(proposals[..., 0].long())
+        prop_query_label = prop_query_label + self.prop_score_enc(proposals[..., -1].unsqueeze(-1))
+        prop_query_bbox = torch.cat([proposals[..., 1:-1],
+                                     ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
+                                     (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
+        prop_query_bbox = inverse_sigmoid(prop_query_bbox)
+        prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
+        # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
+        query_embeds = prop_query_embeds
 
         hs, init_reference, inter_references, _, _ = \
             self.transformer(srcs, box_srcs, pos_1d, pos_2d, box_pos_1d, box_pos_2d,
@@ -269,19 +269,19 @@ class DINO(nn.Module):
         outputs_classes = []
         outputs_coords = []
         for lvl in range(hs.shape[0]):
-            if lvl == 0:
-                reference = init_reference
-            else:
-                reference = inter_references[lvl - 1]
-            reference = inverse_sigmoid(reference)
-            tmp = self.bbox_embed[lvl](hs[lvl])
-            if reference.shape[-1] == 4:
-                tmp += reference
-            else:
-                assert reference.shape[-1] == 2
-                tmp[..., :2] += reference
-            outputs_coord = tmp.sigmoid()
-            # outputs_coord = init_reference
+            # if lvl == 0:
+            #     reference = init_reference
+            # else:
+            #     reference = inter_references[lvl - 1]
+            # reference = inverse_sigmoid(reference)
+            # tmp = self.bbox_embed[lvl](hs[lvl])
+            # if reference.shape[-1] == 4:
+            #     tmp += reference
+            # else:
+            #     assert reference.shape[-1] == 2
+            #     tmp[..., :2] += reference
+            # outputs_coord = tmp.sigmoid()
+            outputs_coord = init_reference
             outputs_class = self.class_embed[lvl](hs[lvl])
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)
