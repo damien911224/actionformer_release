@@ -27,7 +27,7 @@ model: {
   max_buffer_len_factor: 1.0, # 1.0
   # 192 - 96 - 48 - 24 - 12 - 6
   n_mha_win_size: [7, 7, 7, 7, 7, -1], # [7, 7, 7, 7, 7, -1]
-#  n_head: 4,
+  n_head: 4,
   embd_dim: 256,
   fpn_dim: 256,
   head_dim: 256,
