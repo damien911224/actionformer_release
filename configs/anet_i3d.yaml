@@ -69,7 +69,7 @@ output_folder: ./ckpt/
 
 # DINO DETR
 detr: {
-  num_classes: 2,
+  num_classes: 1,
   num_queries: 100, # 756
   temporal_length: 192,
   lr: 1.0e-3, # 1.0e-3
