@@ -52,7 +52,7 @@ class HungarianMatcher(nn.Module):
 
             # We flatten to compute the cost matrices in a batch
             out_prob = outputs["pred_logits"].flatten(0, 1).softmax(-1)  # [batch_size * num_queries, num_classes]
-            out_prob = torch.stack((out_prob[..., :-1].prod(-1), out_prob[..., -1]), dim=-1)
+            out_prob = torch.stack((out_prob[..., 0] * 1.0 + out_prob[..., 0] * 0.5, out_prob[..., -1]), dim=-1)
             # out_embeds = outputs["pred_embeds"].flatten(0, 1)
             # out_sims = outputs["pred_sims"].flatten(0, 1).softmax(-1)
             # out_prob = out_prob[..., 0].unsqueeze(-1) * out_embeds
