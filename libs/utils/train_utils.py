@@ -1103,6 +1103,7 @@ def valid_one_epoch(
                                   torch.clamp(boxes[..., 2] + boxes[..., 3] / 2.0, 0.0, 1.0)), dim=-1)) / 2.0
             # boxes = boxes[..., :2]
             logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
+            logits = (logits[..., 0] * 1.0 + logits[..., 1] * 0.5).unsqueeze(-1)
             scores, labels = torch.max(logits, dim=-1)
 
             proposals = proposals.cpu()
