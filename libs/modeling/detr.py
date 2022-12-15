@@ -361,7 +361,7 @@ class SetCriterion_DINO(nn.Module):
             num_boxes = num_boxes * (2 ** (5 - layer))
         loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2) * \
                   src_logits.shape[1]
-        print(loss_ce)
+
         losses = {'loss_ce': loss_ce}
 
         if log and False:
