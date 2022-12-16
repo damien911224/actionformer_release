@@ -357,7 +357,8 @@ class SetCriterion_DINO(nn.Module):
             target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1) + i * self.num_classes, 1.0)
 
         print(target_classes_onehot.shape)
-        exit(src_logits.shape)
+        print(src_logits.shape)
+        exit()
 
         target_classes_onehot = target_classes_onehot[:, :, :-1]
         if layer is not None:
