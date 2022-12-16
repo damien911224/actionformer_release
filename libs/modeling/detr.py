@@ -54,7 +54,7 @@ class DINO(nn.Module):
         self.num_classes = num_classes
         self.pos_1d_embeds = pos_1d_embeds
         self.pos_2d_embeds = pos_2d_embeds
-        self.class_embed = nn.Linear(hidden_dim, num_classes * 2)
+        self.class_embed = nn.Linear(hidden_dim, num_classes * 1)
         self.bbox_embed = MLP(hidden_dim, hidden_dim, 4, 3)
         self.num_feature_levels = num_feature_levels
         self.input_dim = input_dim
@@ -114,7 +114,7 @@ class DINO(nn.Module):
 
         prior_prob = 0.01
         bias_value = -math.log((1 - prior_prob) / prior_prob)
-        self.class_embed.bias.data = torch.ones(num_classes * 2) * bias_value
+        self.class_embed.bias.data = torch.ones(num_classes * 1) * bias_value
         nn.init.constant_(self.bbox_embed.layers[-1].weight.data, 0)
         nn.init.constant_(self.bbox_embed.layers[-1].bias.data, 0)
         for proj in self.input_proj:
@@ -351,10 +351,11 @@ class SetCriterion_DINO(nn.Module):
             else:
                 target_classes_o = torch.cat(
                     [t["labels"].repeat(2 ** (5 - layer))[J] for t, (_, J) in zip(targets, this_indices)])
-            target_classes[idx] = target_classes_o + i * self.num_classes
 
-            # target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1.0 - 0.2 * i)
+            target_classes[idx] = target_classes_o
+            # target_classes[idx] = target_classes_o + i * self.num_classes
             target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1.0)
+            target_classes_onehot[idx] = target_classes_onehot[idx] * (1.0 - 0.2 * i)
 
         target_classes_onehot = target_classes_onehot[:, :, :-1]
         if layer is not None:
