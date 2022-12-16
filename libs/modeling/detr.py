@@ -358,9 +358,6 @@ class SetCriterion_DINO(nn.Module):
 
 
         target_classes_onehot = target_classes_onehot[:, :, :-1]
-        print(target_classes_onehot.shape)
-        print(src_logits.shape)
-        exit()
         if layer is not None:
             num_boxes = num_boxes * (2 ** (5 - layer))
         loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2) * \
