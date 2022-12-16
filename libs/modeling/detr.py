@@ -363,8 +363,6 @@ class SetCriterion_DINO(nn.Module):
                   src_logits.shape[1]
 
         losses = {'loss_ce': loss_ce}
-        print(loss_ce)
-        exit()
 
         if log and False:
             # TODO this should probably be a separate loss, not hacked in this one here
