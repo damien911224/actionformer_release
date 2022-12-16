@@ -1111,7 +1111,7 @@ def valid_one_epoch(
             backbone_scores = proposals[..., -1]
             backbone_labels = proposals[..., 0].long()
 
-            # boxes = torch.clamp((boxes + backbone_boxes) / 2.0, 0.0, 1.0)
+            boxes = torch.clamp((boxes + backbone_boxes) / 2.0, 0.0, 1.0)
             scores = scores * backbone_scores
 
             durations = [x["duration"] for x in video_list]
