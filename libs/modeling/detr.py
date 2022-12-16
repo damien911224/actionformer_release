@@ -351,14 +351,10 @@ class SetCriterion_DINO(nn.Module):
             else:
                 target_classes_o = torch.cat(
                     [t["labels"].repeat(2 ** (5 - layer))[J] for t, (_, J) in zip(targets, this_indices)])
-            target_classes[idx] = target_classes_o
+            target_classes[idx] = target_classes_o + i * self.num_classes
 
             # target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1.0 - 0.2 * i)
-            print(i)
-            if i >= 1:
-                print(target_classes_o)
-                exit()
-            target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1) + i * self.num_classes, 1.0)
+            target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1.0)
 
         target_classes_onehot = target_classes_onehot[:, :, :-1]
         if layer is not None:
