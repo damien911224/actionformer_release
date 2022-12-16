@@ -354,10 +354,7 @@ class SetCriterion_DINO(nn.Module):
             target_classes[idx] = target_classes_o
 
             # target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1.0 - 0.2 * i)
-            print(i)
             target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1) + i * self.num_classes, 1.0)
-
-        exit()
 
         target_classes_onehot = target_classes_onehot[:, :, :-1]
         if layer is not None:
@@ -366,6 +363,7 @@ class SetCriterion_DINO(nn.Module):
                   src_logits.shape[1]
 
         losses = {'loss_ce': loss_ce}
+        print(loss_ce)
 
         if log and False:
             # TODO this should probably be a separate loss, not hacked in this one here
