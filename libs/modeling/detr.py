@@ -340,7 +340,7 @@ class SetCriterion_DINO(nn.Module):
         assert 'pred_logits' in outputs
         src_logits = outputs['pred_logits']
 
-        target_classes = torch.full(src_logits.shape[:2], self.num_classes * 2, dtype=torch.int64, device=src_logits.device)
+        target_classes = torch.full(src_logits.shape[:2], self.num_classes * 1, dtype=torch.int64, device=src_logits.device)
         target_classes_onehot = torch.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2] + 1],
                                             dtype=src_logits.dtype, layout=src_logits.layout, device=src_logits.device)
         for i, this_indices in enumerate(indices):
