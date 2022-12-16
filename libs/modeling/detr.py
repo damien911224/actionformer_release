@@ -354,8 +354,8 @@ class SetCriterion_DINO(nn.Module):
             target_classes[idx] = target_classes_o
 
             # target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1.0 - 0.2 * i)
-            print(target_classes_o)
-            exit()
+            # print(target_classes_o)
+            print(i)
             target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1) + i * self.num_classes, 1.0)
 
         target_classes_onehot = target_classes_onehot[:, :, :-1]
