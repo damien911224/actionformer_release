@@ -53,7 +53,7 @@ class HungarianMatcher(nn.Module):
             # We flatten to compute the cost matrices in a batch
             # out_prob = outputs["pred_logits"].flatten(0, 1).softmax(-1)  # [batch_size * num_queries, num_classes]
             out_prob = outputs["pred_logits"].flatten(0, 1).sigmoid()  # [batch_size * num_queries, num_classes]
-            # out_prob = (out_prob[..., 0] * 1.0 + out_prob[..., 1] * 0.5).unsqueeze(-1)
+            out_prob = (out_prob[..., 0] * 1.0 + out_prob[..., 1] * 0.5 + out_prob[..., 2] * 0.2).unsqueeze(-1)
             # out_embeds = outputs["pred_embeds"].flatten(0, 1)
             # out_sims = outputs["pred_sims"].flatten(0, 1).softmax(-1)
             # out_prob = out_prob[..., 0].unsqueeze(-1) * out_embeds
@@ -119,7 +119,7 @@ class HungarianMatcher(nn.Module):
                 sizes = [len(v["boxes"].repeat(2 ** (5 - layer), 1)) for v in targets]
 
             indices = list()
-            for m_i in range(5):
+            for m_i in range(3):
                 this_indices = [linear_sum_assignment(c[i]) for i, c in enumerate(C.split(sizes, -1))]
                 this_indices = [(torch.as_tensor(i, dtype=torch.int64), torch.as_tensor(j, dtype=torch.int64))
                                 for i, j in this_indices]
