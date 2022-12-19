@@ -438,8 +438,8 @@ def train_one_epoch(
                                              (boxes[..., 1] - boxes[..., 0]).unsqueeze(-1)), dim=-1).cuda()
             detr_target_dict.append(batch_dict)
 
-        features = [feat.detach() for feat in backbone_features]
-        # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
+        # features = [feat.detach() for feat in backbone_features]
+        features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
 
         labels = list()
         scores = list()
