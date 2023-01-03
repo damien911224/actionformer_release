@@ -127,6 +127,8 @@ class HungarianMatcher(nn.Module):
                 src_idx = self._get_src_permutation_idx(this_indices)
                 C[src_idx] = 10000
 
+            this_indices = [linear_sum_assignment(c[i]) for i, c in enumerate(C.split(sizes, -1))]
+
             return indices
 
     def _get_src_permutation_idx(self, indices):
@@ -136,4 +138,5 @@ class HungarianMatcher(nn.Module):
         return batch_idx, src_idx
 
 def build_matcher(args):
-    return HungarianMatcher(cost_class=args["set_cost_class"], cost_bbox=args["set_cost_bbox"])
+    return HungarianMatcher(cost_class=args["set_cost_class"], cost_bbox=args["set_cost_bbox"],
+                            cost_giou=args["set_cost_giou"])
