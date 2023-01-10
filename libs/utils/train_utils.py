@@ -438,8 +438,8 @@ def train_one_epoch(
                                              (boxes[..., 1] - boxes[..., 0]).unsqueeze(-1)), dim=-1).cuda()
             detr_target_dict.append(batch_dict)
 
-        # features = [feat.detach() for feat in backbone_features]
-        features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
+        features = [feat.detach() for feat in backbone_features]
+        # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
 
         labels = list()
         scores = list()
@@ -1084,8 +1084,8 @@ def valid_one_epoch(
             segments = torch.stack(segments, dim=0)
             proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
 
-            # features = [feat.detach() for feat in backbone_features]
-            features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
+            features = [feat.detach() for feat in backbone_features]
+            # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
 
             start_index = 0
             pyramidal_proposals = list()
@@ -1103,7 +1103,7 @@ def valid_one_epoch(
                                   torch.clamp(boxes[..., 2] + boxes[..., 3] / 2.0, 0.0, 1.0)), dim=-1)) / 2.0
             # boxes = boxes[..., :2]
             logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
-            logits = (logits[..., 0] * 1.0 + logits[..., 1] * 0.5 + logits[..., 1] * 0.2).unsqueeze(-1)
+            # logits = (logits[..., 0] * 1.0 + logits[..., 1] * 0.5 + logits[..., 1] * 0.2).unsqueeze(-1)
             scores, labels = torch.max(logits, dim=-1)
 
             proposals = proposals.cpu()
