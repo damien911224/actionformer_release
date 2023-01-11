@@ -520,8 +520,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
         self.norm1 = nn.LayerNorm(d_model)
 
         # self attention
-        # self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
-        self.self_attn = MSDeformAttn(d_model, 6, n_heads, n_points)
+        self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
+        # self.self_attn = MSDeformAttn(d_model, 6, n_heads, n_points)
         self.dropout2 = nn.Dropout(dropout)
         self.norm2 = nn.LayerNorm(d_model)
 
@@ -548,13 +548,13 @@ class DeformableTransformerDecoderLayer(nn.Module):
                 src_pos_1d, src_spatial_shapes_1d, level_start_index_1d,
                 src_padding_mask=None, self_attn_mask=None):
         # self attention
-        # q = k = self.with_pos_embed(tgt, query_pos)
-        # tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1), attn_mask=self_attn_mask)[
-        #     0].transpose(0, 1)
-        tgt2 = self.self_attn(self.with_pos_embed(tgt, query_pos),
-                              reference_points[..., :2],
-                              self.with_pos_embed(tgt, query_pos),
-                              src_spatial_shapes_1d, level_start_index_1d)
+        q = k = self.with_pos_embed(tgt, query_pos)
+        tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1), attn_mask=self_attn_mask)[
+            0].transpose(0, 1)
+        # tgt2 = self.self_attn(self.with_pos_embed(tgt, query_pos),
+        #                       reference_points[..., :2],
+        #                       self.with_pos_embed(tgt, query_pos),
+        #                       src_spatial_shapes_1d, level_start_index_1d)
         tgt = tgt + self.dropout2(tgt2)
         tgt = self.norm2(tgt)
         # cross attention

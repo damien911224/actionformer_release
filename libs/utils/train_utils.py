@@ -1097,7 +1097,7 @@ def valid_one_epoch(
             segments = torch.stack(segments, dim=0)
             proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
 
-            features = [feat.detach() for feat in backbone_features]
+            features = [feat for feat in backbone_features]
             # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
 
             start_index = 0
