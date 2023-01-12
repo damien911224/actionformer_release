@@ -181,7 +181,7 @@ def make_scheduler(
             scheduler = optim.lr_scheduler.MultiStepLR(
                 optimizer,
                 steps,
-                gamma=schedule_config["gamma"],
+                gamma=optimizer_config["schedule_gamma"],
                 last_epoch=last_epoch
             )
         else:
