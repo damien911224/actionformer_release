@@ -52,8 +52,8 @@ class MSDeformAttn(nn.Module):
         self.n_heads = n_heads
         self.n_points = n_points
 
-        # self.sampling_offsets = nn.Linear(d_model, n_heads * n_levels * n_points * 2)
-        self.sampling_offsets = nn.Linear(d_model, n_heads * n_levels * n_points * 4)
+        self.sampling_offsets = nn.Linear(d_model, n_heads * n_levels * n_points * 2)
+        # self.sampling_offsets = nn.Linear(d_model, n_heads * n_levels * n_points * 4)
         self.attention_weights = nn.Linear(d_model, n_heads * n_levels * n_points)
         self.value_proj = nn.Linear(d_model, d_model)
         self.output_proj = nn.Linear(d_model, d_model)
@@ -64,8 +64,8 @@ class MSDeformAttn(nn.Module):
         constant_(self.sampling_offsets.weight.data, 0.)
         thetas = torch.arange(self.n_heads, dtype=torch.float32) * (2.0 * math.pi / self.n_heads)
         grid_init = torch.stack([thetas.cos(), thetas.sin()], -1)
-        # grid_init = (grid_init / grid_init.abs().max(-1, keepdim=True)[0]).view(self.n_heads, 1, 1, 2).repeat(1, self.n_levels, self.n_points, 1)
-        grid_init = (grid_init / grid_init.abs().max(-1, keepdim=True)[0]).view(self.n_heads, 1, 1, 2).repeat(1, self.n_levels, self.n_points, 2)
+        grid_init = (grid_init / grid_init.abs().max(-1, keepdim=True)[0]).view(self.n_heads, 1, 1, 2).repeat(1, self.n_levels, self.n_points, 1)
+        # grid_init = (grid_init / grid_init.abs().max(-1, keepdim=True)[0]).view(self.n_heads, 1, 1, 2).repeat(1, self.n_levels, self.n_points, 2)
         for i in range(self.n_points):
             grid_init[:, :, i, :] *= i + 1
         with torch.no_grad():
@@ -98,8 +98,8 @@ class MSDeformAttn(nn.Module):
         if input_padding_mask is not None:
             value = value.masked_fill(input_padding_mask[..., None], float(0))
         value = value.view(N, Len_in, self.n_heads, self.d_model // self.n_heads)
-        # sampling_offsets = self.sampling_offsets(query).view(N, Len_q, self.n_heads, self.n_levels, self.n_points, 2)
-        sampling_offsets = self.sampling_offsets(query).view(N, Len_q, self.n_heads, self.n_levels, self.n_points, 4)
+        sampling_offsets = self.sampling_offsets(query).view(N, Len_q, self.n_heads, self.n_levels, self.n_points, 2)
+        # sampling_offsets = self.sampling_offsets(query).view(N, Len_q, self.n_heads, self.n_levels, self.n_points, 4)
         attention_weights = self.attention_weights(query).view(N, Len_q, self.n_heads, self.n_levels * self.n_points)
         attention_weights = F.softmax(attention_weights, -1).view(N, Len_q, self.n_heads, self.n_levels, self.n_points)
         # N, Len_q, n_heads, n_levels, n_points, 2
@@ -115,12 +115,11 @@ class MSDeformAttn(nn.Module):
             offset_normalizer = self.n_points * reference_points[:, :, None, :, None, -1][..., None] * 0.5
             # sampling_locations = reference_points[:, :, None, :, None, :2] \
             #                      + sampling_offsets / self.n_points * reference_points[:, :, None, :, None, 2:] * 0.5
-            sampling_locations = reference_points[:, :, None, :, None, :] \
-                                 + sampling_offsets / offset_normalizer
-            sampling_locations = (sampling_locations[..., :2] +
-                                  torch.stack([sampling_locations[..., -2] - sampling_locations[..., -1] / 2.0,
-                                               sampling_locations[..., -2] + sampling_locations[..., -1] / 2.0],
-                                              dim=-1)) / 2.0
+            sampling_locations = reference_points[:, :, None, :, None, :] + sampling_offsets / offset_normalizer
+            # sampling_locations = (sampling_locations[..., :2] +
+            #                       torch.stack([sampling_locations[..., -2] - sampling_locations[..., -1] / 2.0,
+            #                                    sampling_locations[..., -2] + sampling_locations[..., -1] / 2.0],
+            #                                   dim=-1)) / 2.0
         else:
             raise ValueError(
                 'Last dim of reference_points must be 2 or 4, but get {} instead.'.format(reference_points.shape[-1]))
