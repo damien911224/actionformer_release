@@ -36,7 +36,7 @@ DEFAULTS = {
     },
     "loader": {
         "batch_size": 8,
-        "num_workers": 4,
+        "num_workers": 16, # 4
     },
     # network architecture
     "model": {
@@ -123,10 +123,10 @@ DEFAULTS = {
         "epochs": 30,
         # lr scheduler: cosine / multistep
         "warmup": True,
-        "warmup_epochs": 5,
-        "schedule_type": "cosine",
+        "warmup_epochs": 0, # 5
+        "schedule_type": "multistep", # cosine
         # in #epochs excluding warmup
-        "schedule_steps": [],
+        "schedule_steps": [12], # []
         "schedule_gamma": 0.1,
     }
 }
