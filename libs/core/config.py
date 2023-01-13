@@ -122,9 +122,9 @@ DEFAULTS = {
         # excluding the warmup epochs
         "epochs": 30,
         # lr scheduler: cosine / multistep
-        "warmup": False,
+        "warmup": True,
         "warmup_epochs": 5, # 5
-        "schedule_type": "multistep", # cosine
+        "schedule_type": "cosine", # cosine
         # in #epochs excluding warmup
         "schedule_steps": [12], # []
         "schedule_gamma": 0.1,

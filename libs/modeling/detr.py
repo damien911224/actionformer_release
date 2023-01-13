@@ -257,7 +257,7 @@ class DINO(nn.Module):
         prop_query_bbox = inverse_sigmoid(prop_query_bbox)
         prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
         # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
-        # query_embeds = prop_query_embeds
+        query_embeds = prop_query_embeds
 
         hs, init_reference, inter_references, _, _ = \
             self.transformer(srcs, box_srcs, pos_1d, pos_2d, box_pos_1d, box_pos_2d,
