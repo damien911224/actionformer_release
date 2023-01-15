@@ -423,7 +423,7 @@ def train_one_epoch(
         backbone_optimizer.zero_grad(set_to_none=True)
         detr_optimizer.zero_grad(set_to_none=True)
         # forward / backward the model
-        backbone_losses, backbone_results, backbone_features = backbone(video_list, data_type=data_type, nms=True)
+        backbone_losses, backbone_results, backbone_features = backbone(video_list, data_type=data_type)
         backbone_loss = backbone_losses["final_loss"]
 
         detr_target_dict = list()
@@ -454,10 +454,10 @@ def train_one_epoch(
             this_scores = this_scores[sorted_indices]
             this_segments = this_segments[sorted_indices]
 
-            if len(this_labels) < 100:
-                this_labels = F.pad(this_labels, (0, 100 - len(this_labels)))
-                this_scores = F.pad(this_scores, (0, 100 - len(this_scores)))
-                this_segments = F.pad(this_segments, (0, 0, 0, 100 - len(this_segments)))
+            # if len(this_labels) < 100:
+            #     this_labels = F.pad(this_labels, (0, 100 - len(this_labels)))
+            #     this_scores = F.pad(this_scores, (0, 100 - len(this_scores)))
+            #     this_segments = F.pad(this_segments, (0, 0, 0, 100 - len(this_segments)))
 
             labels.append(this_labels)
             scores.append(this_scores)
@@ -467,22 +467,22 @@ def train_one_epoch(
         segments = torch.stack(segments, dim=0)
         proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
 
-        # start_index = 0
-        # pyramidal_proposals = list()
-        # for feat in backbone_features:
-        #     this_len = feat.size(2)
-        #     this_proposals = proposals[:, start_index:start_index + this_len]
-        #     pyramidal_proposals.append(this_proposals)
-        #     start_index += this_len
+        start_index = 0
+        pyramidal_proposals = list()
+        for feat in backbone_features:
+            this_len = feat.size(2)
+            this_proposals = proposals[:, start_index:start_index + this_len]
+            pyramidal_proposals.append(this_proposals)
+            start_index += this_len
 
-        detr_predictions = detr(features, proposals, detr_target_dict)
-        # detr_predictions = detr(features, pyramidal_proposals, detr_target_dict)
+        # detr_predictions = detr(features, proposals, detr_target_dict)
+        detr_predictions = detr(features, pyramidal_proposals, detr_target_dict)
         detr_loss_dict = detr_criterion(detr_predictions, detr_target_dict)
         weight_dict = detr_criterion.weight_dict
         detr_loss = sum(detr_loss_dict[k] * weight_dict[k] for k in detr_loss_dict.keys() if k in weight_dict)
 
-        final_loss = backbone_loss + detr_loss
-        # final_loss = detr_loss
+        # final_loss = backbone_loss + detr_loss
+        final_loss = detr_loss
         # final_loss = backbone_loss
 
         final_loss.backward()
@@ -1070,7 +1070,7 @@ def valid_one_epoch(
     for iter_idx, video_list in enumerate(val_loader, 0):
         # forward the model (wo. grad)
         with torch.no_grad():
-            output, backbone_features = backbone(video_list, data_type=data_type, nms=True)
+            output, backbone_features = backbone(video_list, data_type=data_type, nms=False)
 
             labels = list()
             scores = list()
@@ -1101,16 +1101,16 @@ def valid_one_epoch(
             features = [feat for feat in backbone_features]
             # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
 
-            # start_index = 0
-            # pyramidal_proposals = list()
-            # for feat in backbone_features:
-            #     this_len = feat.size(2)
-            #     this_proposals = proposals[:, start_index:start_index + this_len]
-            #     pyramidal_proposals.append(this_proposals)
-            #     start_index += this_len
+            start_index = 0
+            pyramidal_proposals = list()
+            for feat in backbone_features:
+                this_len = feat.size(2)
+                this_proposals = proposals[:, start_index:start_index + this_len]
+                pyramidal_proposals.append(this_proposals)
+                start_index += this_len
 
-            detr_predictions = detr(features, proposals)
-            # detr_predictions = detr(features, pyramidal_proposals)
+            # detr_predictions = detr(features, proposals)
+            detr_predictions = detr(features, pyramidal_proposals)
 
             boxes = detr_predictions["pred_boxes"].detach().cpu()
             boxes = (boxes[..., :2] +
