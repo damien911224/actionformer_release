@@ -246,8 +246,7 @@ class DeformableTransformer(nn.Module):
         #     (box_spatial_shapes_2d.new_zeros((1,)), box_spatial_shapes_2d.prod(1).cumsum(0)[:-1]))
 
         # encoder
-        memory = self.encoder(src_flatten, box_src_flatten,
-                              spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
+        memory = self.encoder(src_flatten, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
 
         # memory_2d = list()
         # for l_i in range(len(srcs)):
