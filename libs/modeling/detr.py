@@ -72,7 +72,7 @@ class DINO(nn.Module):
             self.query_embed = nn.Embedding(num_queries, hidden_dim * 2)
         else:
             self.tgt_embed = nn.Embedding(num_queries, hidden_dim)  # for indicator
-            self.refpoint_embed = nn.Embedding(num_queries, 4)
+            self.refpoint_embed = nn.Embedding(num_queries, 2)
             if random_refpoints_xy:
                 # import ipdb; ipdb.set_trace()
                 self.refpoint_embed.weight.data[:, :2].uniform_(0, 1)
