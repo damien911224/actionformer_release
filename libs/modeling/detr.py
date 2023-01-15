@@ -55,7 +55,7 @@ class DINO(nn.Module):
         self.pos_1d_embeds = pos_1d_embeds
         self.pos_2d_embeds = pos_2d_embeds
         self.class_embed = nn.Linear(hidden_dim, num_classes * 1)
-        self.bbox_embed = MLP(hidden_dim, hidden_dim, 4, 3)
+        self.bbox_embed = MLP(hidden_dim, hidden_dim, 2, 3)
         self.num_feature_levels = num_feature_levels
         self.input_dim = input_dim
         self.max_input_len = 1024
@@ -126,11 +126,11 @@ class DINO(nn.Module):
         if with_box_refine:
             self.class_embed = _get_clones(self.class_embed, num_pred)
             self.bbox_embed = _get_clones(self.bbox_embed, num_pred)
-            nn.init.constant_(self.bbox_embed[0].layers[-1].bias.data[3:], -2.0)
+            nn.init.constant_(self.bbox_embed[0].layers[-1].bias.data[-1:], -2.0)
             # hack implementation for iterative bounding box refinement
             self.transformer.decoder.bbox_embed = self.bbox_embed
         else:
-            nn.init.constant_(self.bbox_embed.layers[-1].bias.data[3:], -2.0)
+            nn.init.constant_(self.bbox_embed.layers[-1].bias.data[-1:], -2.0)
             self.class_embed = nn.ModuleList([self.class_embed for _ in range(num_pred)])
             self.bbox_embed = nn.ModuleList([self.bbox_embed for _ in range(num_pred)])
             self.transformer.decoder.bbox_embed = None
@@ -397,7 +397,7 @@ class SetCriterion_DINO(nn.Module):
 
         losses = {}
         losses["loss_xy"] = 0.0
-        losses["loss_hw"] = 0.0
+        # losses["loss_hw"] = 0.0
         losses["loss_bbox"] = 0.0
         losses["loss_giou"] = 0.0
         for i, this_indices in enumerate(indices):
@@ -410,16 +410,17 @@ class SetCriterion_DINO(nn.Module):
                 target_boxes = torch.cat([t['boxes'].repeat(2 ** (5 - layer), 1)[i]
                                           for t, (_, i) in zip(targets, this_indices)], dim=0)
 
-            loss_bbox = F.l1_loss(src_boxes, target_boxes, reduction='none')
+            loss_bbox = F.l1_loss(src_boxes, target_boxes[..., :2], reduction='none')
             if layer is not None:
                 num_boxes = num_boxes * (2 ** (5 - layer))
             losses["loss_bbox"] += (loss_bbox.sum() / num_boxes) * (1.0 - 0.2 * i)
 
-            loss_giou = ((1 - torch.diag(segment_ops.segment_iou(
-                segment_ops.segment_cw_to_t1t2(src_boxes[..., 2:]),
-                segment_ops.segment_cw_to_t1t2(target_boxes[..., 2:])))) +
-                         (1 - torch.diag(segment_ops.segment_iou(
-                             src_boxes[..., :2], target_boxes[..., :2])))) / 2
+            # loss_giou = ((1 - torch.diag(segment_ops.segment_iou(
+            #     segment_ops.segment_cw_to_t1t2(src_boxes[..., 2:]),
+            #     segment_ops.segment_cw_to_t1t2(target_boxes[..., 2:])))) +
+            #              (1 - torch.diag(segment_ops.segment_iou(
+            #                  src_boxes[..., :2], target_boxes[..., :2])))) / 2
+            loss_giou = 1 - torch.diag(segment_ops.segment_iou(src_boxes[..., :2], target_boxes[..., :2]))
             losses["loss_giou"] += (loss_giou.sum() / num_boxes) * (1.0 - 0.2 * i)
 
             # calculate the x,y and h,w loss
