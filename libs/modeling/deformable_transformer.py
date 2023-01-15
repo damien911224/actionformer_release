@@ -356,7 +356,7 @@ class DeformableTransformerEncoderLayer(nn.Module):
         src = self.norm2(src)
         return src
 
-    def forward(self, src, box_src, pos, reference_points, spatial_shapes, level_start_index, padding_mask=None):
+    def forward(self, src, pos, reference_points, spatial_shapes, level_start_index, padding_mask=None):
         # self attention
         src2 = self.self_attn(self.with_pos_embed(src, pos),
                               reference_points, src, spatial_shapes, level_start_index,
@@ -390,7 +390,7 @@ class DeformableTransformerEncoder(nn.Module):
         reference_points = reference_points[:, :, None]
         return reference_points
 
-    def forward(self, src, box_src, spatial_shapes, level_start_index, pos=None, padding_mask=None):
+    def forward(self, src, spatial_shapes, level_start_index, pos=None, padding_mask=None):
         """
         Input:
             - src: [bs, sum(hi*wi), 256]
@@ -407,7 +407,7 @@ class DeformableTransformerEncoder(nn.Module):
         # import ipdb; ipdb.set_trace()
         reference_points = self.get_reference_points(spatial_shapes, device=src.device)
         for _, layer in enumerate(self.layers):
-            output = layer(output, box_src, pos, reference_points, spatial_shapes, level_start_index, padding_mask)
+            output = layer(output, pos, reference_points, spatial_shapes, level_start_index, padding_mask)
 
         return output
 
