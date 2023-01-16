@@ -261,7 +261,7 @@ class DINO(nn.Module):
         # prop_query_bbox = torch.cat([proposals[..., 1:-1],
         #                              ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
         #                              (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
-        points = torch.cat(points, dim=0).unsqueeze(-1)
+        points = torch.cat(points, dim=0)[None, :, None]
         print(points.shape)
         print(proposals.shape)
         exit()
