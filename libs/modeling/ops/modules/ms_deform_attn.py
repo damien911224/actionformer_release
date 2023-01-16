@@ -119,7 +119,7 @@ class MSDeformAttn(nn.Module):
             #                                  (input_spatial_shapes[..., 1] + input_spatial_shapes[..., 0]) / 2,
             #                                  (input_spatial_shapes[..., 1] + input_spatial_shapes[..., 0]) / 2],
             #                                 dim=-1)
-            # offset_normalizer = self.n_points * reference_points[:, :, None, :, None, -1][..., None] * 0.5
+            offset_normalizer = self.n_points * reference_points[:, :, None, :, None, -1][..., None] * 0.5
             # sampling_locations = reference_points[:, :, None, :, None, :2] \
             #                      + sampling_offsets / self.n_points * reference_points[:, :, None, :, None, 2:] * 0.5
             # sampling_locations = reference_points[:, :, None, :, None, :2] + sampling_offsets / offset_normalizer
@@ -128,7 +128,7 @@ class MSDeformAttn(nn.Module):
             #                                    sampling_locations[..., -2] + sampling_locations[..., -1] / 2.0],
             #                                   dim=-1)) / 2.0
             # offset_normalizer = torch.stack([input_spatial_shapes[..., 0], input_spatial_shapes[..., 0]], -1)
-            offset_normalizer = torch.stack([input_spatial_shapes[..., 0], input_spatial_shapes[..., 0]], -1)
+            # offset_normalizer = torch.stack([input_spatial_shapes[..., 0], input_spatial_shapes[..., 0]], -1)
             sampling_locations = torch.stack([reference_points[:, :, None, :, None, 2],
                                               torch.zeros_like(reference_points[:, :, None, :, None, 0])], -1) \
                                  + sampling_offsets / offset_normalizer[None, None, None, :, None, :]
