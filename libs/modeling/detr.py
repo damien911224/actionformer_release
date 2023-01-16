@@ -288,8 +288,8 @@ class DINO(nn.Module):
                 tmp += reference
             elif reference.shape[-1] == 3:
                 tmp += reference[..., 1:]
-                tmp[..., 0] = inverse_sigmoid(points) - tmp[..., 0]
-                tmp[..., 1] = inverse_sigmoid(points) + tmp[..., 1]
+                tmp[..., 0] = reference[..., 0] - tmp[..., 0]
+                tmp[..., 1] = reference[..., 0] + tmp[..., 1]
             else:
                 assert reference.shape[-1] == 2
                 tmp[..., :2] += reference
