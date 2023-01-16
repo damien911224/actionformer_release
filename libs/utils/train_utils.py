@@ -1174,31 +1174,31 @@ def valid_one_epoch(
             durations = [x["duration"] for x in video_list]
             backbone_boxes = backbone_boxes * torch.Tensor(durations)
 
-            # nmsed_boxes = list()
-            # nmsed_labels = list()
-            # nmsed_scores = list()
-            # for b, l, s in zip(backbone_boxes, backbone_labels, backbone_scores):
-            #     if test_cfg['nms_method'] != 'none':
-            #         # 2: batched nms (only implemented on CPU)
-            #         b, s, l = batched_nms(
-            #             b.contiguous(), s.contiguous(), l.contiguous(),
-            #             test_cfg['iou_threshold'],
-            #             test_cfg['min_score'],
-            #             test_cfg['max_seg_num'],
-            #             use_soft_nms=(test_cfg['nms_method'] == 'soft'),
-            #             multiclass=test_cfg['multiclass_nms'],
-            #             sigma=test_cfg['nms_sigma'],
-            #             voting_thresh=test_cfg['voting_thresh']
-            #         )
-            #     nmsed_boxes.append(b)
-            #     nmsed_labels.append(l)
-            #     nmsed_scores.append(s)
-            # backbone_boxes = torch.stack(nmsed_boxes, dim=0)
-            # backbone_boxes = torch.where(backbone_boxes.isnan(), torch.zeros_like(backbone_boxes), backbone_boxes)
-            # backbone_labels = torch.stack(nmsed_labels, dim=0)
-            # backbone_labels = torch.where(backbone_labels.isnan(), torch.zeros_like(backbone_labels), backbone_labels)
-            # backbone_scores = torch.stack(nmsed_scores, dim=0)
-            # backbone_scores = torch.where(backbone_scores.isnan(), torch.zeros_like(backbone_scores), backbone_scores)
+            nmsed_boxes = list()
+            nmsed_labels = list()
+            nmsed_scores = list()
+            for b, l, s in zip(backbone_boxes, backbone_labels, backbone_scores):
+                if test_cfg['nms_method'] != 'none':
+                    # 2: batched nms (only implemented on CPU)
+                    b, s, l = batched_nms(
+                        b.contiguous(), s.contiguous(), l.contiguous(),
+                        test_cfg['iou_threshold'],
+                        test_cfg['min_score'],
+                        test_cfg['max_seg_num'],
+                        use_soft_nms=(test_cfg['nms_method'] == 'soft'),
+                        multiclass=test_cfg['multiclass_nms'],
+                        sigma=test_cfg['nms_sigma'],
+                        voting_thresh=test_cfg['voting_thresh']
+                    )
+                nmsed_boxes.append(b)
+                nmsed_labels.append(l)
+                nmsed_scores.append(s)
+            backbone_boxes = torch.stack(nmsed_boxes, dim=0)
+            backbone_boxes = torch.where(backbone_boxes.isnan(), torch.zeros_like(backbone_boxes), backbone_boxes)
+            backbone_labels = torch.stack(nmsed_labels, dim=0)
+            backbone_labels = torch.where(backbone_labels.isnan(), torch.zeros_like(backbone_labels), backbone_labels)
+            backbone_scores = torch.stack(nmsed_scores, dim=0)
+            backbone_scores = torch.where(backbone_scores.isnan(), torch.zeros_like(backbone_scores), backbone_scores)
 
             # upack the results into ANet format
             num_vids = len(backbone_boxes)
