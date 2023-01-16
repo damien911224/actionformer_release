@@ -589,9 +589,9 @@ class DeformableTransformerDecoder(nn.Module):
             self.query_scale = MLP(d_model, d_model, d_model, 2)
             if self.no_sine_embed:
                 # self.ref_point_head = MLP(4, d_model, d_model, 3)
-                self.ref_point_head = MLP(2, d_model, d_model, 3)
+                self.ref_point_head = MLP(3, d_model, d_model, 3)
             else:
-                self.ref_point_head = MLP(2 * d_model, d_model, d_model, 3)
+                self.ref_point_head = MLP(2 * d_model, d_model, d_model, 2)
         self.high_dim_query_update = high_dim_query_update
         if high_dim_query_update:
             self.high_dim_query_proj = MLP(d_model, d_model, d_model, 2)
