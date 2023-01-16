@@ -262,6 +262,9 @@ class DINO(nn.Module):
         #                              ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
         #                              (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
         points = torch.cat(points, dim=0).unsqueeze(-1)
+        print(points.shape)
+        print(proposals.shape)
+        exit()
         prop_query_bbox = torch.cat([points, torch.abs(points - proposals[..., 1:-1])], dim=-1)
         prop_query_bbox = inverse_sigmoid(prop_query_bbox)
         prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
