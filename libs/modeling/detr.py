@@ -286,7 +286,7 @@ class DINO(nn.Module):
             tmp = self.bbox_embed[lvl](hs[lvl])
             if reference.shape[-1] == 4:
                 tmp += reference
-            elif reference.shape[-1] == 4:
+            elif reference.shape[-1] == 3:
                 tmp += reference[..., 1:]
                 tmp[..., 0] = inverse_sigmoid(points) - tmp[..., 0]
                 tmp[..., 1] = inverse_sigmoid(points) + tmp[..., 1]
