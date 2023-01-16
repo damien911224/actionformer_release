@@ -179,7 +179,7 @@ class DINO(nn.Module):
             srcs.append(src)
             this_points = torch.linspace(0.5, t - 0.5, t, dtype=torch.float32, device=src.device) / t
             points.append(this_points)
-            this_scales = torch.ones_like(this_points) * (1.0 / len(features) * l)
+            this_scales = torch.ones_like(this_points) * (1.0 / len(features) * (l + 1))
             scales.append(this_scales)
             print(t, 1.0 / len(features) * l)
         exit()
