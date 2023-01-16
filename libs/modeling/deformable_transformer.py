@@ -591,7 +591,7 @@ class DeformableTransformerDecoder(nn.Module):
                 # self.ref_point_head = MLP(4, d_model, d_model, 3)
                 self.ref_point_head = MLP(2, d_model, d_model, 3)
             else:
-                self.ref_point_head = MLP(2 * d_model, d_model, d_model, 2)
+                self.ref_point_head = MLP(2 * d_model, d_model, d_model, 3)
         self.high_dim_query_update = high_dim_query_update
         if high_dim_query_update:
             self.high_dim_query_proj = MLP(d_model, d_model, d_model, 2)
@@ -610,6 +610,8 @@ class DeformableTransformerDecoder(nn.Module):
             # import ipdb; ipdb.set_trace()
             if reference_points.shape[-1] == 4:
                 reference_points_input = reference_points[:, :, None]  # bs, nq, 4, 4
+            elif reference_points.shape[-1] == 3:
+                reference_points_input = reference_points[:, :, None]
             else:
                 assert reference_points.shape[-1] == 2
                 reference_points_input = reference_points[:, :, None]
@@ -638,6 +640,10 @@ class DeformableTransformerDecoder(nn.Module):
                     new_reference_points = tmp + inverse_sigmoid(reference_points)
                     new_reference_points = new_reference_points.sigmoid()
                     # new_reference_points = reference_points
+                elif reference_points.shape[-1] == 3:
+                    new_reference_points = inverse_sigmoid(reference_points)
+                    new_reference_points[..., 1:] = tmp + new_reference_points[..., 1:]
+                    new_reference_points = new_reference_points.sigmoid()
                 else:
                     assert reference_points.shape[-1] == 2
                     new_reference_points = tmp

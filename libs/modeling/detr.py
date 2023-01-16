@@ -162,6 +162,7 @@ class DINO(nn.Module):
         srcs = []
         pos_1d = []
         pos_2d = []
+        points = []
         for l, feat in enumerate(features):
             src = self.input_proj[l](feat)
             n, c, t = src.shape
@@ -175,6 +176,8 @@ class DINO(nn.Module):
             pos_1d.append(pos_1d_l)
             pos_2d.append(pos_2d_l)
             srcs.append(src)
+            this_points = torch.linspace(0.5, t - 0.5, t, dtype=torch.float32, device=src.device) / t
+            points.append(this_points)
 
         # box_srcs = []
         # box_pos_1d = []
@@ -252,16 +255,18 @@ class DINO(nn.Module):
 
         query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
 
-        # proposals = torch.cat(proposals, dim=1)
-        # prop_query_label = self.prop_label_enc(proposals[..., 0].long())
-        # prop_query_label = prop_query_label + self.prop_score_enc(proposals[..., -1].unsqueeze(-1))
+        proposals = torch.cat(proposals, dim=1)
+        prop_query_label = self.prop_label_enc(proposals[..., 0].long())
+        prop_query_label = prop_query_label + self.prop_score_enc(proposals[..., -1].unsqueeze(-1))
         # prop_query_bbox = torch.cat([proposals[..., 1:-1],
         #                              ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
         #                              (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
-        # prop_query_bbox = inverse_sigmoid(prop_query_bbox)
-        # prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
+        points = torch.cat(points, dim=0).unsqueeze(-1)
+        prop_query_bbox = torch.cat([points, torch.abs(points - proposals[..., 1:-1])], dim=-1)
+        prop_query_bbox = inverse_sigmoid(prop_query_bbox)
+        prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
         # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
-        # query_embeds = prop_query_embeds
+        query_embeds = prop_query_embeds
 
         hs, init_reference, inter_references, _, _ = \
             self.transformer(srcs, box_srcs, pos_1d, pos_2d, box_pos_1d, box_pos_2d,
@@ -281,6 +286,10 @@ class DINO(nn.Module):
             tmp = self.bbox_embed[lvl](hs[lvl])
             if reference.shape[-1] == 4:
                 tmp += reference
+            elif reference.shape[-1] == 4:
+                tmp += reference[..., 1:]
+                tmp[..., 0] = inverse_sigmoid(points) - tmp[..., 0]
+                tmp[..., 1] = inverse_sigmoid(points) + tmp[..., 1]
             else:
                 assert reference.shape[-1] == 2
                 tmp[..., :2] += reference
