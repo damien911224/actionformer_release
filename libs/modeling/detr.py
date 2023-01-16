@@ -181,6 +181,8 @@ class DINO(nn.Module):
             points.append(this_points)
             this_scales = torch.ones_like(this_points) * (1.0 / len(features) * l)
             scales.append(this_scales)
+            print(t, 1.0 / len(features) * l)
+        exit()
 
         # box_srcs = []
         # box_pos_1d = []
