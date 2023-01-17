@@ -317,7 +317,8 @@ class DeformableTransformer(nn.Module):
         #                                     lvl_pos_1d_embed_flatten, spatial_shapes_1d, level_start_index_1d,
         #                                     query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
         hs, inter_references = self.decoder(tgt, reference_points, memory_2d,
-                                            lvl_pos_2d_embed_flatten, spatial_shapes_1d, spatial_shapes_2d, level_start_index_2d,
+                                            lvl_pos_2d_embed_flatten, spatial_shapes_1d, level_start_index_1d,
+                                            spatial_shapes_2d, level_start_index_2d,
                                             query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
         # hs, inter_references = self.decoder(tgt, reference_points, memory_2d,
         #                                     lvl_pos_2d_embed_flatten, spatial_shapes_2d, level_start_index_2d,
@@ -547,7 +548,7 @@ class DeformableTransformerDecoderLayer(nn.Module):
         return tgt
 
     def forward(self, tgt, query_pos, reference_points,
-                src, src_pos, tgt_spatial_shapes, src_spatial_shapes, level_start_index,
+                src, src_pos, tgt_spatial_shapes, tgt_level_start_index, src_spatial_shapes, level_start_index,
                 src_padding_mask=None, self_attn_mask=None):
         # self attention
         # q = k = self.with_pos_embed(tgt, query_pos)
@@ -556,7 +557,7 @@ class DeformableTransformerDecoderLayer(nn.Module):
         tgt2 = self.self_attn(self.with_pos_embed(tgt, query_pos),
                               reference_points,
                               self.with_pos_embed(tgt, query_pos),
-                              tgt_spatial_shapes, level_start_index)
+                              tgt_spatial_shapes, tgt_level_start_index)
         tgt = tgt + self.dropout2(tgt2)
         tgt = self.norm2(tgt)
         # cross attention
@@ -632,7 +633,7 @@ class DeformableTransformerDecoder(nn.Module):
             # query_pos = query_pos + src_pos_1d
 
             output = layer(output, query_pos, reference_points_input, src, src_pos,
-                           tgt_spatial_shapes, src_spatial_shapes, src_level_start_index,
+                           tgt_spatial_shapes, tgt_level_start_index, src_spatial_shapes, src_level_start_index,
                            src_padding_mask, self_attn_mask=attn_mask)
 
             # hack implementation for iterative bounding box refinement
