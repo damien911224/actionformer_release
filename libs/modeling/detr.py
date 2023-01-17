@@ -140,9 +140,8 @@ class DINO(nn.Module):
             nn.init.constant_(self.end_embed[0].layers[-1].bias.data[-1:], -2.0)
             # hack implementation for iterative bounding box refinement
             # self.transformer.decoder.bbox_embed = self.bbox_embed
-            self.transformer.start_decoder.bbox_embed = self.start_embed
-            self.transformer.end_decoder.bbox_embed = self.end_embed
-            self.transformer.class_decoder.bbox_embed = None
+            self.transformer.decoder.start_embed = self.start_embed
+            self.transformer.decoder.end_embed = self.end_embed
         else:
             nn.init.constant_(self.bbox_embed.layers[-1].bias.data[-1:], -2.0)
             self.class_embed = nn.ModuleList([self.class_embed for _ in range(num_pred)])

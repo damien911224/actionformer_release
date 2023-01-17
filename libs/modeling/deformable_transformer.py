@@ -60,10 +60,10 @@ class DeformableTransformer(nn.Module):
         decoder_layer = DeformableTransformerDecoderLayer(d_model, dim_feedforward,
                                                           dropout, activation,
                                                           num_feature_levels, nhead, dec_n_points)
-        self.class_decoder = DeformableTransformerDecoder(decoder_layer, num_decoder_layers, return_intermediate_dec,
-                                                          use_dab=use_dab, d_model=d_model,
-                                                          high_dim_query_update=high_dim_query_update,
-                                                          no_sine_embed=no_sine_embed)
+        self.class_decoder = DeformableTransformerSepDecoder(decoder_layer, num_decoder_layers, return_intermediate_dec,
+                                                             use_dab=use_dab, d_model=d_model,
+                                                             high_dim_query_update=high_dim_query_update,
+                                                             no_sine_embed=no_sine_embed)
 
         self.level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
         self.box_level_embed = nn.Parameter(torch.Tensor(6, d_model))
