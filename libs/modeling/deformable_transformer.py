@@ -747,7 +747,7 @@ class DeformableTransformerSepDecoder(nn.Module):
                 intermediate_reference_points.append(reference_points)
 
         if self.return_intermediate:
-            return torch.stack(intermediate), torch.stack(intermediate_reference_points)
+            return [torch.stack(inter) for inter in intermediate], torch.stack(intermediate_reference_points)
 
         return (class_output, start_output, end_output), reference_points
 
