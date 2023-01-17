@@ -111,6 +111,13 @@ def main(args):
                 break
         return out
     detr_param_dicts = [
+        # backbone
+        {
+            "params":
+                [p for n, p in models[0].named_parameters() if p.requires_grad],
+            "lr": cfg['detr']["lr"],
+            "initial_lr": cfg['detr']["lr"]
+        },
         # non-backbone, non-offset
         {
             "params":

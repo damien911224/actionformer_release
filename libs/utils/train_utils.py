@@ -490,9 +490,9 @@ def train_one_epoch(
         if clip_grad_l2norm > 0.0:
             torch.nn.utils.clip_grad_norm_(backbone.parameters(), clip_grad_l2norm)
         torch.nn.utils.clip_grad_norm_(detr.parameters(), 0.1)
-        backbone_optimizer.step()
+        # backbone_optimizer.step()
         detr_optimizer.step()
-        backbone_scheduler.step()
+        # backbone_scheduler.step()
         detr_scheduler.step()
 
         if backbone_model_ema is not None:
