@@ -34,7 +34,7 @@ model: {
   use_abs_pe: True,
 }
 opt: {
-  learning_rate: 1.0e-5,
+  learning_rate: 1.0e-4,
   epochs: 10,
   weight_decay: 1.0e-4, # 0.05
 }

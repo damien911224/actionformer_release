@@ -54,8 +54,9 @@ class DINO(nn.Module):
         self.num_classes = num_classes
         self.pos_1d_embeds = pos_1d_embeds
         self.pos_2d_embeds = pos_2d_embeds
+        # self.bbox_embed = MLP(hidden_dim, hidden_dim, 2, 3)
         self.class_embed = nn.Linear(hidden_dim, num_classes * 1)
-        self.bbox_embed = MLP(hidden_dim, hidden_dim, 2, 3)
+        self.start_embed = MLP(hidden_dim, hidden_dim, 1, 3)
         self.num_feature_levels = num_feature_levels
         self.input_dim = input_dim
         self.max_input_len = 1024
@@ -125,10 +126,17 @@ class DINO(nn.Module):
         num_pred = transformer.decoder.num_layers
         if with_box_refine:
             self.class_embed = _get_clones(self.class_embed, num_pred)
-            self.bbox_embed = _get_clones(self.bbox_embed, num_pred)
-            nn.init.constant_(self.bbox_embed[0].layers[-1].bias.data[-1:], -2.0)
+            # self.bbox_embed = _get_clones(self.bbox_embed, num_pred)
+            # nn.init.constant_(self.bbox_embed[0].layers[-1].bias.data[-1:], -2.0)
+            self.start_embed = _get_clones(self.start_embed, num_pred)
+            self.end_embed = _get_clones(self.end_embed, num_pred)
+            nn.init.constant_(self.start_embed[0].layers[-1].bias.data[-1:], -2.0)
+            nn.init.constant_(self.end_embed[0].layers[-1].bias.data[-1:], -2.0)
             # hack implementation for iterative bounding box refinement
-            self.transformer.decoder.bbox_embed = self.bbox_embed
+            # self.transformer.decoder.bbox_embed = self.bbox_embed
+            self.transformer.start_decoder.bbox_embed = self.start_embed
+            self.transformer.end_decoder.bbox_embed = self.end_embed
+            self.transformer.class_decoder.bbox_embed = None
         else:
             nn.init.constant_(self.bbox_embed.layers[-1].bias.data[-1:], -2.0)
             self.class_embed = nn.ModuleList([self.class_embed for _ in range(num_pred)])
@@ -281,22 +289,36 @@ class DINO(nn.Module):
 
         outputs_classes = []
         outputs_coords = []
-        for lvl in range(hs.shape[0]):
+        # for lvl in range(hs.shape[0]):
+        for lvl in range(hs[0].shape[0]):
+            # if lvl == 0:
+            #     reference = init_reference
+            # else:
+            #     reference = inter_references[lvl - 1]
+            # reference = inverse_sigmoid(reference)
+            # tmp = self.bbox_embed[lvl](hs[lvl])
+            # if reference.shape[-1] == 4:
+            #     # tmp += reference
+            #     tmp += reference[..., :2]
+            # else:
+            #     assert reference.shape[-1] == 2
+            #     tmp[..., :2] += reference
+            # outputs_coord = tmp.sigmoid()
+
             if lvl == 0:
-                reference = init_reference
+                start_reference = init_reference[1]
+                end_reference = init_reference[2]
             else:
-                reference = inter_references[lvl - 1]
-            reference = inverse_sigmoid(reference)
-            tmp = self.bbox_embed[lvl](hs[lvl])
-            if reference.shape[-1] == 4:
-                # tmp += reference
-                tmp += reference[..., :2]
-            else:
-                assert reference.shape[-1] == 2
-                tmp[..., :2] += reference
-            outputs_coord = tmp.sigmoid()
-            # outputs_coord = init_reference
-            outputs_class = self.class_embed[lvl](hs[lvl])
+                start_reference = inter_references[1][lvl - 1]
+                end_reference = inter_references[2][lvl - 1]
+            start_tmp = self.start_embed[lvl](hs[1][lvl])
+            end_tmp = self.end_embed[lvl](hs[2][lvl])
+            start_tmp += start_reference[..., :1]
+            end_tmp += start_reference[..., :1]
+            outputs_coord = torch.cat([start_tmp.sigmoid(), end_tmp.sigmoid()], dim=-1)
+
+            # outputs_class = self.class_embed[lvl](hs[lvl])
+            outputs_class = self.class_embed[lvl](hs[0][lvl])
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)
         outputs_class = torch.stack(outputs_classes)

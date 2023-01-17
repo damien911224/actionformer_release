@@ -49,23 +49,37 @@ class DeformableTransformer(nn.Module):
                                                           num_feature_levels, nhead, enc_n_points)
         self.encoder = DeformableTransformerEncoder(encoder_layer, num_encoder_layers)
 
-        encoder_layer = DeformableTransformerEncoderLayer(d_model, dim_feedforward,
-                                                          dropout, activation,
-                                                          num_feature_levels, nhead, enc_n_points)
-        self.box_encoder = DeformableTransformerEncoder(encoder_layer, num_encoder_layers)
-
-        encoder_layer = DeformableTransformerCrossEncoderLayer(d_model, dim_feedforward,
-                                                               dropout, activation,
-                                                               num_feature_levels, nhead, enc_n_points)
-        self.box_cross_encoder = DeformableTransformerCrossEncoder(encoder_layer, num_encoder_layers)
+        # decoder_layer = DeformableTransformerDecoderLayer(d_model, dim_feedforward,
+        #                                                   dropout, activation,
+        #                                                   num_feature_levels, nhead, dec_n_points)
+        # self.decoder = DeformableTransformerDecoder(decoder_layer, num_decoder_layers, return_intermediate_dec,
+        #                                             use_dab=use_dab, d_model=d_model,
+        #                                             high_dim_query_update=high_dim_query_update,
+        #                                             no_sine_embed=no_sine_embed)
 
         decoder_layer = DeformableTransformerDecoderLayer(d_model, dim_feedforward,
                                                           dropout, activation,
                                                           num_feature_levels, nhead, dec_n_points)
-        self.decoder = DeformableTransformerDecoder(decoder_layer, num_decoder_layers, return_intermediate_dec,
-                                                    use_dab=use_dab, d_model=d_model,
-                                                    high_dim_query_update=high_dim_query_update,
-                                                    no_sine_embed=no_sine_embed)
+        self.class_decoder = DeformableTransformerDecoder(decoder_layer, num_decoder_layers, return_intermediate_dec,
+                                                          use_dab=use_dab, d_model=d_model,
+                                                          high_dim_query_update=high_dim_query_update,
+                                                          no_sine_embed=no_sine_embed)
+
+        decoder_layer = DeformableTransformerDecoderLayer(d_model, dim_feedforward,
+                                                          dropout, activation,
+                                                          num_feature_levels, nhead, dec_n_points)
+        self.start_decoder = DeformableTransformerDecoder(decoder_layer, num_decoder_layers, return_intermediate_dec,
+                                                          use_dab=use_dab, d_model=d_model,
+                                                          high_dim_query_update=high_dim_query_update,
+                                                          no_sine_embed=no_sine_embed)
+
+        decoder_layer = DeformableTransformerDecoderLayer(d_model, dim_feedforward,
+                                                          dropout, activation,
+                                                          num_feature_levels, nhead, dec_n_points)
+        self.end_decoder = DeformableTransformerDecoder(decoder_layer, num_decoder_layers, return_intermediate_dec,
+                                                        use_dab=use_dab, d_model=d_model,
+                                                        high_dim_query_update=high_dim_query_update,
+                                                        no_sine_embed=no_sine_embed)
 
         self.level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
         self.box_level_embed = nn.Parameter(torch.Tensor(6, d_model))
@@ -312,16 +326,38 @@ class DeformableTransformer(nn.Module):
             init_reference_out = reference_points
 
         # decoder
-        hs, inter_references = self.decoder(tgt, reference_points, memory,
-                                            lvl_pos_1d_embed_flatten, spatial_shapes_1d, level_start_index_1d,
-                                            query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
+        # hs, inter_references = self.decoder(tgt, reference_points, memory,
+        #                                     lvl_pos_1d_embed_flatten, spatial_shapes_1d, level_start_index_1d,
+        #                                     query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
         # hs, inter_references = self.decoder(tgt, reference_points, memory_2d,
         #                                     lvl_pos_2d_embed_flatten, spatial_shapes_2d, level_start_index_2d,
         #                                     box_lvl_pos_1d_embed_flatten, box_spatial_shapes_1d,
         #                                     box_level_start_index_1d,
         #                                     query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
 
-        inter_references_out = inter_references
+        class_reference_points = torch.cat([reference_points[..., 2][..., None], reference_points[..., :2],
+                                            reference_points[..., -1][..., None]], dim=-1)
+        start_reference_points = torch.clone(reference_points)
+        end_reference_points = torch.cat([reference_points[..., 1][..., None], reference_points[..., 0][..., None],
+                                          reference_points[..., 2:]], dim=-1)
+        init_reference_out = [class_reference_points, start_reference_points, end_reference_points]
+
+        class_hs, class_inter_references = \
+            self.class_decoder(tgt, class_reference_points, memory,
+                               lvl_pos_1d_embed_flatten, spatial_shapes_1d, level_start_index_1d,
+                               query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
+        start_hs, start_inter_references = \
+            self.start_decoder(tgt, start_reference_points, memory,
+                               lvl_pos_1d_embed_flatten, spatial_shapes_1d, level_start_index_1d,
+                               query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
+        end_hs, end_inter_references = \
+            self.end_decoder(tgt, end_reference_points, memory,
+                             lvl_pos_1d_embed_flatten, spatial_shapes_1d, level_start_index_1d,
+                             query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
+
+        # inter_references_out = inter_references
+        hs = [class_hs, start_hs, end_hs]
+        inter_references_out = [class_inter_references, start_inter_references, end_inter_references]
         return hs, init_reference_out, inter_references_out, None, None
 
 
