@@ -693,7 +693,7 @@ class DeformableTransformerSepDecoder(nn.Module):
 
         intermediate = []
         intermediate_reference_points = []
-        for lid in range(len(self.layers)):
+        for lid in range(len(self.class_layers)):
             # import ipdb; ipdb.set_trace()
             if reference_points.shape[-1] == 4:
                 class_reference_points = torch.cat([reference_points[..., 2][..., None], reference_points[..., :2],
