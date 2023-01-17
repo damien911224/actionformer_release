@@ -132,8 +132,10 @@ class MSDeformAttn(nn.Module):
             # sampling_locations = torch.stack([reference_points[:, :, None, :, None, 0],
             #                                   torch.zeros_like(reference_points[:, :, None, :, None, 0])], -1) \
             #                      + sampling_offsets / self.n_points * reference_points[:, :, None, :, None, -1][..., None] * 0.5
-            sampling_locations = torch.stack([reference_points[:, :, None, :, None, 0],
-                                              torch.zeros_like(reference_points[:, :, None, :, None, 0])], -1) \
+            # sampling_locations = torch.stack([reference_points[:, :, None, :, None, 0],
+            #                                   torch.zeros_like(reference_points[:, :, None, :, None, 0])], -1) \
+            #                      + sampling_offsets / self.n_points * reference_points[:, :, None, :, None, -1][..., None] * 0.5
+            sampling_locations = reference_points[:, :, None, :, None, :2] \
                                  + sampling_offsets / self.n_points * reference_points[:, :, None, :, None, -1][..., None] * 0.5
         else:
             raise ValueError(

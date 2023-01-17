@@ -54,10 +54,10 @@ class DINO(nn.Module):
         self.num_classes = num_classes
         self.pos_1d_embeds = pos_1d_embeds
         self.pos_2d_embeds = pos_2d_embeds
-        # self.bbox_embed = MLP(hidden_dim, hidden_dim, 2, 3)
-        self.class_embed = nn.Linear(hidden_dim, num_classes * 1)
-        self.start_embed = MLP(hidden_dim, hidden_dim, 1, 3)
-        self.end_embed = MLP(hidden_dim, hidden_dim, 1, 3)
+        self.bbox_embed = MLP(hidden_dim, hidden_dim, 2, 3)
+        # self.class_embed = nn.Linear(hidden_dim, num_classes * 1)
+        # self.start_embed = MLP(hidden_dim, hidden_dim, 1, 3)
+        # self.end_embed = MLP(hidden_dim, hidden_dim, 1, 3)
         self.num_feature_levels = num_feature_levels
         self.input_dim = input_dim
         self.max_input_len = 1024
@@ -117,12 +117,12 @@ class DINO(nn.Module):
         prior_prob = 0.01
         bias_value = -math.log((1 - prior_prob) / prior_prob)
         self.class_embed.bias.data = torch.ones(num_classes * 1) * bias_value
-        # nn.init.constant_(self.bbox_embed.layers[-1].weight.data, 0)
-        # nn.init.constant_(self.bbox_embed.layers[-1].bias.data, 0)
-        nn.init.constant_(self.start_embed.layers[-1].weight.data, 0)
-        nn.init.constant_(self.start_embed.layers[-1].bias.data, 0)
-        nn.init.constant_(self.end_embed.layers[-1].weight.data, 0)
-        nn.init.constant_(self.end_embed.layers[-1].bias.data, 0)
+        nn.init.constant_(self.bbox_embed.layers[-1].weight.data, 0)
+        nn.init.constant_(self.bbox_embed.layers[-1].bias.data, 0)
+        # nn.init.constant_(self.start_embed.layers[-1].weight.data, 0)
+        # nn.init.constant_(self.start_embed.layers[-1].bias.data, 0)
+        # nn.init.constant_(self.end_embed.layers[-1].weight.data, 0)
+        # nn.init.constant_(self.end_embed.layers[-1].bias.data, 0)
         for proj in self.input_proj:
             nn.init.xavier_uniform_(proj[0].weight, gain=1)
             nn.init.constant_(proj[0].bias, 0)
@@ -131,16 +131,16 @@ class DINO(nn.Module):
         num_pred = transformer.decoder.num_layers
         if with_box_refine:
             self.class_embed = _get_clones(self.class_embed, num_pred)
-            # self.bbox_embed = _get_clones(self.bbox_embed, num_pred)
-            # nn.init.constant_(self.bbox_embed[0].layers[-1].bias.data[-1:], -2.0)
-            self.start_embed = _get_clones(self.start_embed, num_pred)
-            self.end_embed = _get_clones(self.end_embed, num_pred)
-            nn.init.constant_(self.start_embed[0].layers[-1].bias.data[-1:], -2.0)
-            nn.init.constant_(self.end_embed[0].layers[-1].bias.data[-1:], -2.0)
+            self.bbox_embed = _get_clones(self.bbox_embed, num_pred)
+            nn.init.constant_(self.bbox_embed[0].layers[-1].bias.data[-1:], -2.0)
+            # self.start_embed = _get_clones(self.start_embed, num_pred)
+            # self.end_embed = _get_clones(self.end_embed, num_pred)
+            # nn.init.constant_(self.start_embed[0].layers[-1].bias.data[-1:], -2.0)
+            # nn.init.constant_(self.end_embed[0].layers[-1].bias.data[-1:], -2.0)
             # hack implementation for iterative bounding box refinement
-            # self.transformer.decoder.bbox_embed = self.bbox_embed
-            self.transformer.decoder.start_embed = self.start_embed
-            self.transformer.decoder.end_embed = self.end_embed
+            self.transformer.decoder.bbox_embed = self.bbox_embed
+            # self.transformer.decoder.start_embed = self.start_embed
+            # self.transformer.decoder.end_embed = self.end_embed
         else:
             nn.init.constant_(self.bbox_embed.layers[-1].bias.data[-1:], -2.0)
             self.class_embed = nn.ModuleList([self.class_embed for _ in range(num_pred)])
@@ -296,35 +296,35 @@ class DINO(nn.Module):
 
         outputs_classes = []
         outputs_coords = []
-        # for lvl in range(hs.shape[0]):
-        for lvl in range(hs[0].shape[0]):
-            # if lvl == 0:
-            #     reference = init_reference
-            # else:
-            #     reference = inter_references[lvl - 1]
-            # reference = inverse_sigmoid(reference)
-            # tmp = self.bbox_embed[lvl](hs[lvl])
-            # if reference.shape[-1] == 4:
-            #     # tmp += reference
-            #     tmp += reference[..., :2]
-            # else:
-            #     assert reference.shape[-1] == 2
-            #     tmp[..., :2] += reference
-            # outputs_coord = tmp.sigmoid()
-
+        for lvl in range(hs.shape[0]):
+        # for lvl in range(hs[0].shape[0]):
             if lvl == 0:
                 reference = init_reference
             else:
                 reference = inter_references[lvl - 1]
             reference = inverse_sigmoid(reference)
-            start_tmp = self.start_embed[lvl](hs[1][lvl])
-            end_tmp = self.end_embed[lvl](hs[2][lvl])
-            start_tmp += reference[..., 0][..., None]
-            end_tmp += reference[..., 1][..., None]
-            outputs_coord = torch.cat([start_tmp.sigmoid(), end_tmp.sigmoid()], dim=-1)
+            tmp = self.bbox_embed[lvl](hs[lvl])
+            if reference.shape[-1] == 4:
+                # tmp += reference
+                tmp += reference[..., :2]
+            else:
+                assert reference.shape[-1] == 2
+                tmp[..., :2] += reference
+            outputs_coord = tmp.sigmoid()
 
-            # outputs_class = self.class_embed[lvl](hs[lvl])
-            outputs_class = self.class_embed[lvl](hs[0][lvl])
+            # if lvl == 0:
+            #     reference = init_reference
+            # else:
+            #     reference = inter_references[lvl - 1]
+            # reference = inverse_sigmoid(reference)
+            # start_tmp = self.start_embed[lvl](hs[1][lvl])
+            # end_tmp = self.end_embed[lvl](hs[2][lvl])
+            # start_tmp += reference[..., 0][..., None]
+            # end_tmp += reference[..., 1][..., None]
+            # outputs_coord = torch.cat([start_tmp.sigmoid(), end_tmp.sigmoid()], dim=-1)
+
+            outputs_class = self.class_embed[lvl](hs[lvl])
+            # outputs_class = self.class_embed[lvl](hs[0][lvl])
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)
         outputs_class = torch.stack(outputs_classes)

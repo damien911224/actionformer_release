@@ -49,24 +49,25 @@ class DeformableTransformer(nn.Module):
                                                           num_feature_levels, nhead, enc_n_points)
         self.encoder = DeformableTransformerEncoder(encoder_layer, num_encoder_layers)
 
-        # decoder_layer = DeformableTransformerDecoderLayer(d_model, dim_feedforward,
-        #                                                   dropout, activation,
-        #                                                   num_feature_levels, nhead, dec_n_points)
-        # self.decoder = DeformableTransformerDecoder(decoder_layer, num_decoder_layers, return_intermediate_dec,
-        #                                             use_dab=use_dab, d_model=d_model,
-        #                                             high_dim_query_update=high_dim_query_update,
-        #                                             no_sine_embed=no_sine_embed)
-
         decoder_layer = DeformableTransformerDecoderLayer(d_model, dim_feedforward,
                                                           dropout, activation,
                                                           num_feature_levels, nhead, dec_n_points)
-        self.decoder = DeformableTransformerSepDecoder(decoder_layer, num_decoder_layers, return_intermediate_dec,
-                                                       use_dab=use_dab, d_model=d_model,
-                                                       high_dim_query_update=high_dim_query_update,
-                                                       no_sine_embed=no_sine_embed)
+        self.decoder = DeformableTransformerDecoder(decoder_layer, num_decoder_layers, return_intermediate_dec,
+                                                    use_dab=use_dab, d_model=d_model,
+                                                    high_dim_query_update=high_dim_query_update,
+                                                    no_sine_embed=no_sine_embed)
+
+        # decoder_layer = DeformableTransformerDecoderLayer(d_model, dim_feedforward,
+        #                                                   dropout, activation,
+        #                                                   num_feature_levels, nhead, dec_n_points)
+        # self.decoder = DeformableTransformerSepDecoder(decoder_layer, num_decoder_layers, return_intermediate_dec,
+        #                                                use_dab=use_dab, d_model=d_model,
+        #                                                high_dim_query_update=high_dim_query_update,
+        #                                                no_sine_embed=no_sine_embed)
 
         self.level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
         self.box_level_embed = nn.Parameter(torch.Tensor(6, d_model))
+        self.memory_proj = nn.ModuleList([nn.Linear(d_model * 2, d_model) for _ in range(num_feature_levels)])
 
         # if two_stage:
         #     self.enc_output = nn.Linear(d_model, d_model)
@@ -246,15 +247,17 @@ class DeformableTransformer(nn.Module):
         # encoder
         memory = self.encoder(src_flatten, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
 
-        # memory_2d = list()
-        # for l_i in range(len(srcs)):
-        #     h, w = spatial_shapes_1d[l_i]
-        #     level_start_index = level_start_index_1d[l_i]
-        #     level_end_index = level_start_index + h * w
-        #     this_memory = memory[:, level_start_index:level_end_index]
-        #     this_memory_2d = this_memory.unsqueeze(2).repeat(1, 1, h, 1).flatten(1, 2)
-        #     memory_2d.append(this_memory_2d)
-        # memory_2d = torch.cat(memory_2d, 1)
+        memory_2d = list()
+        for l_i in range(len(srcs)):
+            h, w = spatial_shapes_1d[l_i]
+            level_start_index = level_start_index_1d[l_i]
+            level_end_index = level_start_index + h * w
+            this_memory = memory[:, level_start_index:level_end_index]
+            this_memory_2d = torch.concat((this_memory.unsqueeze(2).repeat(1, 1, h, 1),
+                                           this_memory.unsqueeze(1).repeat(1, h, 1, 1)), dim=-1).flatten(1, 2)
+            this_memory_2d = self.memory_proj[l_i](this_memory_2d)
+            memory_2d.append(this_memory_2d)
+        memory_2d = torch.cat(memory_2d, 1)
 
         # if self.two_stage:
         #     target_length = encoder_outputs[-1].shape[1]
@@ -310,8 +313,11 @@ class DeformableTransformer(nn.Module):
             init_reference_out = reference_points
 
         # decoder
-        hs, inter_references = self.decoder(tgt, reference_points, memory,
-                                            lvl_pos_1d_embed_flatten, spatial_shapes_1d, level_start_index_1d,
+        # hs, inter_references = self.decoder(tgt, reference_points, memory,
+        #                                     lvl_pos_1d_embed_flatten, spatial_shapes_1d, level_start_index_1d,
+        #                                     query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
+        hs, inter_references = self.decoder(tgt, reference_points, memory_2d,
+                                            lvl_pos_2d_embed_flatten, spatial_shapes_2d, level_start_index_2d,
                                             query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
         # hs, inter_references = self.decoder(tgt, reference_points, memory_2d,
         #                                     lvl_pos_2d_embed_flatten, spatial_shapes_2d, level_start_index_2d,
