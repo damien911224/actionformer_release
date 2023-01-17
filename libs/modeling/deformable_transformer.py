@@ -681,6 +681,11 @@ class DeformableTransformerSepDecoder(nn.Module):
             self.start_high_dim_query_proj = MLP(d_model, d_model, d_model, 2)
             self.end_high_dim_query_proj = MLP(d_model, d_model, d_model, 2)
 
+        self.start2class_high_dim_query_proj = MLP(d_model, d_model, d_model, 2)
+        self.end2class_high_dim_query_proj = MLP(d_model, d_model, d_model, 2)
+        self.start2end_high_dim_query_proj = MLP(d_model, d_model, d_model, 2)
+        self.end2start_high_dim_query_proj = MLP(d_model, d_model, d_model, 2)
+
     def forward(self, tgt, reference_points, src, src_pos, src_spatial_shapes, src_level_start_index,
                 query_pos=None, src_padding_mask=None, attn_mask=None):
         class_output = torch.clone(tgt)
@@ -719,6 +724,12 @@ class DeformableTransformerSepDecoder(nn.Module):
                 class_query_pos = class_query_pos + self.class_high_dim_query_proj(class_output)
                 start_query_pos = start_query_pos + self.start_high_dim_query_proj(start_output)
                 end_query_pos = end_query_pos + self.end_high_dim_query_proj(end_output)
+            if lid != 0:
+                class_query_pos = class_query_pos + \
+                                  self.start2class_high_dim_query_proj(start_output) + \
+                                  self.end2class_high_dim_query_proj(end_output)
+                start_query_pos = start_query_pos + self.end2start_high_dim_query_proj(end_output)
+                end_query_pos = end_query_pos + self.start2end_high_dim_query_proj(start_output)
 
             class_output = self.class_layers[lid](class_output, query_pos, class_reference_points_input, src, src_pos,
                                                   src_spatial_shapes, src_level_start_index, src_padding_mask,
