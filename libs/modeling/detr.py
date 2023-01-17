@@ -57,6 +57,7 @@ class DINO(nn.Module):
         # self.bbox_embed = MLP(hidden_dim, hidden_dim, 2, 3)
         self.class_embed = nn.Linear(hidden_dim, num_classes * 1)
         self.start_embed = MLP(hidden_dim, hidden_dim, 1, 3)
+        self.end_embed = MLP(hidden_dim, hidden_dim, 1, 3)
         self.num_feature_levels = num_feature_levels
         self.input_dim = input_dim
         self.max_input_len = 1024
