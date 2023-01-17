@@ -187,10 +187,10 @@ def main(args):
         tiou_thresholds=val_db_vars['tiou_thresholds']
     )
 
-    # checkpoint = torch.load("ckpt/anet_i3d_mix_size_M5_B_NMS/backbone/model_best.pth.tar")
-    # models[0].load_state_dict(checkpoint['state_dict'])
-    # model_emas[0].module.load_state_dict(checkpoint['state_dict_ema'])
-    # del checkpoint
+    checkpoint = torch.load("ckpt/anet_i3d_mix_size_M5_B_NMS/backbone/model_best.pth.tar")
+    models[0].load_state_dict(checkpoint['state_dict'])
+    model_emas[0].module.load_state_dict(checkpoint['state_dict_ema'])
+    del checkpoint
 
     """4. training / validation loop"""
     print("\nStart training model {:s} ...".format(cfg['model_name']))
