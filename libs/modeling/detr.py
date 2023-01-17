@@ -312,15 +312,14 @@ class DINO(nn.Module):
             # outputs_coord = tmp.sigmoid()
 
             if lvl == 0:
-                start_reference = init_reference[1]
-                end_reference = init_reference[2]
+                reference = init_reference
             else:
-                start_reference = inter_references[1][lvl - 1]
-                end_reference = inter_references[2][lvl - 1]
+                reference = inter_references[lvl - 1]
+            reference = inverse_sigmoid(reference)
             start_tmp = self.start_embed[lvl](hs[1][lvl])
             end_tmp = self.end_embed[lvl](hs[2][lvl])
-            start_tmp += start_reference[..., :1]
-            end_tmp += end_reference[..., :1]
+            start_tmp += reference[..., 0][..., None]
+            end_tmp += reference[..., 1][..., None]
             outputs_coord = torch.cat([start_tmp.sigmoid(), end_tmp.sigmoid()], dim=-1)
 
             # outputs_class = self.class_embed[lvl](hs[lvl])

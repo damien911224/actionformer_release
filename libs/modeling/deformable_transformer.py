@@ -65,22 +65,6 @@ class DeformableTransformer(nn.Module):
                                                           high_dim_query_update=high_dim_query_update,
                                                           no_sine_embed=no_sine_embed)
 
-        decoder_layer = DeformableTransformerDecoderLayer(d_model, dim_feedforward,
-                                                          dropout, activation,
-                                                          num_feature_levels, nhead, dec_n_points)
-        self.start_decoder = DeformableTransformerDecoder(decoder_layer, num_decoder_layers, return_intermediate_dec,
-                                                          use_dab=use_dab, d_model=d_model,
-                                                          high_dim_query_update=high_dim_query_update,
-                                                          no_sine_embed=no_sine_embed)
-
-        decoder_layer = DeformableTransformerDecoderLayer(d_model, dim_feedforward,
-                                                          dropout, activation,
-                                                          num_feature_levels, nhead, dec_n_points)
-        self.end_decoder = DeformableTransformerDecoder(decoder_layer, num_decoder_layers, return_intermediate_dec,
-                                                        use_dab=use_dab, d_model=d_model,
-                                                        high_dim_query_update=high_dim_query_update,
-                                                        no_sine_embed=no_sine_embed)
-
         self.level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
         self.box_level_embed = nn.Parameter(torch.Tensor(6, d_model))
 
@@ -326,38 +310,16 @@ class DeformableTransformer(nn.Module):
             init_reference_out = reference_points
 
         # decoder
-        # hs, inter_references = self.decoder(tgt, reference_points, memory,
-        #                                     lvl_pos_1d_embed_flatten, spatial_shapes_1d, level_start_index_1d,
-        #                                     query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
+        hs, inter_references = self.decoder(tgt, reference_points, memory,
+                                            lvl_pos_1d_embed_flatten, spatial_shapes_1d, level_start_index_1d,
+                                            query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
         # hs, inter_references = self.decoder(tgt, reference_points, memory_2d,
         #                                     lvl_pos_2d_embed_flatten, spatial_shapes_2d, level_start_index_2d,
         #                                     box_lvl_pos_1d_embed_flatten, box_spatial_shapes_1d,
         #                                     box_level_start_index_1d,
         #                                     query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
 
-        class_reference_points = torch.cat([reference_points[..., 2][..., None], reference_points[..., :2],
-                                            reference_points[..., -1][..., None]], dim=-1)
-        start_reference_points = torch.clone(reference_points)
-        end_reference_points = torch.cat([reference_points[..., 1][..., None], reference_points[..., 0][..., None],
-                                          reference_points[..., 2:]], dim=-1)
-        init_reference_out = [class_reference_points, start_reference_points, end_reference_points]
-
-        class_hs, class_inter_references = \
-            self.class_decoder(tgt, class_reference_points, memory,
-                               lvl_pos_1d_embed_flatten, spatial_shapes_1d, level_start_index_1d,
-                               query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
-        start_hs, start_inter_references = \
-            self.start_decoder(tgt, start_reference_points, memory,
-                               lvl_pos_1d_embed_flatten, spatial_shapes_1d, level_start_index_1d,
-                               query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
-        end_hs, end_inter_references = \
-            self.end_decoder(tgt, end_reference_points, memory,
-                             lvl_pos_1d_embed_flatten, spatial_shapes_1d, level_start_index_1d,
-                             query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
-
-        # inter_references_out = inter_references
-        hs = [class_hs, start_hs, end_hs]
-        inter_references_out = [class_inter_references, start_inter_references, end_inter_references]
+        inter_references_out = inter_references
         return hs, init_reference_out, inter_references_out, None, None
 
 
@@ -689,6 +651,105 @@ class DeformableTransformerDecoder(nn.Module):
             return torch.stack(intermediate), torch.stack(intermediate_reference_points)
 
         return output, reference_points
+
+
+class DeformableTransformerSepDecoder(nn.Module):
+    def __init__(self, decoder_layer, num_layers, return_intermediate=False, use_dab=False, d_model=256,
+                 high_dim_query_update=False, no_sine_embed=True):
+        super().__init__()
+        self.class_layers = _get_clones(decoder_layer, num_layers)
+        self.start_layers = _get_clones(decoder_layer, num_layers)
+        self.end_layers = _get_clones(decoder_layer, num_layers)
+        self.num_layers = num_layers
+        self.return_intermediate = return_intermediate
+        # hack implementation for iterative bounding box refinement and two-stage Deformable DETR
+        self.start_embed = None
+        self.end_embed = None
+        self.class_embed = None
+        self.use_dab = use_dab
+        self.d_model = d_model
+        self.no_sine_embed = no_sine_embed
+        self.class_query_scale = MLP(d_model, d_model, d_model, 2)
+        self.start_query_scale = MLP(d_model, d_model, d_model, 2)
+        self.end_query_scale = MLP(d_model, d_model, d_model, 2)
+        self.class_ref_point_head = MLP(4, d_model, d_model, 3)
+        self.start_ref_point_head = MLP(4, d_model, d_model, 3)
+        self.end_ref_point_head = MLP(4, d_model, d_model, 3)
+        self.high_dim_query_update = high_dim_query_update
+        if high_dim_query_update:
+            self.class_high_dim_query_proj = MLP(d_model, d_model, d_model, 2)
+            self.start_high_dim_query_proj = MLP(d_model, d_model, d_model, 2)
+            self.end_high_dim_query_proj = MLP(d_model, d_model, d_model, 2)
+
+    def forward(self, tgt, reference_points, src, src_pos, src_spatial_shapes, src_level_start_index,
+                query_pos=None, src_padding_mask=None, attn_mask=None):
+        class_output = torch.clone(tgt)
+        start_output = torch.clone(tgt)
+        end_output = torch.clone(tgt)
+        # if self.use_dab:
+        #     assert query_pos is None
+        # bs = src.shape[0]
+        # reference_points = reference_points[None].repeat(bs, 1, 1) # bs, nq, 4(xywh)
+
+        intermediate = []
+        intermediate_reference_points = []
+        for lid in range(len(self.layers)):
+            # import ipdb; ipdb.set_trace()
+            if reference_points.shape[-1] == 4:
+                class_reference_points = torch.cat([reference_points[..., 2][..., None], reference_points[..., :2],
+                                                    reference_points[..., -1][..., None]], dim=-1)
+                start_reference_points = torch.clone(reference_points)
+                end_reference_points = torch.cat(
+                    [reference_points[..., 1][..., None], reference_points[..., 0][..., None],
+                     reference_points[..., 2:]], dim=-1)
+                class_reference_points_input = class_reference_points[:, :, None]
+                start_reference_points_input = start_reference_points[:, :, None]
+                end_reference_points_input = end_reference_points[:, :, None]
+            if self.use_dab:
+                class_raw_query_pos = self.class_ref_point_head(class_reference_points_input[:, :, 0, :])
+                start_raw_query_pos = self.start_ref_point_head(start_reference_points_input[:, :, 0, :])
+                end_raw_query_pos = self.end_ref_point_head(end_reference_points_input[:, :, 0, :])
+                class_pos_scale = self.class_query_scale(class_output) if lid != 0 else 1
+                start_pos_scale = self.start_query_scale(start_output) if lid != 0 else 1
+                end_pos_scale = self.end_query_scale(end_output) if lid != 0 else 1
+                class_query_pos = class_pos_scale * class_raw_query_pos
+                start_query_pos = start_pos_scale * start_raw_query_pos
+                end_query_pos = end_pos_scale * end_raw_query_pos
+            if self.high_dim_query_update and lid != 0:
+                class_query_pos = class_query_pos + self.class_high_dim_query_proj(class_output)
+                start_query_pos = start_query_pos + self.start_high_dim_query_proj(start_output)
+                end_query_pos = end_query_pos + self.end_high_dim_query_proj(end_output)
+
+            class_output = self.class_layers[lid](class_output, query_pos, class_reference_points_input, src, src_pos,
+                                                  src_spatial_shapes, src_level_start_index, src_padding_mask,
+                                                  self_attn_mask=attn_mask)
+
+            start_output = self.start_layers[lid](start_output, query_pos, start_reference_points_input, src, src_pos,
+                                                  src_spatial_shapes, src_level_start_index, src_padding_mask,
+                                                  self_attn_mask=attn_mask)
+
+            end_output = self.end_layers[lid](end_output, query_pos, end_reference_points_input, src, src_pos,
+                                              src_spatial_shapes, src_level_start_index, src_padding_mask,
+                                              self_attn_mask=attn_mask)
+
+            # hack implementation for iterative bounding box refinement
+            if self.start_embed is not None:
+                start_tmp = self.start_embed[lid](start_output)
+                end_tmp = self.end_embed[lid](end_output)
+                new_reference_points = inverse_sigmoid(reference_points)
+                new_reference_points[..., 0] = start_tmp.squeeze(-1) + new_reference_points[..., 0]
+                new_reference_points[..., 1] = end_tmp.squeeze(-1) + new_reference_points[..., 1]
+                new_reference_points = new_reference_points.sigmoid()
+                reference_points = new_reference_points.detach()
+
+            if self.return_intermediate:
+                intermediate.append((class_output, start_output, end_output))
+                intermediate_reference_points.append(reference_points)
+
+        if self.return_intermediate:
+            return torch.stack(intermediate), torch.stack(intermediate_reference_points)
+
+        return (class_output, start_output, end_output), reference_points
 
 
 def _get_clones(module, N):
