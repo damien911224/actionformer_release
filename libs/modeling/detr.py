@@ -361,11 +361,9 @@ class DINO(nn.Module):
             outputs_class, outputs_coord = \
                 cdn_post_process(outputs_class, outputs_coord, dn_meta, self.aux_loss, self._set_aux_loss)
 
-        out = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord[-1]}
 
         if not self.with_act_reg:
-            out = {'pred_logits': outputs_class[-1],
-                   'pred_segments': outputs_coord[-1]}
+            out = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord[-1]}
         else:
             # perform RoIAlign
             roi_features = list()
@@ -387,7 +385,7 @@ class DINO(nn.Module):
             last_layer_reg = outputs_coord[-1]
 
             out = {'pred_logits': last_layer_cls,
-                   'pred_segments': last_layer_reg, 'pred_actionness': pred_actionness}
+                   'pred_boxes': last_layer_reg, 'pred_actionness': pred_actionness}
 
         if self.aux_loss:
             out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord)
