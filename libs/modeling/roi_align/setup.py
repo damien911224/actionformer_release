@@ -61,8 +61,8 @@ def get_extensions():
         ),
 
         CUDAExtension('roi_align.Align1D', [
-            'roi_align/src/roi_align_cuda.cpp',
-            'roi_align/src/roi_align_kernel.cu'])
+            'src/roi_align_cuda.cpp',
+            'src/roi_align_kernel.cu'])
     ]
     return ext_modules
 
