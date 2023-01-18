@@ -375,9 +375,12 @@ class DINO(nn.Module):
 
                 rois = self._to_roi_align_format(outputs_coord[-1], origin_feat.shape[1], scale_factor=1.5)
                 this_roi_features = self.roi_extractor(origin_feat, rois)
+                print(this_roi_features.shape)
                 this_roi_features = this_roi_features.view((B, N, -1))
                 roi_features.append(this_roi_features)
             roi_features = torch.concat(roi_features, dim=-1)
+            print(roi_features.shape)
+            exit()
             pred_actionness = self.actionness_pred(roi_features)
 
             last_layer_cls = outputs_class[-1]
