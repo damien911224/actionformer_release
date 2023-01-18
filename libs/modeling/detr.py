@@ -373,7 +373,7 @@ class DINO(nn.Module):
             for l_i, this_memory in enumerate(memory):
                 origin_feat = this_memory
 
-                rois = self._to_roi_align_format(outputs_coord[-1], origin_feat.shape[2], scale_factor=1.5)
+                rois = self._to_roi_align_format(outputs_coord[-1], origin_feat.shape[1], scale_factor=1.5)
                 this_roi_features = self.roi_extractor(origin_feat, rois)
                 this_roi_features = this_roi_features.view((B, N, -1))
                 roi_features.append(this_roi_features)
@@ -409,7 +409,7 @@ class DINO(nn.Module):
         '''
         # transform to absolute axis
         B, N = rois.shape[:2]
-        rois_center = (rois[..., 0] + rois[..., 1]) / 2.0
+        rois_center = ((rois[..., 0] + rois[..., 1]) / 2.0).unsqueeze(-1)
         rois_size = rois[..., -1][..., None] * scale_factor
         rois_abs = torch.cat(
             (rois_center - rois_size/2, rois_center + rois_size/2), dim=2) * T
