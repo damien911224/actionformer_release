@@ -369,20 +369,18 @@ class DINO(nn.Module):
         else:
             # perform RoIAlign
             roi_features = list()
+            N, Q = outputs_coord[-1].shape[:2]
             prev_query_start_index = 0
             for l_i, this_memory in enumerate(memory):
                 origin_feat = this_memory
-                print(origin_feat.shape)
-                exit()
-                N, Q = origin_feat.shape[:2]
                 this_coord = outputs_coord[-1][:, prev_query_start_index:prev_query_start_index + Q]
                 prev_query_start_index += Q
 
                 rois = self._to_roi_align_format(this_coord, origin_feat.shape[1], scale_factor=1.5)
                 this_roi_features = self.roi_extractor(origin_feat, rois)
-                print(this_roi_features.shape)
                 this_roi_features = this_roi_features.view((N, Q, -1))
                 roi_features.append(this_roi_features)
+                print(this_roi_features.shape)
             roi_features = torch.concat(roi_features, dim=-1)
             print(roi_features.shape)
             exit()
