@@ -1122,7 +1122,7 @@ def valid_one_epoch(
             scores, labels = torch.max(logits, dim=-1)
             if "pred_actionness" in detr_predictions.keys():
                 actionness = detr_predictions["pred_actionness"].detach().cpu()
-                scores = scores * actionness
+                scores = scores * actionness.squeeze(-1)
 
             proposals = proposals.cpu()
             backbone_boxes = proposals[..., 1:3]
