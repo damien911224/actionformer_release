@@ -247,19 +247,19 @@ class DeformableTransformer(nn.Module):
         # encoder
         memory = self.encoder(src_flatten, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
 
-        ms_memory = list()
-        memory_2d = list()
-        for l_i in range(len(srcs)):
-            h, w = spatial_shapes_1d[l_i]
-            level_start_index = level_start_index_1d[l_i]
-            level_end_index = level_start_index + h * w
-            this_memory = memory[:, level_start_index:level_end_index]
-            this_memory_2d = torch.concat((this_memory.unsqueeze(2).repeat(1, 1, h, 1),
-                                           this_memory.unsqueeze(1).repeat(1, h, 1, 1)), dim=-1).flatten(1, 2)
-            this_memory_2d = self.memory_proj[l_i](this_memory_2d)
-            memory_2d.append(this_memory_2d)
-            ms_memory.append(this_memory)
-        memory_2d = torch.cat(memory_2d, 1)
+        # ms_memory = list()
+        # memory_2d = list()
+        # for l_i in range(len(srcs)):
+        #     h, w = spatial_shapes_1d[l_i]
+        #     level_start_index = level_start_index_1d[l_i]
+        #     level_end_index = level_start_index + h * w
+        #     this_memory = memory[:, level_start_index:level_end_index]
+        #     this_memory_2d = torch.concat((this_memory.unsqueeze(2).repeat(1, 1, h, 1),
+        #                                    this_memory.unsqueeze(1).repeat(1, h, 1, 1)), dim=-1).flatten(1, 2)
+        #     this_memory_2d = self.memory_proj[l_i](this_memory_2d)
+        #     memory_2d.append(this_memory_2d)
+        #     ms_memory.append(this_memory)
+        # memory_2d = torch.cat(memory_2d, 1)
 
         # if self.two_stage:
         #     target_length = encoder_outputs[-1].shape[1]
@@ -315,13 +315,13 @@ class DeformableTransformer(nn.Module):
             init_reference_out = reference_points
 
         # decoder
-        # hs, inter_references = self.decoder(tgt, reference_points, memory,
-        #                                     lvl_pos_1d_embed_flatten, spatial_shapes_1d, level_start_index_1d,
-        #                                     query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
-        hs, inter_references = self.decoder(tgt, reference_points, memory_2d,
-                                            lvl_pos_2d_embed_flatten, spatial_shapes_1d, level_start_index_1d,
-                                            spatial_shapes_2d, level_start_index_2d,
+        hs, inter_references = self.decoder(tgt, reference_points, memory,
+                                            lvl_pos_1d_embed_flatten, spatial_shapes_1d, level_start_index_1d,
                                             query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
+        # hs, inter_references = self.decoder(tgt, reference_points, memory_2d,
+        #                                     lvl_pos_2d_embed_flatten, spatial_shapes_1d, level_start_index_1d,
+        #                                     spatial_shapes_2d, level_start_index_2d,
+        #                                     query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
         # hs, inter_references = self.decoder(tgt, reference_points, memory_2d,
         #                                     lvl_pos_2d_embed_flatten, spatial_shapes_2d, level_start_index_2d,
         #                                     box_lvl_pos_1d_embed_flatten, box_spatial_shapes_1d,
@@ -526,8 +526,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
         self.norm1 = nn.LayerNorm(d_model)
 
         # self attention
-        # self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
-        self.self_attn = MSDeformAttn(d_model, n_levels, n_heads, n_points)
+        self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
+        # self.self_attn = MSDeformAttn(d_model, n_levels, n_heads, n_points)
         self.dropout2 = nn.Dropout(dropout)
         self.norm2 = nn.LayerNorm(d_model)
 
@@ -553,13 +553,13 @@ class DeformableTransformerDecoderLayer(nn.Module):
                 src, src_pos, tgt_spatial_shapes, tgt_level_start_index, src_spatial_shapes, level_start_index,
                 src_padding_mask=None, self_attn_mask=None):
         # self attention
-        # q = k = self.with_pos_embed(tgt, query_pos)
-        # tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1), attn_mask=self_attn_mask)[
-        #     0].transpose(0, 1)
-        tgt2 = self.self_attn(self.with_pos_embed(tgt, query_pos),
-                              reference_points,
-                              self.with_pos_embed(tgt, query_pos),
-                              tgt_spatial_shapes, tgt_level_start_index)
+        q = k = self.with_pos_embed(tgt, query_pos)
+        tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1), attn_mask=self_attn_mask)[
+            0].transpose(0, 1)
+        # tgt2 = self.self_attn(self.with_pos_embed(tgt, query_pos),
+        #                       reference_points,
+        #                       self.with_pos_embed(tgt, query_pos),
+        #                       tgt_spatial_shapes, tgt_level_start_index)
         tgt = tgt + self.dropout2(tgt2)
         tgt = self.norm2(tgt)
         # cross attention
