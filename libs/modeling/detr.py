@@ -156,7 +156,7 @@ class DINO(nn.Module):
             self.roi_scale = 0
             self.roi_extractor = ROIAlign(self.roi_size, self.roi_scale)
             self.actionness_pred = nn.Sequential(
-                nn.Linear(self.roi_size * hidden_dim, hidden_dim),
+                nn.Linear(self.num_feature_levels * self.roi_size * hidden_dim, hidden_dim),
                 nn.ReLU(inplace=True),
                 nn.Linear(hidden_dim, hidden_dim),
                 nn.ReLU(inplace=True),
@@ -369,12 +369,14 @@ class DINO(nn.Module):
         else:
             # perform RoIAlign
             B, N = outputs_coord[-1].shape[:2]
-            origin_feat = memory
+            roi_features = list()
+            for l_i, this_memory in enumerate(memory):
+                origin_feat = memory
 
-            rois = self._to_roi_align_format(
-                outputs_coord[-1], origin_feat.shape[2], scale_factor=1.5)
-            roi_features = self.roi_extractor(origin_feat, rois)
-            roi_features = roi_features.view((B, N, -1))
+                rois = self._to_roi_align_format(outputs_coord[-1], origin_feat.shape[2], scale_factor=1.5)
+                this_roi_features = self.roi_extractor(origin_feat, rois)
+                this_roi_features = this_roi_features.view((B, N, -1))
+                roi_features.append(this_roi_features)
             pred_actionness = self.actionness_pred(roi_features)
 
             last_layer_cls = outputs_class[-1]
@@ -406,8 +408,8 @@ class DINO(nn.Module):
         '''
         # transform to absolute axis
         B, N = rois.shape[:2]
-        rois_center = rois[:, :, 0:1]
-        rois_size = rois[:, :, 1:2] * scale_factor
+        rois_center = (rois[..., 0] + rois[..., 1]) / 2.0
+        rois_size = rois[..., -1][..., None] * scale_factor
         rois_abs = torch.cat(
             (rois_center - rois_size/2, rois_center + rois_size/2), dim=2) * T
         # expand the RoIs
