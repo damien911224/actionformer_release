@@ -1121,7 +1121,7 @@ def valid_one_epoch(
             # logits = (logits[..., 0] * 1.0 + logits[..., 1] * 0.5 + logits[..., 1] * 0.2).unsqueeze(-1)
             scores, labels = torch.max(logits, dim=-1)
             if "pred_actionness" in detr_predictions.keys():
-                actionness = detr_predictions["pred_actionness"]
+                actionness = detr_predictions["pred_actionness"].detach().cpu()
                 scores = scores * actionness
 
             proposals = proposals.cpu()
