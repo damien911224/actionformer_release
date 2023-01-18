@@ -212,21 +212,6 @@ def main(args):
     is_best = False
     best_mAP = -1
     for epoch in range(args.start_epoch, max_epochs):
-        mAP = valid_one_epoch(
-            val_loader,
-            model_emas[0].module,
-            detr_model_ema.module,
-            # detr,
-            data_types[0],
-            epoch,
-            cfg['test_cfg'],
-            evaluator=det_eval,
-            output_file=output_file,
-            ext_score_file=cfg['test_cfg']['ext_score_file'],
-            tb_writer=tb_writer,
-            print_freq=args.print_freq
-        )
-
         # train for one epoch
         train_one_epoch(
             train_loader,
