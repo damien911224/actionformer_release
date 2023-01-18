@@ -327,7 +327,7 @@ class DeformableTransformer(nn.Module):
         #                                     query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
 
         inter_references_out = inter_references
-        return hs, init_reference_out, inter_references_out, None, None
+        return hs, init_reference_out, inter_references_out, memory, None
 
 
 class DeformableTransformerEncoderLayer(nn.Module):
