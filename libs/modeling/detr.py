@@ -240,7 +240,7 @@ class DINO(nn.Module):
 
         points = torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
         scales = torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
-        proposals = torch.cat(proposals, dim=0)[None, :].repeat(features[0].size(0), 1)
+        proposals = torch.cat(proposals, dim=0)[None, :].repeat(features[0].size(0), 1, 1)
         refpoint_embed = torch.cat((proposals, points, scales), dim=-1)
 
         input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
