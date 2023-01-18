@@ -20,6 +20,7 @@ from .segmentation import (dice_loss, sigmoid_focal_loss)
 from .deformable_transformer import build_deforamble_transformer
 from .cdn_components import prepare_for_cdn, cdn_post_process
 
+from ops.roi_align import ROIAlign
 
 def _get_clones(module, N):
     return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
@@ -32,7 +33,8 @@ class DINO(nn.Module):
                  pos_1d_embeds, pos_2d_embeds, num_feature_levels, input_dim,
                  aux_loss=True, with_box_refine=True, two_stage=False,
                  use_dab=True, num_patterns=0, random_refpoints_xy=False,
-                 dn_number=100, dn_box_noise_scale=0.4, dn_label_noise_ratio=0.5, dn_labelbook_size=100):
+                 dn_number=100, dn_box_noise_scale=0.4, dn_label_noise_ratio=0.5, dn_labelbook_size=100,
+                 with_act_reg=True):
         """ Initializes the model.
         Parameters:
             backbone: torch module of the backbone to be used. See backbone.py
@@ -147,6 +149,20 @@ class DINO(nn.Module):
             self.bbox_embed = nn.ModuleList([self.bbox_embed for _ in range(num_pred)])
             self.transformer.decoder.bbox_embed = None
 
+        self.with_act_reg = with_act_reg
+        if with_act_reg:
+            # RoIAlign params
+            self.roi_size = 16
+            self.roi_scale = 0
+            self.roi_extractor = ROIAlign(self.roi_size, self.roi_scale)
+            self.actionness_pred = nn.Sequential(
+                nn.Linear(self.roi_size * hidden_dim, hidden_dim),
+                nn.ReLU(inplace=True),
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.ReLU(inplace=True),
+                nn.Linear(hidden_dim, 1),
+                nn.Sigmoid()
+            )
 
     def forward(self, features, proposals, targets=None):
         """ The forward expects a NestedTensor, which consists of:
@@ -297,7 +313,7 @@ class DINO(nn.Module):
         # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
         # query_embeds = prop_query_embeds
 
-        hs, init_reference, inter_references, _, _ = \
+        hs, init_reference, inter_references, memory, _ = \
             self.transformer(srcs, box_srcs, pos_1d, pos_2d, box_pos_1d, box_pos_2d,
                              query_embeds, attn_mask, self.label_enc)
 
@@ -346,6 +362,27 @@ class DINO(nn.Module):
                 cdn_post_process(outputs_class, outputs_coord, dn_meta, self.aux_loss, self._set_aux_loss)
 
         out = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord[-1]}
+
+        if not self.with_act_reg:
+            out = {'pred_logits': outputs_class[-1],
+                   'pred_segments': outputs_coord[-1]}
+        else:
+            # perform RoIAlign
+            B, N = outputs_coord[-1].shape[:2]
+            origin_feat = memory
+
+            rois = self._to_roi_align_format(
+                outputs_coord[-1], origin_feat.shape[2], scale_factor=1.5)
+            roi_features = self.roi_extractor(origin_feat, rois)
+            roi_features = roi_features.view((B, N, -1))
+            pred_actionness = self.actionness_pred(roi_features)
+
+            last_layer_cls = outputs_class[-1]
+            last_layer_reg = outputs_coord[-1]
+
+            out = {'pred_logits': last_layer_cls,
+                   'pred_segments': last_layer_reg, 'pred_actionness': pred_actionness}
+
         if self.aux_loss:
             out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord)
 
@@ -360,6 +397,27 @@ class DINO(nn.Module):
         # as a dict having both a Tensor and a list.
         return [{'pred_logits': a, 'pred_boxes': b}
                 for a, b in zip(outputs_class[:-1], outputs_coord[:-1])]
+
+    def _to_roi_align_format(self, rois, T, scale_factor=1):
+        '''Convert RoIs to RoIAlign format.
+        Params:
+            RoIs: normalized segments coordinates, shape (batch_size, num_segments, 4)
+            T: length of the video feature sequence
+        '''
+        # transform to absolute axis
+        B, N = rois.shape[:2]
+        rois_center = rois[:, :, 0:1]
+        rois_size = rois[:, :, 1:2] * scale_factor
+        rois_abs = torch.cat(
+            (rois_center - rois_size/2, rois_center + rois_size/2), dim=2) * T
+        # expand the RoIs
+        rois_abs = torch.clamp(rois_abs, min=0, max=T)  # (N, T, 2)
+        # add batch index
+        batch_ind = torch.arange(0, B).view((B, 1, 1)).to(rois_abs.device)
+        batch_ind = batch_ind.repeat(1, N, 1)
+        rois_abs = torch.cat((batch_ind, rois_abs), dim=2)
+        # NOTE: stop gradient here to stablize training
+        return rois_abs.view((B*N, 3)).detach()
 
 
 class SetCriterion_DINO(nn.Module):
@@ -507,6 +565,27 @@ class SetCriterion_DINO(nn.Module):
         }
         return losses
 
+    def loss_actionness(self, outputs, targets, indices, num_segments):
+        """Compute the actionness regression loss
+           targets dicts must contain the key "segments" containing a tensor of dim [nb_target_segments, 2]
+           The target segments are expected in format (center, width), normalized by the video length.
+        """
+        assert 'pred_boxes' in outputs
+        assert 'pred_actionness' in outputs
+        src_segments = outputs['pred_boxes'].view((-1, 2))
+        target_segments = torch.cat([t['boxes'] for t in targets], dim=0)
+
+        losses = {}
+
+        iou_mat = segment_ops.segment_iou(src_segments, target_segments[..., :2])
+
+        gt_iou = iou_mat.max(dim=1)[0]
+        pred_actionness = outputs['pred_actionness']
+        loss_actionness = F.l1_loss(pred_actionness.view(-1), gt_iou.view(-1).detach())
+
+        losses['loss_iou'] = loss_actionness
+        return losses
+
     def _get_src_permutation_idx(self, indices):
         # permute predictions following indices
         batch_idx = torch.cat([torch.full_like(src, i) for i, (src, _) in enumerate(indices)])
@@ -525,6 +604,7 @@ class SetCriterion_DINO(nn.Module):
             'cardinality': self.loss_cardinality,
             'boxes': self.loss_boxes,
             'masks': self.loss_masks,
+            'actionness': self.loss_actionness,
             # 'dn_labels': self.loss_dn_labels,
             # 'dn_boxes': self.loss_dn_boxes
         }
@@ -852,7 +932,8 @@ def build_dino(args):
         dn_number=args["dn_number"] if args["use_dn"] else 0,
         dn_box_noise_scale=args["dn_box_noise_scale"],
         dn_label_noise_ratio=args["dn_label_noise_ratio"],
-        dn_labelbook_size=dn_labelbook_size
+        dn_labelbook_size=dn_labelbook_size,
+        with_act_reg=args["with_act_reg"]
     )
 
     matcher = build_matcher(args)
@@ -874,6 +955,11 @@ def build_dino(args):
 
     losses = ['labels', 'boxes']
     # losses = ['labels', 'boxes', 'cardinality']
+
+    if args["with_act_reg"]:
+        weight_dict['loss_actionness'] = args["weight_loss_act"]
+        losses.append('actionness')
+
     criterion = SetCriterion_DINO(num_classes, matcher=matcher, weight_dict=weight_dict,
                                   focal_alpha=args["focal_alpha"], losses=losses)
     criterion.to(device)
