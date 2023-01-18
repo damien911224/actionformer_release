@@ -197,6 +197,10 @@ class DINO(nn.Module):
             this_proposals = torch.cat(torch.clamp(this_points - this_scales / 2.0, 0.0, 1.0),
                                        torch.clamp(this_points + this_scales / 2.0, 0.0, 1.0), dim=-1)
             proposals.append(this_proposals)
+            print(this_points)
+            print(this_scales)
+            print(this_proposals)
+        exit()
 
         # box_srcs = []
         # box_pos_1d = []
