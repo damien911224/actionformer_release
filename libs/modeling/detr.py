@@ -372,6 +372,8 @@ class DINO(nn.Module):
             prev_query_start_index = 0
             for l_i, this_memory in enumerate(memory):
                 origin_feat = this_memory
+                print(origin_feat.shape)
+                exit()
                 N, Q = origin_feat.shape[:2]
                 this_coord = outputs_coord[-1][:, prev_query_start_index:prev_query_start_index + Q]
                 prev_query_start_index += Q
