@@ -60,7 +60,7 @@ def get_extensions():
         #     extra_compile_args=extra_compile_args
         # ),
 
-        CUDAExtension('roi_align.Align1D', [
+        CUDAExtension('Align1D', [
             'src/roi_align_cuda.cpp',
             'src/roi_align_kernel.cu'])
     ]
