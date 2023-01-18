@@ -828,7 +828,10 @@ class MLP(nn.Module):
 def gen_sineembed_for_position(pos_tensor):
     # n_query, bs, _ = pos_tensor.size()
     # sineembed_tensor = torch.zeros(n_query, bs, 256)
-    hidden_dim = 128
+    if pos_tensor.size(-1) == 2:
+        hidden_dim = 128 * 2
+    else:
+        hidden_dim = 128
     scale = 2 * math.pi
     dim_t = torch.arange(hidden_dim, dtype=torch.float32, device=pos_tensor.device)
     dim_t = 10000 ** (2 * (dim_t // 2) / hidden_dim)
