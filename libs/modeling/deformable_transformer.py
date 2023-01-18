@@ -34,7 +34,7 @@ class DeformableTransformer(nn.Module):
                  activation="relu", return_intermediate_dec=True,
                  num_feature_levels=4, dec_n_points=4, enc_n_points=4,
                  two_stage=False, two_stage_num_proposals=300,
-                 use_dab=True, high_dim_query_update=True, no_sine_embed=False,
+                 use_dab=True, high_dim_query_update=False, no_sine_embed=False,
                  num_classes=None):
         super().__init__()
 
@@ -580,7 +580,7 @@ class DeformableTransformerDecoderLayer(nn.Module):
 
 class DeformableTransformerDecoder(nn.Module):
     def __init__(self, decoder_layer, num_layers, return_intermediate=True, use_dab=True, d_model=256,
-                 high_dim_query_update=True, no_sine_embed=False):
+                 high_dim_query_update=False, no_sine_embed=False):
         super().__init__()
         self.layers = _get_clones(decoder_layer, num_layers)
         self.num_layers = num_layers
