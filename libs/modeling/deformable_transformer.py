@@ -31,10 +31,10 @@ from .ops.modules import MSDeformAttn
 class DeformableTransformer(nn.Module):
     def __init__(self, d_model=256, nhead=8,
                  num_encoder_layers=6, num_decoder_layers=6, dim_feedforward=1024, dropout=0.1,
-                 activation="relu", return_intermediate_dec=False,
+                 activation="relu", return_intermediate_dec=True,
                  num_feature_levels=4, dec_n_points=4, enc_n_points=4,
                  two_stage=False, two_stage_num_proposals=300,
-                 use_dab=False, high_dim_query_update=False, no_sine_embed=True,
+                 use_dab=True, high_dim_query_update=True, no_sine_embed=False,
                  num_classes=None):
         super().__init__()
 
