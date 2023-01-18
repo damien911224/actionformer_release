@@ -579,8 +579,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
 
 
 class DeformableTransformerDecoder(nn.Module):
-    def __init__(self, decoder_layer, num_layers, return_intermediate=False, use_dab=False, d_model=256,
-                 high_dim_query_update=False, no_sine_embed=False):
+    def __init__(self, decoder_layer, num_layers, return_intermediate=True, use_dab=True, d_model=256,
+                 high_dim_query_update=True, no_sine_embed=False):
         super().__init__()
         self.layers = _get_clones(decoder_layer, num_layers)
         self.num_layers = num_layers
