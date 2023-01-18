@@ -372,11 +372,11 @@ class DINO(nn.Module):
             N, Q = outputs_coord[-1].shape[:2]
             # prev_query_start_index = 0
             for l_i, this_memory in enumerate(memory):
-                origin_feat = this_memory
+                origin_feat = this_memory.permute(0, 2, 1)
                 # this_coord = outputs_coord[-1][:, prev_query_start_index:prev_query_start_index + Q]
                 # prev_query_start_index += Q
 
-                rois = self._to_roi_align_format(outputs_coord[-1], origin_feat.shape[1], scale_factor=1.5)
+                rois = self._to_roi_align_format(outputs_coord[-1], origin_feat.shape[2], scale_factor=1.5)
                 this_roi_features = self.roi_extractor(origin_feat, rois)
                 this_roi_features = this_roi_features.view((N, Q, -1))
                 roi_features.append(this_roi_features)
