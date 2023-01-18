@@ -261,8 +261,8 @@ class DINO(nn.Module):
 
         input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
         # input_query_label = input_query_label + self.query_type_enc.weight[0].view(1, 1, -1)
-        input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
-        # input_query_bbox = refpoint_embed
+        # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
+        input_query_bbox = refpoint_embed
         # points = inverse_sigmoid(torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1))
         # scales = inverse_sigmoid(torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1))
         # input_query_bbox = torch.cat((input_query_bbox, points, scales), dim=-1)
