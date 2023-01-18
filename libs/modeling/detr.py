@@ -743,6 +743,8 @@ class SetCriterion_DINO(nn.Module):
                 #     indices_list.append(indices)
 
                 for loss in self.losses:
+                    if loss == "actionness":
+                        continue
                     kwargs = {}
                     if loss == "labels":
                         kwargs['log'] = False
