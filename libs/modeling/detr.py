@@ -20,7 +20,7 @@ from .segmentation import (dice_loss, sigmoid_focal_loss)
 from .deformable_transformer import build_deforamble_transformer
 from .cdn_components import prepare_for_cdn, cdn_post_process
 
-from ops.roi_align import ROIAlign
+from .ops.roi_align import ROIAlign
 
 def _get_clones(module, N):
     return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
