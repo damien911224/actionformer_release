@@ -194,8 +194,8 @@ class DINO(nn.Module):
             points.append(this_points)
             this_scales = torch.ones_like(this_points) * (1.0 / (2 ** (len(features) - l - 1)))
             scales.append(this_scales)
-            this_proposals = torch.stack((torch.clamp(this_points - this_scales / 4.0, 0.0, 1.0),
-                                          torch.clamp(this_points + this_scales / 4.0, 0.0, 1.0)), dim=-1)
+            this_proposals = torch.stack((torch.clamp(this_points - this_scales / 8.0, 0.0, 1.0),
+                                          torch.clamp(this_points + this_scales / 8.0, 0.0, 1.0)), dim=-1)
             proposals.append(this_proposals)
             print(this_points)
             print(this_scales)
