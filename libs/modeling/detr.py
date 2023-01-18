@@ -371,7 +371,7 @@ class DINO(nn.Module):
             B, N = outputs_coord[-1].shape[:2]
             roi_features = list()
             for l_i, this_memory in enumerate(memory):
-                origin_feat = memory
+                origin_feat = this_memory
 
                 rois = self._to_roi_align_format(outputs_coord[-1], origin_feat.shape[2], scale_factor=1.5)
                 this_roi_features = self.roi_extractor(origin_feat, rois)
