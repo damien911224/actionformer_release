@@ -188,3 +188,93 @@ def batched_nms(
     new_scores = new_scores[idxs[:max_seg_num]]
     new_cls_idxs = new_cls_idxs[idxs[:max_seg_num]]
     return new_segs, new_scores, new_cls_idxs
+
+
+def dynamic_nms(
+    segs,
+    scores,
+    cls_idxs,
+    iou_threshold,
+    min_score,
+    max_seg_num,
+    use_soft_nms=True,
+    multiclass=True,
+    sigma=0.5,
+    voting_thresh=0.75,
+):
+    # Based on Detectron2 implementation,
+    num_segs = segs.shape[0]
+    # corner case, no prediction outputs
+    if num_segs == 0:
+        return torch.zeros([0, 2]),\
+               torch.zeros([0,]),\
+               torch.zeros([0,], dtype=cls_idxs.dtype)
+
+    if multiclass:
+        # multiclass nms: apply nms on each class independently
+        new_segs, new_scores, new_cls_idxs = [], [], []
+        for class_id in torch.unique(cls_idxs):
+            curr_indices = torch.where(cls_idxs == class_id)[0]
+            # soft_nms vs nms
+            if use_soft_nms:
+                sorted_segs, sorted_scores, sorted_cls_idxs = SoftNMSop.apply(
+                    segs[curr_indices],
+                    scores[curr_indices],
+                    cls_idxs[curr_indices],
+                    iou_threshold,
+                    sigma,
+                    min_score,
+                    2,
+                    max_seg_num
+                )
+            else:
+                sorted_segs, sorted_scores, sorted_cls_idxs = NMSop.apply(
+                    segs[curr_indices],
+                    scores[curr_indices],
+                    cls_idxs[curr_indices],
+                    iou_threshold,
+                    min_score,
+                    max_seg_num
+                )
+            # disable seg voting for multiclass nms, no sufficient segs
+
+            # fill in the class index
+            new_segs.append(sorted_segs)
+            new_scores.append(sorted_scores)
+            new_cls_idxs.append(sorted_cls_idxs)
+
+        # cat the results
+        new_segs = torch.cat(new_segs)
+        new_scores = torch.cat(new_scores)
+        new_cls_idxs = torch.cat(new_cls_idxs)
+
+    else:
+        # class agnostic
+        if use_soft_nms:
+            new_segs, new_scores, new_cls_idxs = SoftNMSop.apply(
+                segs, scores, cls_idxs, iou_threshold,
+                sigma, min_score, 2, max_seg_num
+            )
+        else:
+            new_segs, new_scores, new_cls_idxs = NMSop.apply(
+                segs, scores, cls_idxs, iou_threshold,
+                min_score, max_seg_num
+            )
+        # seg voting
+        if voting_thresh > 0:
+            new_segs = seg_voting(
+                new_segs,
+                segs,
+                scores,
+                voting_thresh
+            )
+
+    # sort based on scores and return
+    # truncate the results based on max_seg_num
+    _, idxs = new_scores.sort(descending=True)
+    max_seg_num = min(max_seg_num, new_segs.shape[0])
+    # needed for multiclass NMS
+    new_segs = new_segs[idxs[:max_seg_num]]
+    new_scores = new_scores[idxs[:max_seg_num]]
+    new_cls_idxs = new_cls_idxs[idxs[:max_seg_num]]
+    return idxs[:max_seg_num]

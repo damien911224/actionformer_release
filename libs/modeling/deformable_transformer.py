@@ -26,7 +26,7 @@ from torch.nn.init import xavier_uniform_, constant_, uniform_, normal_
 
 from ..utils.misc import inverse_sigmoid
 from .ops.modules import MSDeformAttn
-
+from ..utils.nms import dynamic_nms
 
 class DeformableTransformer(nn.Module):
     def __init__(self, d_model=256, nhead=8,
@@ -654,6 +654,29 @@ class DeformableTransformerDecoder(nn.Module):
                     new_reference_points[..., :2] = tmp[..., :2] + inverse_sigmoid(reference_points)
                     new_reference_points = new_reference_points.sigmoid()
                 reference_points = new_reference_points.detach()
+
+                boxes = reference_points[..., :2].cpu()
+                scores, labels = torch.max(self.class_embed[lid](output).detach().cpu(), dim=-1)
+
+                valid_masks = list()
+                for n_i, (b, l, s) in enumerate(zip(boxes, labels, scores)):
+                    # 2: batched nms (only implemented on CPU)
+                    indices = dynamic_nms(
+                        b.contiguous(), s.contiguous(), l.contiguous(),
+                        iou_threshold=0.40,
+                        min_score=0.001,
+                        max_seg_num=1000,
+                        use_soft_nms=False,
+                        multiclass=False,
+                        sigma=0.75,
+                        voting_thresh=0.9)
+                    valid_mask = torch.isin(torch.arange(len(b)), indices).float()
+                    valid_masks.append(valid_mask)
+                valid_masks = torch.stack(valid_masks, dim=0).cuda()
+                print(valid_masks)
+                exit()
+                output = valid_masks * output
+
 
             if self.return_intermediate:
                 intermediate.append(output)
