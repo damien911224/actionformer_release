@@ -485,7 +485,7 @@ class SetCriterion_DINO(nn.Module):
         valid_masks = torch.stack(valid_masks, dim=0).cuda()
 
         idx = self._get_src_permutation_idx(indices[0])
-        print(selected_masks[idx])
+        print(valid_masks[idx])
         exit()
 
         target_classes = torch.full(src_logits.shape[:2], self.num_classes * 1, dtype=torch.int64, device=src_logits.device)
