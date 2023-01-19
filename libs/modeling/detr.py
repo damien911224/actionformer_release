@@ -472,7 +472,7 @@ class SetCriterion_DINO(nn.Module):
             # 2: batched nms (only implemented on CPU)
             nms_indices = dynamic_nms(
                 b.contiguous(), s.contiguous(), l.contiguous(),
-                iou_threshold=0.65,
+                iou_threshold=0.70,
                 min_score=0.0,
                 max_seg_num=1000,
                 use_soft_nms=False,
