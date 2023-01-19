@@ -467,6 +467,9 @@ class SetCriterion_DINO(nn.Module):
         gt_iou = iou_mat.max(dim=1)[0]
         scores = gt_iou.view(src_logits.shape[:2]).detach().cpu()
 
+        print(indices[0].shape)
+        exit()
+
         valid_masks = list()
         for n_i, (b, l, s) in enumerate(zip(boxes, labels, scores)):
             # 2: batched nms (only implemented on CPU)
