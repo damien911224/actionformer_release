@@ -223,8 +223,7 @@ def sigmoid_focal_loss(inputs, targets, num_boxes, alpha: float = 0.25, gamma: f
         loss = alpha_t * loss
 
     if mask is not None:
-        print(loss.shape)
-        exit()
+        loss = loss.squeeze(-1)
         loss *= mask
         loss = loss.mean(1) * torch.sum(mask, dim=1)
         return loss.sum() / num_boxes
