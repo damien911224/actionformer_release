@@ -670,7 +670,7 @@ class DeformableTransformerDecoder(nn.Module):
                         multiclass=False,
                         sigma=0.75,
                         voting_thresh=0.0)
-                    valid_mask = torch.isin(torch.arange(len(b)), indices).float()
+                    valid_mask = torch.isin(torch.arange(len(b)), indices).float().unsqueeze(-1)
                     valid_masks.append(valid_mask)
                 valid_masks = torch.stack(valid_masks, dim=0).cuda()
                 output = valid_masks * output
