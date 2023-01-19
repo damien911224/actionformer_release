@@ -463,7 +463,7 @@ class SetCriterion_DINO(nn.Module):
         valid_masks = list()
         for n_i, (b, l, s) in enumerate(zip(boxes, labels, scores)):
             # 2: batched nms (only implemented on CPU)
-            indices = dynamic_nms(
+            nms_indices = dynamic_nms(
                 b.contiguous(), s.contiguous(), l.contiguous(),
                 iou_threshold=0.65,
                 min_score=0.0,
@@ -472,7 +472,7 @@ class SetCriterion_DINO(nn.Module):
                 multiclass=False,
                 sigma=0.75,
                 voting_thresh=0.0)
-            valid_mask = torch.isin(torch.arange(len(b)), indices).float()
+            valid_mask = torch.isin(torch.arange(len(b)), nms_indices).float()
             valid_masks.append(valid_mask)
         # N, Q, 1
         valid_masks = torch.stack(valid_masks, dim=0).cuda()
