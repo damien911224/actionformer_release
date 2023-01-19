@@ -460,6 +460,15 @@ class SetCriterion_DINO(nn.Module):
         boxes = outputs['pred_boxes'].detach().cpu()
         scores, labels = torch.max(src_logits.detach().cpu(), dim=-1)
 
+        src_segments = outputs['pred_boxes'].view((-1, 2))
+        target_segments = torch.cat([t['boxes'] for t in targets], dim=0)
+
+        iou_mat = segment_ops.segment_iou(src_segments, target_segments[..., :2])
+        gt_iou = iou_mat.max(dim=1)[0]
+        scores = gt_iou.detach().cpu()
+        print(scores.shape)
+        exit()
+
         valid_masks = list()
         for n_i, (b, l, s) in enumerate(zip(boxes, labels, scores)):
             # 2: batched nms (only implemented on CPU)
