@@ -663,19 +663,16 @@ class DeformableTransformerDecoder(nn.Module):
                     # 2: batched nms (only implemented on CPU)
                     indices = dynamic_nms(
                         b.contiguous(), s.contiguous(), l.contiguous(),
-                        iou_threshold=0.40,
+                        iou_threshold=0.60,
                         min_score=0.0,
                         max_seg_num=1000,
                         use_soft_nms=False,
                         multiclass=False,
                         sigma=0.75,
                         voting_thresh=0.0)
-                    print(indices)
                     valid_mask = torch.isin(torch.arange(len(b)), indices).float()
                     valid_masks.append(valid_mask)
                 valid_masks = torch.stack(valid_masks, dim=0).cuda()
-                print(valid_masks)
-                exit()
                 output = valid_masks * output
 
 
