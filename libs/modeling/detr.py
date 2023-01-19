@@ -194,7 +194,7 @@ class DINO(nn.Module):
         pos_2d = []
         points = []
         scales = []
-        proposals = []
+        anchors = []
         for l, feat in enumerate(features):
             src = self.input_proj[l](feat)
             n, c, t = src.shape
@@ -212,9 +212,9 @@ class DINO(nn.Module):
             points.append(this_points)
             this_scales = torch.ones_like(this_points) * (1.0 / (2 ** (len(features) - l - 1)))
             scales.append(this_scales)
-            this_proposals = torch.stack((torch.clamp(this_points - this_scales / 8.0, 0.0, 1.0),
+            this_anchors = torch.stack((torch.clamp(this_points - this_scales / 8.0, 0.0, 1.0),
                                           torch.clamp(this_points + this_scales / 8.0, 0.0, 1.0)), dim=-1)
-            proposals.append(this_proposals)
+            anchors.append(this_anchors)
 
         # box_srcs = []
         # box_pos_1d = []
@@ -258,8 +258,8 @@ class DINO(nn.Module):
 
         points = torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
         scales = torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
-        proposals = torch.cat(proposals, dim=0)[None, :].repeat(features[0].size(0), 1, 1)
-        refpoint_embed = torch.cat((proposals, points, scales), dim=-1)
+        anchors = torch.cat(anchors, dim=0)[None, :].repeat(features[0].size(0), 1, 1)
+        refpoint_embed = torch.cat((anchors, points, scales), dim=-1)
 
         input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
         # input_query_label = input_query_label + self.query_type_enc.weight[0].view(1, 1, -1)
@@ -274,7 +274,7 @@ class DINO(nn.Module):
         # prop_scores = proposals[..., -1].unsqueeze(-1)
         # prop_label_embeds = self.query_label_enc(torch.zeros_like(prop_labels.long()))
         # prop_score_embeds = self.query_score_enc(prop_scores)
-        # prop_query_label = prop_label_embeds + prop_score_embeds
+        prop_query_label = prop_label_embeds + prop_score_embeds
         # prop_query_label = torch.cat(box_srcs, dim=-1).permute(0, 2, 1)
         # prop_query_label = prop_query_label + self.query_type_enc.weight[1].view(1, 1, -1)
         # prop_query_bbox = torch.cat([proposals[..., 1:-1],
@@ -301,19 +301,19 @@ class DINO(nn.Module):
 
         query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
 
-        # proposals = torch.cat(proposals, dim=1)
-        # prop_query_label = self.prop_label_enc(proposals[..., 0].long())
-        # prop_query_label = prop_query_label + self.prop_score_enc(proposals[..., -1].unsqueeze(-1))
+        proposals = torch.cat(proposals, dim=1)
+        prop_query_label = self.prop_label_enc(proposals[..., 0].long())
+        prop_query_label = prop_query_label + self.prop_score_enc(proposals[..., -1].unsqueeze(-1))
         # prop_query_bbox = torch.cat([proposals[..., 1:-1],
         #                              ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
         #                              (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
         # points = torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
         # scales = torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
-        # prop_query_bbox = torch.cat([proposals[..., 1:-1], points, scales], dim=-1)
-        # prop_query_bbox = inverse_sigmoid(prop_query_bbox)
-        # prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
+        prop_query_bbox = torch.cat([proposals[..., 1:-1], points, scales], dim=-1)
+        prop_query_bbox = inverse_sigmoid(prop_query_bbox)
+        prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
         # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
-        # query_embeds = prop_query_embeds
+        query_embeds = prop_query_embeds
 
         hs, init_reference, inter_references, memory, _ = \
             self.transformer(srcs, box_srcs, pos_1d, pos_2d, box_pos_1d, box_pos_2d,
