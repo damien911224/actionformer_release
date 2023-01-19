@@ -467,7 +467,7 @@ class SetCriterion_DINO(nn.Module):
         gt_iou = iou_mat.max(dim=1)[0]
         scores = gt_iou.view(src_logits.shape[:2]).detach().cpu()
 
-        print(indices[0].shape)
+        print(indices[0])
         exit()
 
         valid_masks = list()
