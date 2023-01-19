@@ -663,7 +663,7 @@ class DeformableTransformerDecoder(nn.Module):
                     # 2: batched nms (only implemented on CPU)
                     indices = dynamic_nms(
                         b.contiguous(), s.contiguous(), l.contiguous(),
-                        iou_threshold=0.60,
+                        iou_threshold=0.65,
                         min_score=0.0,
                         max_seg_num=1000,
                         use_soft_nms=False,
