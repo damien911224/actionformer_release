@@ -7,7 +7,7 @@ dataset: {
   file_prefix: ~,
   file_ext: .npy,
   num_classes: 20, # 20
-  downsample_rate: 8, # 1
+  downsample_rate: 1, # 1
   input_dim: 2048,
   feat_stride: 4, # 4
   num_frames: 16,
@@ -54,7 +54,7 @@ output_folder: ./ckpt/
 # DINO DETR
 detr: {
   num_classes: 1,
-  num_queries: 100, # 4536
+  num_queries: 4536, # 4536
   temporal_length: 2304,
   lr: 1.0e-4,
   lr_linear_proj_mult: 0.1,
