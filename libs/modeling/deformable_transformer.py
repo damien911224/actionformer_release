@@ -664,7 +664,7 @@ class DeformableTransformerDecoder(nn.Module):
                     indices = dynamic_nms(
                         b.contiguous(), s.contiguous(), l.contiguous(),
                         iou_threshold=0.40,
-                        min_score=1.0e-9,
+                        min_score=0.0,
                         max_seg_num=1000,
                         use_soft_nms=False,
                         multiclass=False,
