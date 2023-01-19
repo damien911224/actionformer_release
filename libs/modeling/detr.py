@@ -467,9 +467,6 @@ class SetCriterion_DINO(nn.Module):
         gt_iou = iou_mat.max(dim=1)[0]
         scores = gt_iou.view(src_logits.shape[:2]).detach().cpu()
 
-        print(indices[0])
-        exit()
-
         valid_masks = list()
         for n_i, (b, l, s) in enumerate(zip(boxes, labels, scores)):
             # 2: batched nms (only implemented on CPU)
@@ -486,6 +483,10 @@ class SetCriterion_DINO(nn.Module):
             valid_masks.append(valid_mask)
         # N, Q, 1
         valid_masks = torch.stack(valid_masks, dim=0).cuda()
+
+        idx = self._get_src_permutation_idx(indices[0])
+        print(selected_masks[idx])
+        exit()
 
         target_classes = torch.full(src_logits.shape[:2], self.num_classes * 1, dtype=torch.int64, device=src_logits.device)
         target_classes_onehot = torch.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2] + 1],
