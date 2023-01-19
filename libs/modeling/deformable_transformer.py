@@ -655,7 +655,7 @@ class DeformableTransformerDecoder(nn.Module):
                     new_reference_points = new_reference_points.sigmoid()
                 reference_points = new_reference_points.detach()
 
-                boxes = reference_points[..., :2].cpu() * 100
+                boxes = reference_points[..., :2].cpu()
                 scores, labels = torch.max(self.class_embed[lid](output).detach().cpu(), dim=-1)
 
                 valid_masks = list()
@@ -664,12 +664,12 @@ class DeformableTransformerDecoder(nn.Module):
                     indices = dynamic_nms(
                         b.contiguous(), s.contiguous(), l.contiguous(),
                         iou_threshold=0.40,
-                        min_score=0.001,
+                        min_score=1.0e-9,
                         max_seg_num=1000,
                         use_soft_nms=False,
                         multiclass=False,
                         sigma=0.75,
-                        voting_thresh=0.9)
+                        voting_thresh=0.0)
                     print(indices)
                     valid_mask = torch.isin(torch.arange(len(b)), indices).float()
                     valid_masks.append(valid_mask)
