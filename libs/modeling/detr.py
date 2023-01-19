@@ -465,9 +465,7 @@ class SetCriterion_DINO(nn.Module):
 
         iou_mat = segment_ops.segment_iou(src_segments, target_segments[..., :2])
         gt_iou = iou_mat.max(dim=1)[0]
-        scores = gt_iou.detach().cpu()
-        print(scores.shape)
-        exit()
+        scores = gt_iou.view(src_logits.shape[:2]).detach().cpu()
 
         valid_masks = list()
         for n_i, (b, l, s) in enumerate(zip(boxes, labels, scores)):
