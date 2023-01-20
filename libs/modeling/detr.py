@@ -570,6 +570,8 @@ class SetCriterion_DINO(nn.Module):
                 losses["loss_xy"] += (loss_bbox[..., :2].sum() / num_boxes) * (1.0 - 0.2 * i)
                 # losses["loss_hw"] += (loss_bbox[..., 2:].sum() / num_boxes) * (1.0 - 0.2 * i)
 
+            break
+
         return losses
 
     def loss_masks(self, outputs, targets, indices, num_boxes):
