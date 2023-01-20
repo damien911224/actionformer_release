@@ -481,7 +481,7 @@ def train_one_epoch(
         weight_dict = detr_criterion.weight_dict
         detr_loss = sum(detr_loss_dict[k] * weight_dict[k] for k in detr_loss_dict.keys() if k in weight_dict)
 
-        final_loss = backbone_loss + detr_loss
+        final_loss = backbone_loss * 0.1 + detr_loss
         # final_loss = detr_loss
         # final_loss = backbone_loss
 
