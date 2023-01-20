@@ -674,7 +674,7 @@ class DeformableTransformerDecoder(nn.Module):
                     valid_masks.append(valid_mask)
                 valid_masks = torch.stack(valid_masks, dim=0).cuda()
                 output = valid_masks * output
-                reference_points = valid_masks * reference_points
+                # reference_points = valid_masks * reference_points
 
 
             if self.return_intermediate:
