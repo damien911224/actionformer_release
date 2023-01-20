@@ -301,19 +301,19 @@ class DINO(nn.Module):
 
         query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
 
-        proposals = torch.cat(proposals, dim=1)
-        prop_query_label = self.prop_label_enc(proposals[..., 0].long())
-        prop_query_label = prop_query_label + self.prop_score_enc(proposals[..., -1].unsqueeze(-1))
-        # prop_query_bbox = torch.cat([proposals[..., 1:-1],
-        #                              ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
-        #                              (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
-        # points = torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
-        # scales = torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
-        prop_query_bbox = torch.cat([proposals[..., 1:-1], points, scales], dim=-1)
-        prop_query_bbox = inverse_sigmoid(prop_query_bbox)
-        prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
-        # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
-        query_embeds = prop_query_embeds
+        # proposals = torch.cat(proposals, dim=1)
+        # prop_query_label = self.prop_label_enc(proposals[..., 0].long())
+        # prop_query_label = prop_query_label + self.prop_score_enc(proposals[..., -1].unsqueeze(-1))
+        # # prop_query_bbox = torch.cat([proposals[..., 1:-1],
+        # #                              ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
+        # #                              (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
+        # # points = torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
+        # # scales = torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
+        # prop_query_bbox = torch.cat([proposals[..., 1:-1], points, scales], dim=-1)
+        # prop_query_bbox = inverse_sigmoid(prop_query_bbox)
+        # prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
+        # # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
+        # query_embeds = prop_query_embeds
 
         hs, init_reference, inter_references, memory, _ = \
             self.transformer(srcs, box_srcs, pos_1d, pos_2d, box_pos_1d, box_pos_2d,
@@ -457,32 +457,32 @@ class SetCriterion_DINO(nn.Module):
 
         src_logits = outputs['pred_logits']
 
-        boxes = outputs['pred_boxes'].detach().cpu()
-        scores, labels = torch.max(src_logits.detach().cpu(), dim=-1)
+        # boxes = outputs['pred_boxes'].detach().cpu()
+        # scores, labels = torch.max(src_logits.detach().cpu(), dim=-1)
+        #
+        # src_segments = outputs['pred_boxes'].view((-1, 2))
+        # target_segments = torch.cat([t['boxes'] for t in targets], dim=0)
+        #
+        # iou_mat = segment_ops.segment_iou(src_segments, target_segments[..., :2])
+        # gt_iou = iou_mat.max(dim=1)[0]
+        # scores = gt_iou.view(src_logits.shape[:2]).detach().cpu()
 
-        src_segments = outputs['pred_boxes'].view((-1, 2))
-        target_segments = torch.cat([t['boxes'] for t in targets], dim=0)
-
-        iou_mat = segment_ops.segment_iou(src_segments, target_segments[..., :2])
-        gt_iou = iou_mat.max(dim=1)[0]
-        scores = gt_iou.view(src_logits.shape[:2]).detach().cpu()
-
-        valid_masks = list()
-        for n_i, (b, l, s) in enumerate(zip(boxes, labels, scores)):
-            # 2: batched nms (only implemented on CPU)
-            nms_indices = dynamic_nms(
-                b.contiguous(), s.contiguous(), l.contiguous(),
-                iou_threshold=0.70,
-                min_score=0.0,
-                max_seg_num=1000,
-                use_soft_nms=False,
-                multiclass=False,
-                sigma=0.75,
-                voting_thresh=0.0)
-            valid_mask = torch.isin(torch.arange(len(b)), nms_indices).float()
-            valid_masks.append(valid_mask)
-        # N, Q, 1
-        valid_masks = torch.stack(valid_masks, dim=0).cuda()
+        # valid_masks = list()
+        # for n_i, (b, l, s) in enumerate(zip(boxes, labels, scores)):
+        #     # 2: batched nms (only implemented on CPU)
+        #     nms_indices = dynamic_nms(
+        #         b.contiguous(), s.contiguous(), l.contiguous(),
+        #         iou_threshold=0.70,
+        #         min_score=0.0,
+        #         max_seg_num=1000,
+        #         use_soft_nms=False,
+        #         multiclass=False,
+        #         sigma=0.75,
+        #         voting_thresh=0.0)
+        #     valid_mask = torch.isin(torch.arange(len(b)), nms_indices).float()
+        #     valid_masks.append(valid_mask)
+        # # N, Q, 1
+        # valid_masks = torch.stack(valid_masks, dim=0).cuda()
 
         target_classes = torch.full(src_logits.shape[:2], self.num_classes * 1, dtype=torch.int64, device=src_logits.device)
         target_classes_onehot = torch.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2] + 1],
@@ -504,10 +504,10 @@ class SetCriterion_DINO(nn.Module):
         target_classes_onehot = target_classes_onehot[:, :, :-1]
         if layer is not None:
             num_boxes = num_boxes * (2 ** (5 - layer))
-        # loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2) * \
-        #           src_logits.shape[1]
-        loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2,
-                                     mask=valid_masks)
+        loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2) * \
+                  src_logits.shape[1]
+        # loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2,
+        #                              mask=valid_masks)
 
         losses = {'loss_ce': loss_ce}
 
