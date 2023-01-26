@@ -349,27 +349,30 @@ class DINO(nn.Module):
             F_hs = torch.bmm(F_mask, memory)
             B_hs = torch.bmm(B_mask, memory)
 
-            tmp = self.bbox_embed[lvl](hs[lvl])
-            if reference.shape[-1] == 4:
-                # tmp += reference
-                tmp += reference[..., :2]
-            else:
-                assert reference.shape[-1] == 2
-                tmp[..., :2] += reference
-            outputs_coord = tmp.sigmoid()
+            outputs_coord = self.bbox_embed[lvl](B_hs).sigmoid()
+            outputs_class = self.class_embed[lvl](F_hs)
 
-            # if lvl == 0:
-            #     reference = init_reference
+            # tmp = self.bbox_embed[lvl](hs[lvl])
+            # if reference.shape[-1] == 4:
+            #     # tmp += reference
+            #     tmp += reference[..., :2]
             # else:
-            #     reference = inter_references[lvl - 1]
-            # reference = inverse_sigmoid(reference)
-            # start_tmp = self.start_embed[lvl](hs[1][lvl])
-            # end_tmp = self.end_embed[lvl](hs[2][lvl])
-            # start_tmp += reference[..., 0][..., None]
-            # end_tmp += reference[..., 1][..., None]
-            # outputs_coord = torch.cat([start_tmp.sigmoid(), end_tmp.sigmoid()], dim=-1)
-
-            outputs_class = self.class_embed[lvl](hs[lvl])
+            #     assert reference.shape[-1] == 2
+            #     tmp[..., :2] += reference
+            # outputs_coord = tmp.sigmoid()
+            #
+            # # if lvl == 0:
+            # #     reference = init_reference
+            # # else:
+            # #     reference = inter_references[lvl - 1]
+            # # reference = inverse_sigmoid(reference)
+            # # start_tmp = self.start_embed[lvl](hs[1][lvl])
+            # # end_tmp = self.end_embed[lvl](hs[2][lvl])
+            # # start_tmp += reference[..., 0][..., None]
+            # # end_tmp += reference[..., 1][..., None]
+            # # outputs_coord = torch.cat([start_tmp.sigmoid(), end_tmp.sigmoid()], dim=-1)
+            #
+            # outputs_class = self.class_embed[lvl](hs[lvl])
             # outputs_class = self.class_embed[lvl](hs[0][lvl])
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)
