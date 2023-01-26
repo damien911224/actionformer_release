@@ -153,6 +153,7 @@ class DINO(nn.Module):
             nn.init.constant_(self.bbox_embed.layers[-1].bias.data[-1:], -2.0)
             self.class_embed = nn.ModuleList([self.class_embed for _ in range(num_pred)])
             self.bbox_embed = nn.ModuleList([self.bbox_embed for _ in range(num_pred)])
+            self.mask_embed = nn.ModuleList([self.mask_embed for _ in range(num_pred)])
             self.transformer.decoder.bbox_embed = None
 
         self.with_act_reg = with_act_reg
