@@ -58,8 +58,7 @@ class DINO(nn.Module):
         self.num_classes = num_classes
         self.pos_1d_embeds = pos_1d_embeds
         self.pos_2d_embeds = pos_2d_embeds
-        self.bbox_mask_embed = MLP(hidden_dim, hidden_dim, hidden_dim, 3)
-        self.class_mask_embed = MLP(hidden_dim, hidden_dim, hidden_dim, 3)
+        self.mask_embed = MLP(hidden_dim, hidden_dim, hidden_dim, 3)
         self.bbox_embed = MLP(hidden_dim, hidden_dim, 2, 3)
         self.class_embed = nn.Linear(hidden_dim, num_classes * 1)
         # self.start_embed = MLP(hidden_dim, hidden_dim, 1, 3)
@@ -154,8 +153,7 @@ class DINO(nn.Module):
             nn.init.constant_(self.bbox_embed.layers[-1].bias.data[-1:], -2.0)
             self.class_embed = nn.ModuleList([self.class_embed for _ in range(num_pred)])
             self.bbox_embed = nn.ModuleList([self.bbox_embed for _ in range(num_pred)])
-            self.bbox_mask_embed = nn.ModuleList([self.bbox_mask_embed for _ in range(num_pred)])
-            self.class_mask_embed = nn.ModuleList([self.class_mask_embed for _ in range(num_pred)])
+            self.mask_embed = nn.ModuleList([self.mask_embed for _ in range(num_pred)])
             self.transformer.decoder.bbox_embed = None
 
         self.with_act_reg = with_act_reg
@@ -342,14 +340,12 @@ class DINO(nn.Module):
             reference = inverse_sigmoid(reference)
 
             # N, Q, C
-            outputs_bbox_mask = self.bbox_mask_embed[lvl](hs[lvl])
-            outputs_class_mask = self.class_mask_embed[lvl](hs[lvl])
+            outputs_mask = self.mask_embed[lvl](hs[lvl])
             # N, Q, T
-            outputs_bbox_mask = torch.bmm(outputs_bbox_mask, memory.permute(0, 2, 1)).softmax(-1)
-            outputs_class_mask = torch.bmm(outputs_class_mask, memory.permute(0, 2, 1)).softmax(-1)
+            outputs_mask = torch.bmm(outputs_mask, memory.permute(0, 2, 1)).softmax(-1)
 
-            F_mask = outputs_class_mask
-            B_mask = outputs_bbox_mask
+            F_mask = outputs_mask
+            B_mask = 1.0 - outputs_mask
 
             F_hs = torch.bmm(F_mask, memory)
             B_hs = torch.bmm(B_mask, memory)
