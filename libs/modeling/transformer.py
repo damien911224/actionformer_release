@@ -17,11 +17,11 @@ import torch.nn.functional as F
 from torch import nn, Tensor
 from torch.nn.init import xavier_uniform_, constant_, uniform_, normal_
 
-from util.misc import inverse_sigmoid
+from utils.misc import inverse_sigmoid
 from models.ops.temporal_deform_attn import DeformAttn
 from opts import cfg
-from util.nms import dynamic_nms
-from util.segment_ops import segment_cw_to_t1t2
+from utils.nms import dynamic_nms
+from utils.segment_ops import segment_cw_to_t1t2
 
 
 class DeformableTransformer(nn.Module):

@@ -134,10 +134,12 @@ class DeformAttn(nn.Module):
                 offset_normalizer[None, None, None, :, None, :]
         # deform attention in the l-th (l >= 2) decoder layer when segment refinement is enabled
         elif reference_points.shape[-1] == 2:
+            cw_refpoints = torch.stack(((reference_points[..., 0] + reference_points[..., 1]) / 2,
+                                         reference_points[..., 1] - reference_points[..., 0]), dim=-1)
             # offsets are related with the size of the reference segment
-            sampling_locations = reference_points[:, :, None, :, None, :1] \
+            sampling_locations = cw_refpoints[:, :, None, :, None, :1] \
                 + sampling_offsets / self.n_points * \
-                reference_points[:, :, None, :, None, 1:] * 0.5
+                cw_refpoints[:, :, None, :, None, 1:] * 0.5
 
         else:
             raise ValueError(
