@@ -110,31 +110,31 @@ def main(args):
                 out = True
                 break
         return out
-    detr_param_dicts = [
-        # backbone
-        {
-            "params":
-                [p for n, p in models[0].named_parameters() if p.requires_grad],
-            "lr": cfg['detr']["lr"],
-            "initial_lr": cfg['detr']["lr"]
-        },
-        # non-backbone, non-offset
-        {
-            "params":
-                [p for n, p in detr.named_parameters()
-                 if not match_name_keywords(n, cfg['detr']["lr_linear_proj_names"]) and p.requires_grad],
-            "lr": cfg['detr']["lr"],
-            "initial_lr": cfg['detr']["lr"]
-        },
-        # offset
-        {
-            "params": [p for n, p in detr.named_parameters() if
-                       match_name_keywords(n, cfg['detr']["lr_linear_proj_names"]) and p.requires_grad],
-            "lr": cfg['detr']["lr"] * cfg['detr']["lr_linear_proj_mult"],
-            "initial_lr": cfg['detr']["lr"] * cfg['detr']["lr_linear_proj_mult"]
-        }
-    ]
-    detr_optimizer = torch.optim.AdamW(detr_param_dicts, lr=cfg['detr']["lr"], weight_decay=cfg['detr']["weight_decay"])
+    # detr_param_dicts = [
+    #     # backbone
+    #     {
+    #         "params":
+    #             [p for n, p in models[0].named_parameters() if p.requires_grad],
+    #         "lr": cfg['detr']["lr"],
+    #         "initial_lr": cfg['detr']["lr"]
+    #     },
+    #     # non-backbone, non-offset
+    #     {
+    #         "params":
+    #             [p for n, p in detr.named_parameters()
+    #              if not match_name_keywords(n, cfg['detr']["lr_linear_proj_names"]) and p.requires_grad],
+    #         "lr": cfg['detr']["lr"],
+    #         "initial_lr": cfg['detr']["lr"]
+    #     },
+    #     # offset
+    #     {
+    #         "params": [p for n, p in detr.named_parameters() if
+    #                    match_name_keywords(n, cfg['detr']["lr_linear_proj_names"]) and p.requires_grad],
+    #         "lr": cfg['detr']["lr"] * cfg['detr']["lr_linear_proj_mult"],
+    #         "initial_lr": cfg['detr']["lr"] * cfg['detr']["lr_linear_proj_mult"]
+    #     }
+    # ]
+    detr_optimizer = torch.optim.AdamW(detr.parameters(), lr=cfg['detr']["lr"], weight_decay=cfg['detr']["weight_decay"])
     detr_scheduler = make_scheduler(detr_optimizer, cfg['opt'], num_iters_per_epoch)
 
     # """4. Resume from model / Misc"""
