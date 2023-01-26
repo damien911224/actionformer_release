@@ -245,21 +245,23 @@ class DeformableTransformer(nn.Module):
         #     (box_spatial_shapes_2d.new_zeros((1,)), box_spatial_shapes_2d.prod(1).cumsum(0)[:-1]))
 
         # encoder
-        memory = self.encoder(src_flatten, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
+        # memory = self.encoder(src_flatten, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
 
-        ms_memory = list()
+        # ms_memory = list()
         memory_2d = list()
         for l_i in range(len(srcs)):
             h, w = spatial_shapes_1d[l_i]
             level_start_index = level_start_index_1d[l_i]
             level_end_index = level_start_index + h * w
-            this_memory = memory[:, level_start_index:level_end_index]
+            # this_memory = memory[:, level_start_index:level_end_index]
             this_memory_2d = torch.concat((this_memory.unsqueeze(2).repeat(1, 1, h, 1),
                                            this_memory.unsqueeze(1).repeat(1, h, 1, 1)), dim=-1).flatten(1, 2)
             this_memory_2d = self.memory_proj[l_i](this_memory_2d)
             memory_2d.append(this_memory_2d)
-            ms_memory.append(this_memory)
+            # ms_memory.append(this_memory)
         memory_2d = torch.cat(memory_2d, 1)
+
+        memory_2d = self.encoder(memory_2d, spatial_shapes_2d, level_start_index_2d, lvl_pos_2d_embed_flatten)
 
         # if self.two_stage:
         #     target_length = encoder_outputs[-1].shape[1]
@@ -330,7 +332,8 @@ class DeformableTransformer(nn.Module):
         #                                     query_pos=query_embed if not self.use_dab else None, attn_mask=attn_mask)
 
         inter_references_out = inter_references
-        return hs, init_reference_out, inter_references_out, ms_memory, None
+        # return hs, init_reference_out, inter_references_out, ms_memory, None
+        return hs, init_reference_out, inter_references_out, None, None
 
 
 class DeformableTransformerEncoderLayer(nn.Module):
@@ -568,9 +571,13 @@ class DeformableTransformerDecoderLayer(nn.Module):
         #                          reference_points,
         #                          src,
         #                          tgt_spatial_shapes, tgt_level_start_index, src_padding_mask)
+        # tgt2 = self.cross_attn(self.with_pos_embed(tgt, query_pos),
+        #                        reference_points,
+        #                        self.with_pos_embed(src, src_pos),
+        #                        src_spatial_shapes, level_start_index, src_padding_mask)
         tgt2 = self.cross_attn(self.with_pos_embed(tgt, query_pos),
                                reference_points,
-                               self.with_pos_embed(src, src_pos),
+                               src,
                                src_spatial_shapes, level_start_index, src_padding_mask)
         tgt = tgt + self.dropout1(tgt2)
         tgt = self.norm1(tgt)
