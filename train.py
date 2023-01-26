@@ -103,13 +103,13 @@ def main(args):
     detr = detr.cuda()
     detr_ = detr_.cuda()
     detr_model_ema = ModelEma(detr_, copy_model=False)
-    def match_name_keywords(n, name_keywords):
-        out = False
-        for b in name_keywords:
-            if b in n:
-                out = True
-                break
-        return out
+    # def match_name_keywords(n, name_keywords):
+    #     out = False
+    #     for b in name_keywords:
+    #         if b in n:
+    #             out = True
+    #             break
+    #     return out
     # detr_param_dicts = [
     #     # backbone
     #     {
