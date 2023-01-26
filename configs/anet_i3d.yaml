@@ -70,17 +70,17 @@ output_folder: ./ckpt/
 # DINO DETR
 detr: {
   num_classes: 1,
-  num_queries: 378, # 756
+  num_queries: 100, # 756
   temporal_length: 192,
   lr: 2.0e-4, # 1.0e-3
   lr_linear_proj_mult: 0.1,
   lr_linear_proj_names: ['reference_points', 'sampling_offsets'],
   hidden_dim: 256,
-  num_feature_levels: 6,
+  num_feature_levels: 1,
   input_dim: 256,
   aux_loss: True,
-  enc_layers: 2,
-  dec_layers: 4,
+  enc_layers: 6,
+  dec_layers: 6,
   enc_n_points: 4,
   dec_n_points: 4,
   two_stage: False,
