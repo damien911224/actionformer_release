@@ -17,7 +17,8 @@ from ..utils.misc import (NestedTensor, nested_tensor_from_tensor_list,
 
 from .matcher import build_matcher
 from .segmentation import (dice_loss, sigmoid_focal_loss)
-from .deformable_transformer import build_deforamble_transformer
+from .transformer import build_deforamble_transformer
+# from .deformable_transformer import build_deforamble_transformer
 from .cdn_components import prepare_for_cdn, cdn_post_process
 
 from .ops.roi_align import ROIAlign
@@ -301,23 +302,24 @@ class DINO(nn.Module):
 
         query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
 
-        # proposals = torch.cat(proposals, dim=1)
-        # prop_query_label = self.prop_label_enc(proposals[..., 0].long())
-        # prop_query_label = prop_query_label + self.prop_score_enc(proposals[..., -1].unsqueeze(-1))
-        # # prop_query_bbox = torch.cat([proposals[..., 1:-1],
-        # #                              ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
-        # #                              (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
-        # # points = torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
-        # # scales = torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
-        # prop_query_bbox = torch.cat([proposals[..., 1:-1], points, scales], dim=-1)
-        # prop_query_bbox = inverse_sigmoid(prop_query_bbox)
-        # prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
-        # # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
-        # query_embeds = prop_query_embeds
+        proposals = torch.cat(proposals, dim=1)
+        prop_query_label = self.prop_label_enc(proposals[..., 0].long())
+        prop_query_label = prop_query_label + self.prop_score_enc(proposals[..., -1].unsqueeze(-1))
+        # prop_query_bbox = torch.cat([proposals[..., 1:-1],
+        #                              ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
+        #                              (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
+        # points = torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
+        # scales = torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
+        prop_query_bbox = torch.cat([proposals[..., 1:-1], points, scales], dim=-1)
+        prop_query_bbox = inverse_sigmoid(prop_query_bbox)
+        prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
+        # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
+        query_embeds = prop_query_embeds
 
-        hs, init_reference, inter_references, memory, _ = \
-            self.transformer(srcs, box_srcs, pos_1d, pos_2d, box_pos_1d, box_pos_2d,
-                             query_embeds, attn_mask, self.label_enc)
+        # hs, init_reference, inter_references, memory, _ = \
+        #     self.transformer(srcs, box_srcs, pos_1d, pos_2d, box_pos_1d, box_pos_2d,
+        #                      query_embeds, attn_mask, self.label_enc)
+        hs, init_reference, inter_references, memory = self.transformer(srcs, pos_1d, query_embeds)
 
         # In case num object=0
         # hs[0] += self.label_enc.weight[0, 0] * 0.0
