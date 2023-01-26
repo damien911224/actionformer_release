@@ -298,7 +298,7 @@ class DeformableTransformer(nn.Module):
         #     video_embeds = None
 
         # prepare input for decoder
-        bs, _, c = memory.shape
+        bs, _, c = src_flatten.shape
         if self.use_dab:
             reference_points = query_embed[..., self.d_model:].sigmoid()
             tgt = query_embed[..., :self.d_model]
