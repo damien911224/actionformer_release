@@ -18,8 +18,8 @@ from torch import nn, Tensor
 from torch.nn.init import xavier_uniform_, constant_, uniform_, normal_
 
 from ..utils.misc import inverse_sigmoid
-from models.ops.temporal_deform_attn import DeformAttn
-from opts import cfg
+from .ops.temporal_deform_attn import DeformAttn
+# from opts import cfg
 from ..utils.nms import dynamic_nms
 from ..utils.segment_ops import segment_cw_to_t1t2
 
