@@ -289,7 +289,7 @@ class DeformableTransformerDecoder(nn.Module):
         intermediate_reference_points = []
         for lid, layer in enumerate(self.layers):
             # (bs, nq, 1, 1 or 2) x (bs, 1, num_level, 1) => (bs, nq, num_level, 1 or 2)
-            reference_points_input = reference_points[:, :, None] * src_valid_ratios[:, None,:, None]
+            reference_points_input = reference_points[:, :, None]
             if query_pos is None:
                 raw_query_pos = self.ref_point_head(reference_points_input[:, :, 0, :])
                 pos_scale = self.query_scale(output) if lid != 0 else 1
