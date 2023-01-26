@@ -85,10 +85,10 @@ class DeformableTransformer(nn.Module):
         assert query_embed is not None
         # prepare input for encoder
         src_flatten = []
-        mask_flatten = []
         lvl_pos_embed_flatten = []
         temporal_lens = []
         for lvl, (src, pos_embed) in enumerate(zip(srcs, pos_embeds)):
+            src = src.squeeze(-1)
             bs, c, t = src.shape
             temporal_lens.append(t)
             # (bs, c, t) => (bs, t, c)
@@ -105,7 +105,7 @@ class DeformableTransformer(nn.Module):
 
         # deformable encoder
         memory = self.encoder(src_flatten, temporal_lens, level_start_index,
-            lvl_pos_embed_flatten if cfg.use_pos_embed else None)  # shape=(bs, t, c)
+            lvl_pos_embed_flatten)  # shape=(bs, t, c)
 
         bs, _, c = memory.shape
 
@@ -239,19 +239,16 @@ class DeformableTransformerDecoderLayer(nn.Module):
         return tgt
 
     def forward(self, tgt, query_pos, reference_points, src, src_spatial_shapes, level_start_index, src_padding_mask=None, tgt_pos=None):
-        if not cfg.disable_query_self_att:
-            # self attention
-            q = k = self.with_pos_embed(tgt, query_pos)
-            tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))[0].transpose(0, 1)
-            # tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos + tgt_pos[0]),
-            #                           reference_points,
-            #                           self.with_pos_embed(tgt, query_pos + tgt_pos[0]),
-            #                           tgt_pos[1], tgt_pos[2])
-            tgt = tgt + self.dropout2(tgt2)
-            tgt = self.norm2(tgt)
+        # self attention
+        q = k = self.with_pos_embed(tgt, query_pos)
+        tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))[0].transpose(0, 1)
+        # tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos + tgt_pos[0]),
+        #                           reference_points,
+        #                           self.with_pos_embed(tgt, query_pos + tgt_pos[0]),
+        #                           tgt_pos[1], tgt_pos[2])
+        tgt = tgt + self.dropout2(tgt2)
+        tgt = self.norm2(tgt)
 
-        else:
-            pass
         # cross attention
         tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos),
                                reference_points,
