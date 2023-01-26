@@ -134,7 +134,7 @@ def main(args):
             "initial_lr": cfg['detr']["lr"] * cfg['detr']["lr_linear_proj_mult"]
         }
     ]
-    detr_optimizer = torch.optim.AdamW(detr.parameters(), lr=cfg['detr']["lr"], weight_decay=cfg['detr']["weight_decay"])
+    detr_optimizer = torch.optim.AdamW(detr_param_dicts, lr=cfg['detr']["lr"], weight_decay=cfg['detr']["weight_decay"])
     detr_scheduler = make_scheduler(detr_optimizer, cfg['opt'], num_iters_per_epoch)
 
     # """4. Resume from model / Misc"""
