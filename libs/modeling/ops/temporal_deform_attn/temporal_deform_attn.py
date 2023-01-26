@@ -13,7 +13,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from opts import cfg
+# from opts import cfg
 
 # if not cfg.disable_cuda:
 #     from .functions import TDAFunction
