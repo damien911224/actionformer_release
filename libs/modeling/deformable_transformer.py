@@ -245,7 +245,7 @@ class DeformableTransformer(nn.Module):
         #     (box_spatial_shapes_2d.new_zeros((1,)), box_spatial_shapes_2d.prod(1).cumsum(0)[:-1]))
 
         # encoder
-        # memory = self.encoder(src_flatten, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
+        memory = self.encoder(src_flatten, spatial_shapes_1d, level_start_index_1d, lvl_pos_1d_embed_flatten)
 
         ms_memory = list()
         memory_2d = list()
@@ -253,8 +253,8 @@ class DeformableTransformer(nn.Module):
             h, w = spatial_shapes_1d[l_i]
             level_start_index = level_start_index_1d[l_i]
             level_end_index = level_start_index + h * w
-            # this_memory = memory[:, level_start_index:level_end_index]
-            this_memory = src_flatten[:, level_start_index:level_end_index]
+            this_memory = memory[:, level_start_index:level_end_index]
+            # this_memory = src_flatten[:, level_start_index:level_end_index]
             this_memory_2d = torch.concat((this_memory.unsqueeze(2).repeat(1, 1, h, 1),
                                            this_memory.unsqueeze(1).repeat(1, h, 1, 1)), dim=-1).flatten(1, 2)
             this_memory_2d = self.memory_proj[l_i](this_memory_2d)
@@ -262,7 +262,7 @@ class DeformableTransformer(nn.Module):
             ms_memory.append(this_memory)
         memory_2d = torch.cat(memory_2d, 1)
 
-        memory_2d = self.encoder(memory_2d, spatial_shapes_2d, level_start_index_2d, lvl_pos_2d_embed_flatten)
+        # memory_2d = self.encoder(memory_2d, spatial_shapes_2d, level_start_index_2d, lvl_pos_2d_embed_flatten)
 
         # if self.two_stage:
         #     target_length = encoder_outputs[-1].shape[1]
@@ -572,14 +572,14 @@ class DeformableTransformerDecoderLayer(nn.Module):
         #                          reference_points,
         #                          src,
         #                          tgt_spatial_shapes, tgt_level_start_index, src_padding_mask)
-        # tgt2 = self.cross_attn(self.with_pos_embed(tgt, query_pos),
-        #                        reference_points,
-        #                        self.with_pos_embed(src, src_pos),
-        #                        src_spatial_shapes, level_start_index, src_padding_mask)
         tgt2 = self.cross_attn(self.with_pos_embed(tgt, query_pos),
                                reference_points,
-                               src,
+                               self.with_pos_embed(src, src_pos),
                                src_spatial_shapes, level_start_index, src_padding_mask)
+        # tgt2 = self.cross_attn(self.with_pos_embed(tgt, query_pos),
+        #                        reference_points,
+        #                        src,
+        #                        src_spatial_shapes, level_start_index, src_padding_mask)
         tgt = tgt + self.dropout1(tgt2)
         tgt = self.norm1(tgt)
 
@@ -644,6 +644,27 @@ class DeformableTransformerDecoder(nn.Module):
 
             # query_pos = query_pos + src_pos_1d
 
+            boxes = reference_points[..., :2].cpu()
+            scores, labels = torch.max(self.class_embed[lid](output).detach().cpu(), dim=-1)
+
+            valid_masks = list()
+            for n_i, (b, l, s) in enumerate(zip(boxes, labels, scores)):
+                # 2: batched nms (only implemented on CPU)
+                indices = dynamic_nms(
+                    b.contiguous(), s.contiguous(), l.contiguous(),
+                    iou_threshold=0.65,
+                    min_score=0.0,
+                    max_seg_num=1000,
+                    use_soft_nms=False,
+                    multiclass=False,
+                    sigma=0.75,
+                    voting_thresh=0.0)
+                valid_mask = torch.isin(torch.arange(len(b)), indices).float().unsqueeze(-1)
+                valid_masks.append(valid_mask)
+            valid_masks = torch.stack(valid_masks, dim=0).cuda()
+            output = valid_masks * output
+            # reference_points = valid_masks * reference_points
+
             output = layer(output, query_pos, reference_points_input, src, src_pos,
                            tgt_spatial_shapes, tgt_level_start_index, src_spatial_shapes, src_level_start_index,
                            src_padding_mask, self_attn_mask=attn_mask)
@@ -663,26 +684,26 @@ class DeformableTransformerDecoder(nn.Module):
                     new_reference_points = new_reference_points.sigmoid()
                 reference_points = new_reference_points.detach()
 
-                boxes = reference_points[..., :2].cpu()
-                scores, labels = torch.max(self.class_embed[lid](output).detach().cpu(), dim=-1)
-
-                valid_masks = list()
-                for n_i, (b, l, s) in enumerate(zip(boxes, labels, scores)):
-                    # 2: batched nms (only implemented on CPU)
-                    indices = dynamic_nms(
-                        b.contiguous(), s.contiguous(), l.contiguous(),
-                        iou_threshold=0.65,
-                        min_score=0.0,
-                        max_seg_num=1000,
-                        use_soft_nms=False,
-                        multiclass=False,
-                        sigma=0.75,
-                        voting_thresh=0.0)
-                    valid_mask = torch.isin(torch.arange(len(b)), indices).float().unsqueeze(-1)
-                    valid_masks.append(valid_mask)
-                valid_masks = torch.stack(valid_masks, dim=0).cuda()
-                output = valid_masks * output
-                # reference_points = valid_masks * reference_points
+                # boxes = reference_points[..., :2].cpu()
+                # scores, labels = torch.max(self.class_embed[lid](output).detach().cpu(), dim=-1)
+                #
+                # valid_masks = list()
+                # for n_i, (b, l, s) in enumerate(zip(boxes, labels, scores)):
+                #     # 2: batched nms (only implemented on CPU)
+                #     indices = dynamic_nms(
+                #         b.contiguous(), s.contiguous(), l.contiguous(),
+                #         iou_threshold=0.65,
+                #         min_score=0.0,
+                #         max_seg_num=1000,
+                #         use_soft_nms=False,
+                #         multiclass=False,
+                #         sigma=0.75,
+                #         voting_thresh=0.0)
+                #     valid_mask = torch.isin(torch.arange(len(b)), indices).float().unsqueeze(-1)
+                #     valid_masks.append(valid_mask)
+                # valid_masks = torch.stack(valid_masks, dim=0).cuda()
+                # output = valid_masks * output
+                # # reference_points = valid_masks * reference_points
 
 
             if self.return_intermediate:
