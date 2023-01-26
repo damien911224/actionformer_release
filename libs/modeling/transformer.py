@@ -314,7 +314,7 @@ class DeformableTransformerDecoder(nn.Module):
                     new_reference_points = new_reference_points.sigmoid()
                 reference_points = new_reference_points.detach()
 
-                boxes = segment_cw_to_t1t2(reference_points[..., :2].cpu())
+                boxes = reference_points[..., :2].cpu()
                 scores, labels = torch.max(self.class_embed[lid](output).detach().cpu(), dim=-1)
 
                 valid_masks = list()
