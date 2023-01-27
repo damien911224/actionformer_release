@@ -644,31 +644,31 @@ class DeformableTransformerDecoder(nn.Module):
 
             # query_pos = query_pos + src_pos_1d
 
-            boxes = reference_points[..., :2].detach().cpu()
-            boxes = inverse_sigmoid(boxes)
-            boxes = torch.stack((torch.minimum(boxes[..., 0].sigmoid(), boxes[..., 0].sigmoid() + boxes[..., 1].tanh()),
-                                 torch.maximum(boxes[..., 0].sigmoid(), boxes[..., 0].sigmoid() + boxes[..., 1].tanh())),
-                                dim=-1)
-            boxes = torch.clamp(boxes, 0.0, 1.0)
-            scores, labels = torch.max(self.class_embed[lid](output).detach().cpu(), dim=-1)
-
-            valid_masks = list()
-            for n_i, (b, l, s) in enumerate(zip(boxes, labels, scores)):
-                # 2: batched nms (only implemented on CPU)
-                indices = dynamic_nms(
-                    b.contiguous(), s.contiguous(), l.contiguous(),
-                    iou_threshold=0.65,
-                    min_score=0.0,
-                    max_seg_num=1000,
-                    use_soft_nms=False,
-                    multiclass=False,
-                    sigma=0.75,
-                    voting_thresh=0.0)
-                valid_mask = torch.isin(torch.arange(len(b)), indices).float().unsqueeze(-1)
-                valid_masks.append(valid_mask)
-            valid_masks = torch.stack(valid_masks, dim=0).cuda()
-            output = valid_masks * output
-            # reference_points = valid_masks * reference_points
+            # boxes = reference_points[..., :2].detach().cpu()
+            # boxes = inverse_sigmoid(boxes)
+            # boxes = torch.stack((torch.minimum(boxes[..., 0].sigmoid(), boxes[..., 0].sigmoid() + boxes[..., 1].tanh()),
+            #                      torch.maximum(boxes[..., 0].sigmoid(), boxes[..., 0].sigmoid() + boxes[..., 1].tanh())),
+            #                     dim=-1)
+            # boxes = torch.clamp(boxes, 0.0, 1.0)
+            # scores, labels = torch.max(self.class_embed[lid](output).detach().cpu(), dim=-1)
+            #
+            # valid_masks = list()
+            # for n_i, (b, l, s) in enumerate(zip(boxes, labels, scores)):
+            #     # 2: batched nms (only implemented on CPU)
+            #     indices = dynamic_nms(
+            #         b.contiguous(), s.contiguous(), l.contiguous(),
+            #         iou_threshold=0.65,
+            #         min_score=0.0,
+            #         max_seg_num=1000,
+            #         use_soft_nms=False,
+            #         multiclass=False,
+            #         sigma=0.75,
+            #         voting_thresh=0.0)
+            #     valid_mask = torch.isin(torch.arange(len(b)), indices).float().unsqueeze(-1)
+            #     valid_masks.append(valid_mask)
+            # valid_masks = torch.stack(valid_masks, dim=0).cuda()
+            # output = valid_masks * output
+            # # reference_points = valid_masks * reference_points
 
             output = layer(output, query_pos, reference_points_input, src, src_pos,
                            tgt_spatial_shapes, tgt_level_start_index, src_spatial_shapes, src_level_start_index,

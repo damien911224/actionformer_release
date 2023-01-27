@@ -494,32 +494,32 @@ class SetCriterion_DINO(nn.Module):
 
         src_logits = outputs['pred_logits']
 
-        # boxes = outputs['pred_boxes'].detach().cpu()
-        # scores, labels = torch.max(src_logits.detach().cpu(), dim=-1)
-        #
-        # src_segments = outputs['pred_boxes'].view((-1, 2))
-        # target_segments = torch.cat([t['boxes'] for t in targets], dim=0)
-        #
-        # iou_mat = segment_ops.segment_iou(src_segments, target_segments[..., :2])
-        # gt_iou = iou_mat.max(dim=1)[0]
-        # scores = gt_iou.view(src_logits.shape[:2]).detach().cpu()
+        boxes = outputs['pred_boxes'].detach().cpu()
+        scores, labels = torch.max(src_logits.detach().cpu(), dim=-1)
 
-        # valid_masks = list()
-        # for n_i, (b, l, s) in enumerate(zip(boxes, labels, scores)):
-        #     # 2: batched nms (only implemented on CPU)
-        #     nms_indices = dynamic_nms(
-        #         b.contiguous(), s.contiguous(), l.contiguous(),
-        #         iou_threshold=0.70,
-        #         min_score=0.0,
-        #         max_seg_num=1000,
-        #         use_soft_nms=False,
-        #         multiclass=False,
-        #         sigma=0.75,
-        #         voting_thresh=0.0)
-        #     valid_mask = torch.isin(torch.arange(len(b)), nms_indices).float()
-        #     valid_masks.append(valid_mask)
-        # # N, Q, 1
-        # valid_masks = torch.stack(valid_masks, dim=0).cuda()
+        src_segments = outputs['pred_boxes'].view((-1, 2))
+        target_segments = torch.cat([t['boxes'] for t in targets], dim=0)
+
+        iou_mat = segment_ops.segment_iou(src_segments, target_segments[..., :2])
+        gt_iou = iou_mat.max(dim=1)[0]
+        scores = gt_iou.view(src_logits.shape[:2]).detach().cpu()
+
+        valid_masks = list()
+        for n_i, (b, l, s) in enumerate(zip(boxes, labels, scores)):
+            # 2: batched nms (only implemented on CPU)
+            nms_indices = dynamic_nms(
+                b.contiguous(), s.contiguous(), l.contiguous(),
+                iou_threshold=0.70,
+                min_score=0.0,
+                max_seg_num=1000,
+                use_soft_nms=False,
+                multiclass=False,
+                sigma=0.75,
+                voting_thresh=0.0)
+            valid_mask = torch.isin(torch.arange(len(b)), nms_indices).float()
+            valid_masks.append(valid_mask)
+        # N, Q, 1
+        valid_masks = torch.stack(valid_masks, dim=0).cuda()
 
         target_classes = torch.full(src_logits.shape[:2], self.num_classes * 1, dtype=torch.int64, device=src_logits.device)
         target_classes_onehot = torch.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2] + 1],
@@ -541,10 +541,10 @@ class SetCriterion_DINO(nn.Module):
         target_classes_onehot = target_classes_onehot[:, :, :-1]
         if layer is not None:
             num_boxes = num_boxes * (2 ** (5 - layer))
-        loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2) * \
-                  src_logits.shape[1]
-        # loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2,
-        #                              mask=valid_masks)
+        # loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2) * \
+        #           src_logits.shape[1]
+        loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2,
+                                     mask=valid_masks)
 
         losses = {'loss_ce': loss_ce}
 
