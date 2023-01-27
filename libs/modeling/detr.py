@@ -17,8 +17,8 @@ from ..utils.misc import (NestedTensor, nested_tensor_from_tensor_list,
 
 from .matcher import build_matcher
 from .segmentation import (dice_loss, sigmoid_focal_loss)
-from .transformer import build_deforamble_transformer
-# from .deformable_transformer import build_deforamble_transformer
+# from .transformer import build_deforamble_transformer
+from .deformable_transformer import build_deforamble_transformer
 from .cdn_components import prepare_for_cdn, cdn_post_process
 
 from .ops.roi_align import ROIAlign
@@ -326,10 +326,10 @@ class DINO(nn.Module):
         # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
         query_embeds = prop_query_embeds
 
-        # hs, init_reference, inter_references, memory, _ = \
-        #     self.transformer(srcs, box_srcs, pos_1d, pos_2d, box_pos_1d, box_pos_2d,
-        #                      query_embeds, attn_mask, self.label_enc)
-        hs, init_reference, inter_references, memory = self.transformer(srcs, pos_1d, query_embeds)
+        hs, init_reference, inter_references, memory, _ = \
+            self.transformer(srcs, box_srcs, pos_1d, pos_2d, box_pos_1d, box_pos_2d,
+                             query_embeds, attn_mask, self.label_enc)
+        # hs, init_reference, inter_references, memory = self.transformer(srcs, pos_1d, query_embeds)
 
         # In case num object=0
         # hs[0] += self.label_enc.weight[0, 0] * 0.0
