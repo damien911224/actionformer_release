@@ -314,25 +314,25 @@ class DeformableTransformerDecoder(nn.Module):
                     new_reference_points = new_reference_points.sigmoid()
                 reference_points = new_reference_points.detach()
 
-                boxes = reference_points[..., :2].cpu()
-                scores, labels = torch.max(self.class_embed[lid](output).detach().cpu(), dim=-1)
-
-                valid_masks = list()
-                for n_i, (b, l, s) in enumerate(zip(boxes, labels, scores)):
-                    # 2: batched nms (only implemented on CPU)
-                    indices = dynamic_nms(
-                        b.contiguous(), s.contiguous(), l.contiguous(),
-                        iou_threshold=0.65,
-                        min_score=0.0,
-                        max_seg_num=1000,
-                        use_soft_nms=False,
-                        multiclass=False,
-                        sigma=0.75,
-                        voting_thresh=0.0)
-                    valid_mask = torch.isin(torch.arange(len(b)), indices).float().unsqueeze(-1)
-                    valid_masks.append(valid_mask)
-                valid_masks = torch.stack(valid_masks, dim=0).cuda()
-                output = valid_masks * output
+                # boxes = reference_points[..., :2].cpu()
+                # scores, labels = torch.max(self.class_embed[lid](output).detach().cpu(), dim=-1)
+                #
+                # valid_masks = list()
+                # for n_i, (b, l, s) in enumerate(zip(boxes, labels, scores)):
+                #     # 2: batched nms (only implemented on CPU)
+                #     indices = dynamic_nms(
+                #         b.contiguous(), s.contiguous(), l.contiguous(),
+                #         iou_threshold=0.65,
+                #         min_score=0.0,
+                #         max_seg_num=1000,
+                #         use_soft_nms=False,
+                #         multiclass=False,
+                #         sigma=0.75,
+                #         voting_thresh=0.0)
+                #     valid_mask = torch.isin(torch.arange(len(b)), indices).float().unsqueeze(-1)
+                #     valid_masks.append(valid_mask)
+                # valid_masks = torch.stack(valid_masks, dim=0).cuda()
+                # output = valid_masks * output
 
             if self.return_intermediate:
                 intermediate.append(output)
