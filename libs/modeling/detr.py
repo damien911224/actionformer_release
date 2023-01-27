@@ -319,7 +319,7 @@ class DINO(nn.Module):
         # prop_query_bbox = torch.cat([proposals[..., 1:-1], points, scales], dim=-1)
         prop_query_bbox = torch.stack((inverse_sigmoid(proposals[..., 1:-1].flatten(1)),
                                        input_query_bbox.flatten(1)), dim=-1)
-        prop_query_label = prop_query_label.repeat(1, 1, 2)
+        prop_query_label = prop_query_label.repeat(1, 2, 1)
         # prop_query_bbox = torch.cat([proposals[..., 1:-1]], dim=-1)
         # prop_query_bbox = inverse_sigmoid(prop_query_bbox)
         prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
