@@ -438,8 +438,8 @@ def train_one_epoch(
                                              (boxes[..., 1] - boxes[..., 0]).unsqueeze(-1)), dim=-1).cuda()
             detr_target_dict.append(batch_dict)
 
-        features = [feat for feat in backbone_features]
-        # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
+        # features = [feat for feat in backbone_features]
+        features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
 
         labels = list()
         scores = list()
@@ -481,8 +481,8 @@ def train_one_epoch(
         weight_dict = detr_criterion.weight_dict
         detr_loss = sum(detr_loss_dict[k] * weight_dict[k] for k in detr_loss_dict.keys() if k in weight_dict)
 
-        final_loss = backbone_loss + detr_loss
-        # final_loss = detr_loss
+        # final_loss = backbone_loss + detr_loss
+        final_loss = detr_loss
         # final_loss = backbone_loss
 
         final_loss.backward()
@@ -1098,8 +1098,8 @@ def valid_one_epoch(
             segments = torch.stack(segments, dim=0)
             proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
 
-            features = [feat for feat in backbone_features]
-            # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
+            # features = [feat for feat in backbone_features]
+            features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
 
             start_index = 0
             pyramidal_proposals = list()
