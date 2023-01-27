@@ -646,8 +646,8 @@ class DeformableTransformerDecoder(nn.Module):
 
             boxes = reference_points[..., :2].detach().cpu()
             boxes = inverse_sigmoid(boxes)
-            boxes = torch.stack((torch.minimum(boxes[..., 0], boxes[..., 0].sigmoid() + boxes[..., 1].tanh()),
-                                 torch.maximum(boxes[..., 0], boxes[..., 0].sigmoid() + boxes[..., 1].tanh())),
+            boxes = torch.stack((torch.minimum(boxes[..., 0].sigmoid(), boxes[..., 0].sigmoid() + boxes[..., 1].tanh()),
+                                 torch.maximum(boxes[..., 0].sigmoid(), boxes[..., 0].sigmoid() + boxes[..., 1].tanh())),
                                 dim=-1)
             boxes = torch.clamp(boxes, 0.0, 1.0)
             scores, labels = torch.max(self.class_embed[lid](output).detach().cpu(), dim=-1)

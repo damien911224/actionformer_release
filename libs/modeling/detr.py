@@ -368,8 +368,8 @@ class DINO(nn.Module):
                 assert reference.shape[-1] == 2
                 tmp[..., :2] += reference
             # outputs_coord = tmp.sigmoid()
-            outputs_coord = torch.stack((torch.minimum(tmp[..., 0], tmp[..., 0].sigmoid() + tmp[..., 1].tanh()),
-                                         torch.maximum(tmp[..., 0], tmp[..., 0].sigmoid() + tmp[..., 1].tanh())),
+            outputs_coord = torch.stack((torch.minimum(tmp[..., 0].sigmoid(), tmp[..., 0].sigmoid() + tmp[..., 1].tanh()),
+                                         torch.maximum(tmp[..., 0].sigmoid(), tmp[..., 0].sigmoid() + tmp[..., 1].tanh())),
                                         dim=-1)
             outputs_coord = torch.clamp(outputs_coord, 0.0, 1.0)
 
