@@ -34,7 +34,7 @@ class DINO(nn.Module):
     def __init__(self, transformer, num_classes, num_queries,
                  pos_1d_embeds, pos_2d_embeds, num_feature_levels, input_dim,
                  aux_loss=True, with_box_refine=True, two_stage=False,
-                 use_dab=False, num_patterns=0, random_refpoints_xy=False,
+                 use_dab=True, num_patterns=0, random_refpoints_xy=False,
                  dn_number=100, dn_box_noise_scale=0.4, dn_label_noise_ratio=0.5, dn_labelbook_size=100,
                  with_act_reg=True):
         """ Initializes the model.
@@ -1015,7 +1015,8 @@ def build_dino(args):
         dn_box_noise_scale=args["dn_box_noise_scale"],
         dn_label_noise_ratio=args["dn_label_noise_ratio"],
         dn_labelbook_size=dn_labelbook_size,
-        with_act_reg=args["with_act_reg"]
+        with_act_reg=args["with_act_reg"],
+        use_dab=args["use_dab"]
     )
 
     matcher = build_matcher(args)

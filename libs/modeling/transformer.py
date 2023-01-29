@@ -519,7 +519,7 @@ def build_deforamble_transformer(args):
         num_feature_levels=args["num_feature_levels"],
         dec_n_points=args["dec_n_points"],
         enc_n_points=args["enc_n_points"],
-        use_dab=True
+        use_dab=args["use_dab"]
     )
 
 
