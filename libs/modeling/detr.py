@@ -269,14 +269,14 @@ class DINO(nn.Module):
         else:
             assert NotImplementedError
 
-        points = torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
-        scales = torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
-        anchors = torch.cat(anchors, dim=0)[None, :].repeat(features[0].size(0), 1, 1)
-        refpoint_embed = torch.cat((anchors, points, scales), dim=-1)
+        # points = torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
+        # scales = torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
+        # anchors = torch.cat(anchors, dim=0)[None, :].repeat(features[0].size(0), 1, 1)
+        # refpoint_embed = torch.cat((anchors, points, scales), dim=-1)
 
-        input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
+        # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
         # input_query_label = input_query_label + self.query_type_enc.weight[0].view(1, 1, -1)
-        input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
+        # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
         # input_query_bbox = refpoint_embed
         # points = inverse_sigmoid(torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1))
         # scales = inverse_sigmoid(torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1))
@@ -312,7 +312,8 @@ class DINO(nn.Module):
             # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features.size(0), 1, 1)
             # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features.size(0), 1, 1)
 
-        query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
+        # query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
+        query_embeds = self.query_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
 
         # proposals = torch.cat(proposals, dim=1)
         # prop_query_label = self.prop_label_enc(proposals[..., 0].long())
