@@ -40,14 +40,14 @@ class DeformableTransformer(nn.Module):
                                                         num_feature_levels, nhead, enc_n_points)
         self.encoder = DeformableTransformerEncoder(encoder_layer, num_encoder_layers)
 
-        decoder_layer = DeformableTransformerDecoderLayer(d_model, dim_feedforward,
+        decoder_layer = DeformableTransformerMSDecoderLayer(d_model, dim_feedforward,
                                                           dropout, activation,
                                                           num_feature_levels, nhead, dec_n_points)
-        self.decoder = DeformableTransformerDecoder(decoder_layer, num_decoder_layers, d_model, return_intermediate_dec)
+        self.decoder = DeformableTransformerMSDecoder(decoder_layer, num_decoder_layers, d_model, return_intermediate_dec)
 
         self.level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
 
-        self.reference_points = nn.Linear(d_model, 1)
+        self.reference_points = nn.Linear(d_model, 2)
 
         self._reset_parameters()
 
@@ -104,10 +104,9 @@ class DeformableTransformer(nn.Module):
         level_start_index = torch.cat((temporal_lens.new_zeros((1, )), temporal_lens.cumsum(0)[:-1]))
 
         # deformable encoder
-        memory = self.encoder(src_flatten, temporal_lens, level_start_index,
-            lvl_pos_embed_flatten)  # shape=(bs, t, c)
+        memory = self.encoder(src_flatten, temporal_lens, level_start_index, lvl_pos_embed_flatten)  # shape=(bs, t, c)
 
-        bs, _, c = memory.shape
+        bs, t, c = memory.shape
 
         if not self.use_dab:
             query_embed, tgt = torch.split(query_embed, c, dim=1)
@@ -121,10 +120,17 @@ class DeformableTransformer(nn.Module):
             init_reference_out = reference_points
             query_embed = None
 
+        temporal_lens = []
+        for i in range(6):
+            new_t = t / (2 ** i)
+            temporal_lens.append(new_t)
+
+        temporal_lens = torch.as_tensor(temporal_lens, dtype=torch.long, device=src_flatten.device)
+        level_start_index = torch.cat((temporal_lens.new_zeros((1,)), temporal_lens.cumsum(0)[:-1]))
+
         # decoder
         hs, inter_references = self.decoder(tgt, reference_points, memory,
-                                            temporal_lens, level_start_index, query_embed,
-                                            tgt_pos=tgt_pos)
+                                            temporal_lens, level_start_index, query_embed)
         inter_references_out = inter_references 
         return hs, init_reference_out, inter_references_out, memory.transpose(1, 2)
 
@@ -333,6 +339,120 @@ class DeformableTransformerDecoder(nn.Module):
                 #     valid_masks.append(valid_mask)
                 # valid_masks = torch.stack(valid_masks, dim=0).cuda()
                 # output = valid_masks * output
+
+            if self.return_intermediate:
+                intermediate.append(output)
+                intermediate_reference_points.append(reference_points)
+        if self.return_intermediate:
+            return torch.stack(intermediate), torch.stack(intermediate_reference_points)
+
+        return output, reference_points
+
+
+class DeformableTransformerMSDecoderLayer(nn.Module):
+    def __init__(self, d_model=256, d_ffn=1024,
+                 dropout=0.1, activation="relu",
+                 n_levels=4, n_heads=8, n_points=4):
+        super().__init__()
+
+        # cross attention
+        self.cross_attn = DeformAttn(d_model, n_levels, n_heads, n_points)
+        self.dropout1 = nn.Dropout(dropout)
+        self.norm1 = nn.LayerNorm(d_model)
+
+        # self attention
+        self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
+        self.dropout2 = nn.Dropout(dropout)
+        self.norm2 = nn.LayerNorm(d_model)
+
+        # ffn
+        self.linear1 = nn.Linear(d_model, d_ffn)
+        self.activation = _get_activation_fn(activation)
+        self.dropout3 = nn.Dropout(dropout)
+        self.linear2 = nn.Linear(d_ffn, d_model)
+        self.dropout4 = nn.Dropout(dropout)
+        self.norm3 = nn.LayerNorm(d_model)
+
+    @staticmethod
+    def with_pos_embed(tensor, pos):
+        return tensor if pos is None else tensor + pos
+
+    def forward_ffn(self, tgt):
+        tgt2 = self.linear2(self.dropout3(self.activation(self.linear1(tgt))))
+        tgt = tgt + self.dropout4(tgt2)
+        tgt = self.norm3(tgt)
+        return tgt
+
+    def forward(self, tgt, query_pos, reference_points, src, src_spatial_shapes, level_start_index):
+        # cross attention
+        q = self.with_pos_embed(tgt, query_pos)
+        k = src
+        tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))[0].transpose(0, 1)
+        tgt = tgt + self.dropout2(tgt2)
+        tgt = self.norm2(tgt)
+
+        # self attention
+        q = k = self.with_pos_embed(tgt, query_pos)
+        tgt2, _ = self.cross_attn(q, reference_points, k, src_spatial_shapes, level_start_index)
+        tgt = tgt + self.dropout1(tgt2)
+        tgt = self.norm1(tgt)
+
+        # ffn
+        tgt = self.forward_ffn(tgt)
+
+        return tgt
+
+
+class DeformableTransformerMSDecoder(nn.Module):
+    def __init__(self, decoder_layer, num_layers, d_model, return_intermediate=False):
+        super().__init__()
+        self.layers = _get_clones(decoder_layer, num_layers)
+        self.num_layers = num_layers
+        self.d_model = d_model
+        self.return_intermediate = return_intermediate
+        # hack implementation for iterative bounding box refinement and two-stage Deformable DETR
+        self.segment_embed = None
+        self.class_embed = None
+
+        self.query_scale = MLP(d_model, d_model, d_model, 2)
+        self.ref_point_head = MLP(2, d_model, d_model, 3)
+
+    def forward(self, tgt, reference_points, src, src_spatial_shapes, src_level_start_index,
+                query_pos=None):
+        '''
+        tgt: [bs, nq, C]
+        reference_points: [bs, nq, 1 or 2]
+        src: [bs, T, C]
+        src_valid_ratios: [bs, levels]
+        '''
+        output = tgt
+        intermediate = []
+        intermediate_reference_points = []
+        for lid, layer in enumerate(self.layers):
+            # (bs, nq, 1, 1 or 2) x (bs, 1, num_level, 1) => (bs, nq, num_level, 1 or 2)
+            reference_points_input = reference_points[:, :, None]
+            if query_pos is None:
+                raw_query_pos = self.ref_point_head(reference_points_input[:, :, 0, :])
+                pos_scale = self.query_scale(output) if lid != 0 else 1
+                query_pos = pos_scale * raw_query_pos
+            output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index)
+
+            # hack implementation for segment refinement
+            if self.segment_embed is not None:
+                # update the reference point/segment of the next layer according to the output from the current layer
+                tmp = self.segment_embed[lid](output)
+                if reference_points.shape[-1] == 2:
+                    new_reference_points = tmp + inverse_sigmoid(reference_points)
+                    new_reference_points = new_reference_points.sigmoid()
+                else:
+                    # at the 0-th decoder layer
+                    # d^(n+1) = delta_d^(n+1)
+                    # c^(n+1) = sigmoid( inverse_sigmoid(c^(n)) + delta_c^(n+1))
+                    assert reference_points.shape[-1] == 1
+                    new_reference_points = tmp
+                    new_reference_points[..., :1] = tmp[..., :1] + inverse_sigmoid(reference_points)
+                    new_reference_points = new_reference_points.sigmoid()
+                reference_points = new_reference_points.detach()
 
             if self.return_intermediate:
                 intermediate.append(output)

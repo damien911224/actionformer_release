@@ -55,7 +55,7 @@ class DeformAttn(nn.Module):
             warnings.warn("You'd better set d_model in DeformAttn to make the dimension of each attention head a power of 2 "
                           "which is more efficient in our CUDA implementation.")
 
-        assert n_levels == 1, 'multi-level attention is not supported!'
+        # assert n_levels == 1, 'multi-level attention is not supported!'
 
         self.seq2col_step = 64
 
