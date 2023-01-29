@@ -313,7 +313,7 @@ class DINO(nn.Module):
             # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features.size(0), 1, 1)
 
         # query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
-        query_embeds = self.query_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
+        query_embeds = self.query_embed
 
         # proposals = torch.cat(proposals, dim=1)
         # prop_query_label = self.prop_label_enc(proposals[..., 0].long())
