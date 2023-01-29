@@ -127,9 +127,10 @@ class DeformableTransformer(nn.Module):
         new_query_pos = list()
         temporal_lens = list()
         for i in range(6):
-            new_t = t / (2 ** i)
+            new_t = t // (2 ** i)
             temporal_lens.append(new_t)
             this_query_pos = query_embed[:, prev_index:prev_index + new_t]
+            prev_index += new_t
             print(this_query_pos.shape)
             this_query_pos = this_query_pos + self.query_level_embed[i].view(1, 1, -1)
             new_query_pos.append(this_query_pos)
