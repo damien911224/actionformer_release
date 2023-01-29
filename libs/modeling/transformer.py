@@ -141,7 +141,7 @@ class DeformableTransformer(nn.Module):
 
         # decoder
         hs, inter_references = self.decoder(tgt, reference_points, memory,
-                                            temporal_lens, level_start_index, query_embed)
+                                            temporal_lens, level_start_index, new_query_pos)
         inter_references_out = inter_references 
         return hs, init_reference_out, inter_references_out, memory.transpose(1, 2)
 
