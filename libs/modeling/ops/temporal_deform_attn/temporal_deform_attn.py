@@ -18,6 +18,8 @@ from __future__ import division
 # if not cfg.disable_cuda:
 #     from .functions import TDAFunction
 
+from ..functions import MSDeformAttnFunction
+
 import warnings
 import math
 import pdb
@@ -139,7 +141,9 @@ class DeformAttn(nn.Module):
 
         sampling_locations = torch.cat((sampling_locations, torch.ones_like(sampling_locations)*0.5), dim=-1)
         input_spatial_shapes = torch.stack((torch.ones_like(input_temporal_lens), input_temporal_lens), dim=-1)
-        output = deform_attn_core_pytorch(value, input_spatial_shapes, sampling_locations, attention_weights)
+        # output = deform_attn_core_pytorch(value, input_spatial_shapes, sampling_locations, attention_weights)
+        output = MSDeformAttnFunction.apply(value, input_spatial_shapes, input_level_start_index,
+                                            sampling_locations, attention_weights, self.seq2col_step)
 
         output = self.output_proj(output)
         return output, (sampling_locations, attention_weights)
