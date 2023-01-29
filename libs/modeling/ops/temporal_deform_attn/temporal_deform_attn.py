@@ -15,8 +15,8 @@ from __future__ import division
 
 # from opts import cfg
 
-if not cfg.disable_cuda:
-    from .functions import TDAFunction
+# if not cfg.disable_cuda:
+#     from .functions import TDAFunction
 
 import warnings
 import math
