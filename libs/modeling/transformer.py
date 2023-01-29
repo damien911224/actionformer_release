@@ -116,7 +116,6 @@ class DeformableTransformer(nn.Module):
             tgt = tgt.unsqueeze(0).expand(bs, -1, -1)
             reference_points = self.reference_points(query_embed).sigmoid()
             init_reference_out = reference_points
-            print("no_use_dab")
         else:
             reference_points = query_embed[..., self.d_model:].sigmoid()
             tgt = query_embed[..., :self.d_model]
@@ -131,11 +130,9 @@ class DeformableTransformer(nn.Module):
             temporal_lens.append(new_t)
             this_query_pos = query_embed[:, prev_index:prev_index + new_t]
             prev_index += new_t
-            print(this_query_pos.shape)
             this_query_pos = this_query_pos + self.query_level_embed[i].view(1, 1, -1)
             new_query_pos.append(this_query_pos)
         new_query_pos = torch.concat(new_query_pos, dim=1)
-        exit()
 
         temporal_lens = torch.as_tensor(temporal_lens, dtype=torch.long, device=src_flatten.device)
         level_start_index = torch.cat((temporal_lens.new_zeros((1,)), temporal_lens.cumsum(0)[:-1]))
