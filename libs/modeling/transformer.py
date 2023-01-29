@@ -125,11 +125,17 @@ class DeformableTransformer(nn.Module):
             query_embed = None
 
         prev_index = 0
-        new_query_pos
-        temporal_lens = []
+        new_query_pos = list()
+        temporal_lens = list()
         for i in range(6):
             new_t = t / (2 ** i)
             temporal_lens.append(new_t)
+            this_query_pos = query_embed[:, prev_index:prev_index + new_t]
+            print(this_query_pos.shape)
+            this_query_pos = this_query_pos + self.query_level_embed[i].view(1, 1, -1)
+            new_query_pos.append(this_query_pos)
+        new_query_pos = torch.concat(new_query_pos, dim=1)
+        exit()
 
         temporal_lens = torch.as_tensor(temporal_lens, dtype=torch.long, device=src_flatten.device)
         level_start_index = torch.cat((temporal_lens.new_zeros((1,)), temporal_lens.cumsum(0)[:-1]))
