@@ -46,6 +46,7 @@ class DeformableTransformer(nn.Module):
         self.decoder = DeformableTransformerMSDecoder(decoder_layer, num_decoder_layers, d_model, return_intermediate_dec)
 
         self.level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
+        self.query_level_embed = nn.Parameter(torch.Tensor(6, d_model))
 
         self.reference_points = nn.Linear(d_model, 2)
 
@@ -62,6 +63,7 @@ class DeformableTransformer(nn.Module):
         xavier_uniform_(self.reference_points.weight.data, gain=1.0)
         constant_(self.reference_points.bias.data, 0.)
         normal_(self.level_embed)
+        normal_(self.query_level_embed)
 
     def get_valid_ratio(self, mask):
         _, T = mask.shape
@@ -114,12 +116,16 @@ class DeformableTransformer(nn.Module):
             tgt = tgt.unsqueeze(0).expand(bs, -1, -1)
             reference_points = self.reference_points(query_embed).sigmoid()
             init_reference_out = reference_points
+            print("no_use_dab")
+            exit()
         else:
             reference_points = query_embed[..., self.d_model:].sigmoid()
             tgt = query_embed[..., :self.d_model]
             init_reference_out = reference_points
             query_embed = None
 
+        prev_index = 0
+        new_query_pos
         temporal_lens = []
         for i in range(6):
             new_t = t / (2 ** i)
