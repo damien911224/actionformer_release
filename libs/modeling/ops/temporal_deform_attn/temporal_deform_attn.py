@@ -75,12 +75,10 @@ class DeformAttn(nn.Module):
         constant_(self.sampling_offsets.weight.data, 0.)
         # Initial offsets:
         # (1, 0, -1, 0, -1, 0, 1, 0)
-        thetas = torch.arange(
-            self.n_heads, dtype=torch.float32) * (4.0 * math.pi / self.n_heads)
+        thetas = torch.arange(self.n_heads, dtype=torch.float32) * (4.0 * math.pi / self.n_heads)
         grid_init = thetas.cos()[:, None]
 
-        grid_init = grid_init.view(self.n_heads, 1, 1, 1).repeat(
-            1, self.n_levels, self.n_points, 1)
+        grid_init = grid_init.view(self.n_heads, 1, 1, 1).repeat(1, self.n_levels, self.n_points, 1)
         for i in range(self.n_points):
             grid_init[:, :, i, :] *= i + 1
 
@@ -139,12 +137,9 @@ class DeformAttn(nn.Module):
             raise ValueError(
                 'Last dim of reference_points must be 1 or 2, but get {} instead.'.format(reference_points.shape[-1]))
 
-        # sampling_locations = torch.cat((sampling_locations, torch.ones_like(sampling_locations)*0.5), dim=-1)
-        # input_spatial_shapes = torch.stack((torch.ones_like(input_temporal_lens), input_temporal_lens), dim=-1)
-        # output = deform_attn_core_pytorch(value, input_spatial_shapes, sampling_locations, attention_weights)
-
-        output = TDAFunction.apply(
-            value, input_temporal_lens, input_level_start_index, sampling_locations, attention_weights, self.seq2col_step)
+        sampling_locations = torch.cat((sampling_locations, torch.ones_like(sampling_locations)*0.5), dim=-1)
+        input_spatial_shapes = torch.stack((torch.ones_like(input_temporal_lens), input_temporal_lens), dim=-1)
+        output = deform_attn_core_pytorch(value, input_spatial_shapes, sampling_locations, attention_weights)
 
         output = self.output_proj(output)
         return output, (sampling_locations, attention_weights)
@@ -168,5 +163,8 @@ def deform_attn_core_pytorch(value, value_spatial_shapes, sampling_locations, at
         sampling_value_list.append(sampling_value_l_)
     # (N_, Lq_, M_, L_, P_) -> (N_, M_, Lq_, L_, P_) -> (N_, M_, 1, Lq_, L_*P_)
     attention_weights = attention_weights.transpose(1, 2).reshape(N_*M_, 1, Lq_, L_*P_)
+    print(torch.stack(sampling_value_list, dim=-2).flatten(-2).shape)
+    print((torch.stack(sampling_value_list, dim=-2).flatten(-2) * attention_weights).sum(-1).shape)
+    exit()
     output = (torch.stack(sampling_value_list, dim=-2).flatten(-2) * attention_weights).sum(-1).view(N_, M_*D_, Lq_)
     return output.transpose(1, 2).contiguous()
