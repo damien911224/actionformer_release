@@ -144,8 +144,9 @@ class DeformAttn(nn.Module):
         # output = deform_attn_core_pytorch(value, input_spatial_shapes, sampling_locations, attention_weights)
         output = MSDeformAttnFunction.apply(value, input_spatial_shapes, input_level_start_index,
                                             sampling_locations, attention_weights, self.seq2col_step)
-
         output = self.output_proj(output)
+        print(output.shape)
+        exit()
         return output, (sampling_locations, attention_weights)
 
 
