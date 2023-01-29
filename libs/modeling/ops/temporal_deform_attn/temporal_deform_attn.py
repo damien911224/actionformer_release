@@ -15,8 +15,8 @@ from __future__ import division
 
 # from opts import cfg
 
-# if not cfg.disable_cuda:
-#     from .functions import TDAFunction
+if not cfg.disable_cuda:
+    from .functions import TDAFunction
 
 import warnings
 import math
@@ -64,10 +64,8 @@ class DeformAttn(nn.Module):
         self.n_heads = n_heads
         self.n_points = n_points
 
-        self.sampling_offsets = nn.Linear(
-            d_model, n_heads * n_levels * n_points)
-        self.attention_weights = nn.Linear(
-            d_model, n_heads * n_levels * n_points)
+        self.sampling_offsets = nn.Linear(d_model, n_heads * n_levels * n_points)
+        self.attention_weights = nn.Linear(d_model, n_heads * n_levels * n_points)
         self.value_proj = nn.Linear(d_model, d_model)
         self.output_proj = nn.Linear(d_model, d_model)
 
@@ -114,15 +112,11 @@ class DeformAttn(nn.Module):
         value = self.value_proj(input_flatten)
         if input_padding_mask is not None:
             value = value.masked_fill(input_padding_mask[..., None], float(0))
-        value = value.view(N, Len_in, self.n_heads,
-                           self.d_model // self.n_heads)
+        value = value.view(N, Len_in, self.n_heads, self.d_model // self.n_heads)
         # the predicted offset in temporal axis. They are *absolute* values, not normalized
-        sampling_offsets = self.sampling_offsets(query).view(
-            N, Len_q, self.n_heads, self.n_levels, self.n_points, 1)
-        attention_weights = self.attention_weights(query).view(
-            N, Len_q, self.n_heads, self.n_levels * self.n_points)
-        attention_weights = F.softmax(
-            attention_weights, -1).view(N, Len_q, self.n_heads, self.n_levels, self.n_points)
+        sampling_offsets = self.sampling_offsets(query).view(N, Len_q, self.n_heads, self.n_levels, self.n_points, 1)
+        attention_weights = self.attention_weights(query).view(N, Len_q, self.n_heads, self.n_levels * self.n_points)
+        attention_weights = F.softmax(attention_weights, -1).view(N, Len_q, self.n_heads, self.n_levels, self.n_points)
 
         if reference_points.shape[-1] == 1:
             # the reference points are normalized, but the offset are unnormalized
@@ -145,9 +139,12 @@ class DeformAttn(nn.Module):
             raise ValueError(
                 'Last dim of reference_points must be 1 or 2, but get {} instead.'.format(reference_points.shape[-1]))
 
-        sampling_locations = torch.cat((sampling_locations, torch.ones_like(sampling_locations)*0.5), dim=-1)
-        input_spatial_shapes = torch.stack((torch.ones_like(input_temporal_lens), input_temporal_lens), dim=-1)
-        output = deform_attn_core_pytorch(value, input_spatial_shapes, sampling_locations, attention_weights)
+        # sampling_locations = torch.cat((sampling_locations, torch.ones_like(sampling_locations)*0.5), dim=-1)
+        # input_spatial_shapes = torch.stack((torch.ones_like(input_temporal_lens), input_temporal_lens), dim=-1)
+        # output = deform_attn_core_pytorch(value, input_spatial_shapes, sampling_locations, attention_weights)
+
+        output = TDAFunction.apply(
+            value, input_temporal_lens, input_level_start_index, sampling_locations, attention_weights, self.seq2col_step)
 
         output = self.output_proj(output)
         return output, (sampling_locations, attention_weights)
