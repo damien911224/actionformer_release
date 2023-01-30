@@ -62,7 +62,6 @@ class DeformableTransformer(nn.Module):
         xavier_uniform_(self.reference_points.weight.data, gain=1.0)
         constant_(self.reference_points.bias.data, 0.)
         normal_(self.level_embed)
-        normal_(self.query_level_embed)
 
     def get_valid_ratio(self, mask):
         _, T = mask.shape
