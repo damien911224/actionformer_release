@@ -344,6 +344,7 @@ class DINO(nn.Module):
 
         outputs_classes = []
         outputs_coords = []
+        outputs_masks = []
         for lvl in range(hs.shape[0]):
         # for lvl in range(hs[0].shape[0]):
             if lvl == 0:
@@ -396,8 +397,8 @@ class DINO(nn.Module):
             # N, Q, C
             embeddings = self.mask_embed[lvl](hs[lvl])
             # N, Q, T
-            outputs_masks = torch.bmm(embeddings, memory.permute(0, 2, 1)).sigmoid()
-            masked_hs = torch.bmm(outputs_masks, pos_1d_l.permute(0, 2, 1)) / outputs_masks.sum(-1)[..., None]
+            outputs_mask = torch.bmm(embeddings, memory.permute(0, 2, 1)).sigmoid()
+            masked_hs = torch.bmm(outputs_mask, pos_1d_l.permute(0, 2, 1)) / outputs_mask.sum(-1)[..., None]
             tmp = self.bbox_embed[lvl](masked_hs)
             if reference.shape[-1] == 4:
                 # tmp += reference
@@ -411,7 +412,7 @@ class DINO(nn.Module):
             # outputs_class = self.class_embed[lvl](hs[0][lvl])
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)
-            outputs_masks.append(outputs_coord)
+            outputs_masks.append(outputs_mask)
         outputs_class = torch.stack(outputs_classes)
         outputs_coord = torch.stack(outputs_coords)
         outputs_mask = torch.stack(outputs_masks)
