@@ -398,6 +398,8 @@ class DINO(nn.Module):
             # N, Q, T
             outputs_masks = torch.bmm(embeddings, memory.permute(0, 2, 1)).sigmoid()
             masked_hs = torch.bmm(outputs_masks, pos_1d_l.permute(0, 2, 1)).sum(-1)
+            print(outputs_masks.shape)
+            print(masked_hs.shape)
             tmp = self.bbox_embed[lvl](masked_hs)
             if reference.shape[-1] == 4:
                 # tmp += reference
