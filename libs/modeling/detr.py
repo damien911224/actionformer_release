@@ -655,6 +655,8 @@ class SetCriterion_DINO(nn.Module):
         # src_masks = interpolate(src_masks[:, None], size=target_masks.shape[-2:],
         #                         mode="bilinear", align_corners=False)
         src_masks = src_masks.flatten(1)
+        print(target_masks.shape)
+        print(src_masks.shape)
 
         target_masks = target_masks.view(src_masks.shape)
         losses = {
