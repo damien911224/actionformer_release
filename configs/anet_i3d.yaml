@@ -109,5 +109,5 @@ detr: {
   dn_label_noise_ratio: 0.5,
   dn_labelbook_size: 2,
   focal_alpha: 0.25,
-  use_dab: False
+  use_dab: True
 }
