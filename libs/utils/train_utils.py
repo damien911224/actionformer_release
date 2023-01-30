@@ -443,7 +443,7 @@ def train_one_epoch(
                 this_mask = torch.zeros(size=(T, ), dtype=torch.float32)
                 this_mask[T_box[0]:T_box[1] + 1] = 1.0
                 masks.append(this_mask)
-            batch_dict["masks"] = torch.stack(masks, dim=1).cuda()
+            batch_dict["masks"] = torch.stack(masks, dim=0).cuda()
 
             detr_target_dict.append(batch_dict)
 
