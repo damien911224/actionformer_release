@@ -441,7 +441,7 @@ def train_one_epoch(
             for box in boxes:
                 T_box = (box * (T - 1)).int()
                 this_mask = torch.zeros(size=(T, ), dtype=torch.float32)
-                this_mask[box[0]:box[1] + 1] = 1.0
+                this_mask[T_box[0]:T_box[1] + 1] = 1.0
                 masks.append(this_mask)
             batch_dict["masks"] = torch.stack(masks, dim=1).cuda()
 
