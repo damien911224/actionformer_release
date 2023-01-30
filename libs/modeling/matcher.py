@@ -5,8 +5,10 @@ Modules to compute the matching cost and solve the corresponding LSAP.
 import torch
 from scipy.optimize import linear_sum_assignment
 from torch import nn
+import torch.nn.functional as F
 
 from ..utils.segment_ops import segment_cw_to_t1t2, segment_iou
+from .segmentation import (dice_loss, sigmoid_focal_loss)
 
 
 class HungarianMatcher(nn.Module):
@@ -16,7 +18,7 @@ class HungarianMatcher(nn.Module):
     while the others are un-matched (and thus treated as non-objects).
     """
 
-    def __init__(self, cost_class: float = 1, cost_bbox: float = 1, cost_giou: float = 1):
+    def __init__(self, cost_class: float = 1, cost_bbox: float = 1, cost_giou: float = 1, cost_mask: float = 1):
         """Creates the matcher
         Params:
             cost_class: This is the relative weight of the classification error in the matching cost
@@ -27,6 +29,7 @@ class HungarianMatcher(nn.Module):
         self.cost_class = cost_class
         self.cost_bbox = cost_bbox
         self.cost_giou = cost_giou
+        self.cost_mask = cost_mask
         assert cost_class != 0 or cost_bbox != 0 or cost_giou != 0, "all costs cant be 0"
 
     @torch.no_grad()
@@ -101,17 +104,26 @@ class HungarianMatcher(nn.Module):
             cost_class = pos_cost_class[:, tgt_ids] - neg_cost_class[:, tgt_ids]
 
             # Compute the L1 cost between boxes
-            cost_bbox = torch.cdist(out_bbox, tgt_bbox[..., :2], p=1)
+            cost_bbox = torch.cdist(out_bbox, tgt_bbox[..., 2:], p=1)
 
             # Compute the giou cost betwen boxes
             # cost_giou = -generalized_box_iou(box_cxcywh_to_xyxy(out_bbox), box_cxcywh_to_xyxy(tgt_bbox))
             # cost_giou = -(segment_iou(segment_cw_to_t1t2(out_bbox[..., 2:]), segment_cw_to_t1t2(tgt_bbox[..., 2:])) +
             #               segment_iou(out_bbox[..., :2], tgt_bbox[..., :2])) / 2.0
-            cost_giou = -segment_iou(out_bbox[..., :2], tgt_bbox[..., :2])
+            cost_giou = -segment_iou(segment_cw_to_t1t2(out_bbox), tgt_bbox[..., :2])
+
+            src_masks = outputs["pred_boxes"]
+            target_masks = torch.cat([v["masks"] for v in targets])
+            prob = src_masks.sigmoid()
+            ce_loss = F.binary_cross_entropy_with_logits(src_masks, target_masks, reduction="none")
+            p_t = prob * target_masks + (1 - prob) * (1 - target_masks)
+            cost_mask = ce_loss * ((1 - p_t) ** gamma)
+            if alpha >= 0:
+                alpha_t = alpha * target_masks + (1 - alpha) * (1 - target_masks)
+                cost_mask = alpha_t * cost_mask
 
             # Final cost matrix
-            # C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou
-            C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou
+            C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou + self.cost_mask * cost_mask
             C = C.view(bs, num_queries, -1).cpu()
 
             if layer is None:
@@ -138,4 +150,4 @@ class HungarianMatcher(nn.Module):
 
 def build_matcher(args):
     return HungarianMatcher(cost_class=args["set_cost_class"], cost_bbox=args["set_cost_bbox"],
-                            cost_giou=args["set_cost_giou"])
+                            cost_giou=args["set_cost_giou"], cost_mask=args["set_cost_mask"])

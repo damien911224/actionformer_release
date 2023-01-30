@@ -69,7 +69,7 @@ class DeformableTransformer(nn.Module):
         valid_ratio = valid_T.float() / T
         return valid_ratio    # shape=(bs)
 
-    def forward(self, srcs, pos_embeds, query_embed=None, tgt_pos=None):
+    def forward(self, srcs, pos_embeds, query_embed=None):
         '''
         Params:
             srcs: list of Tensor with shape (bs, c, t)
@@ -140,7 +140,7 @@ class DeformableTransformer(nn.Module):
         hs, inter_references = self.decoder(tgt, reference_points, memory,
                                             temporal_lens, level_start_index, query_embed)
         inter_references_out = inter_references 
-        return hs, init_reference_out, inter_references_out, memory.transpose(1, 2)
+        return hs, init_reference_out, inter_references_out, memory
 
 
 class DeformableTransformerEncoderLayer(nn.Module):
@@ -284,7 +284,7 @@ class DeformableTransformerDecoder(nn.Module):
         self.d_model = d_model
         self.return_intermediate = return_intermediate
         # hack implementation for iterative bounding box refinement and two-stage Deformable DETR
-        self.segment_embed = None
+        self.bbox_embed = None
         self.class_embed = None
 
         self.query_scale = MLP(d_model, d_model, d_model, 2)
@@ -310,9 +310,9 @@ class DeformableTransformerDecoder(nn.Module):
             output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index)
             
             # hack implementation for segment refinement
-            if self.segment_embed is not None:
+            if self.bbox_embed is not None:
                 # update the reference point/segment of the next layer according to the output from the current layer
-                tmp = self.segment_embed[lid](output)
+                tmp = self.bbox_embed[lid](output)
                 if reference_points.shape[-1] == 2:
                     new_reference_points = tmp + inverse_sigmoid(reference_points)
                     new_reference_points = new_reference_points.sigmoid()

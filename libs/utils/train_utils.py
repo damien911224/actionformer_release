@@ -426,20 +426,29 @@ def train_one_epoch(
         backbone_losses, backbone_results, backbone_features = backbone(video_list, data_type=data_type, nms=False)
         backbone_loss = backbone_losses["final_loss"]
 
+        T = backbone_features[0].size(2)
         detr_target_dict = list()
         for b_i in range(len(video_list)):
             batch_dict = dict()
-            batch_dict["labels"] = torch.zeros_like(video_list[b_i]["labels"]).cuda()
+            batch_dict["labels"] = video_list[b_i]["labels"].cuda()
             boxes = (video_list[b_i]["segments"] * video_list[b_i]["feat_stride"] +
                      0.5 * video_list[b_i]["feat_num_frames"]) / video_list[b_i]["fps"] / video_list[b_i]["duration"]
             boxes = torch.clamp(boxes, 0.0, 1.0)
             batch_dict["boxes"] = torch.cat((boxes,
                                              ((boxes[..., 0] + boxes[..., 1]) / 2.0).unsqueeze(-1),
                                              (boxes[..., 1] - boxes[..., 0]).unsqueeze(-1)), dim=-1).cuda()
+            masks = list()
+            for box in boxes:
+                T_box = (box * (T - 1)).int()
+                this_mask = torch.zeros(size=(T, ), dtype=torch.float32)
+                this_mask[box[0]:box[1] + 1] = 1.0
+                masks.append(this_mask)
+            batch_dict["masks"] = torch.stack(masks, dim=1).cuda()
+
             detr_target_dict.append(batch_dict)
 
-        features = [feat for feat in backbone_features]
-        # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
+        # features = [feat for feat in backbone_features]
+        features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
 
         labels = list()
         scores = list()
@@ -481,8 +490,8 @@ def train_one_epoch(
         weight_dict = detr_criterion.weight_dict
         detr_loss = sum(detr_loss_dict[k] * weight_dict[k] for k in detr_loss_dict.keys() if k in weight_dict)
 
-        final_loss = backbone_loss + detr_loss
-        # final_loss = detr_loss
+        # final_loss = backbone_loss + detr_loss
+        final_loss = detr_loss
         # final_loss = backbone_loss
 
         final_loss.backward()
@@ -1098,8 +1107,8 @@ def valid_one_epoch(
             segments = torch.stack(segments, dim=0)
             proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
 
-            features = [feat for feat in backbone_features]
-            # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
+            # features = [feat for feat in backbone_features]
+            features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
 
             start_index = 0
             pyramidal_proposals = list()
