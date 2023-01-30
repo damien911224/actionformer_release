@@ -637,7 +637,9 @@ class SetCriterion_DINO(nn.Module):
         """Compute the losses related to the masks: the focal loss and the dice loss.
            targets dicts must contain the key "masks" containing a tensor of dim [nb_target_boxes, h, w]
         """
-        # assert "pred_masks" in outputs
+        assert "pred_masks" in outputs
+
+        indices = indices[0]
 
         src_idx = self._get_src_permutation_idx(indices)
         tgt_idx = self._get_tgt_permutation_idx(indices)
