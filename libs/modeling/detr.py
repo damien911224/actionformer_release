@@ -654,7 +654,7 @@ class SetCriterion_DINO(nn.Module):
         # upsample predictions to the target size
         # src_masks = interpolate(src_masks[:, None], size=target_masks.shape[-2:],
         #                         mode="bilinear", align_corners=False)
-        src_masks = src_masks[:, 0].flatten(1)
+        src_masks = src_masks.flatten(1)
 
         target_masks = target_masks.flatten(1)
         target_masks = target_masks.view(src_masks.shape)
