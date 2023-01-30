@@ -112,7 +112,7 @@ class HungarianMatcher(nn.Module):
             #               segment_iou(out_bbox[..., :2], tgt_bbox[..., :2])) / 2.0
             cost_giou = -segment_iou(segment_cw_to_t1t2(out_bbox), tgt_bbox[..., :2])
 
-            src_masks = outputs["pred_masks"]
+            src_masks = outputs["pred_masks"].flatten(0, 1)
             target_masks = torch.cat([v["masks"] for v in targets])
             cost_mask = torch.cdist(src_masks, target_masks, p=1)
             # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
