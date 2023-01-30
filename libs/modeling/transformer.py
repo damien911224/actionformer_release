@@ -122,7 +122,7 @@ class DeformableTransformer(nn.Module):
             query_embed = None
 
         # decoder
-        hs, inter_references = self.decoder(tgt, reference_points, memory,
+        hs, inter_references = self.decoder(tgt, reference_points, memory, lvl_pos_embed_flatten,
                                             temporal_lens, level_start_index, query_embed)
         inter_references_out = inter_references 
         return hs, init_reference_out, inter_references_out, memory
