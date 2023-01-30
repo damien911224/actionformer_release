@@ -18,7 +18,7 @@ class HungarianMatcher(nn.Module):
     while the others are un-matched (and thus treated as non-objects).
     """
 
-    def __init__(self, cost_class: float = 1, cost_bbox: float = 1, cost_giou: float = 1, cost_mask: float = 1):
+    def __init__(self, cost_class: float = 1, cost_bbox: float = 1, cost_giou: float = 1):
         """Creates the matcher
         Params:
             cost_class: This is the relative weight of the classification error in the matching cost
@@ -29,7 +29,6 @@ class HungarianMatcher(nn.Module):
         self.cost_class = cost_class
         self.cost_bbox = cost_bbox
         self.cost_giou = cost_giou
-        self.cost_mask = cost_mask
         assert cost_class != 0 or cost_bbox != 0 or cost_giou != 0, "all costs cant be 0"
 
     @torch.no_grad()
@@ -112,16 +111,9 @@ class HungarianMatcher(nn.Module):
             #               segment_iou(out_bbox[..., :2], tgt_bbox[..., :2])) / 2.0
             cost_giou = -segment_iou(segment_cw_to_t1t2(out_bbox), tgt_bbox[..., :2])
 
-            src_masks = outputs["pred_masks"].flatten(0, 1)
-            target_masks = torch.cat([v["masks"] for v in targets])
-            cost_mask = torch.cdist(src_masks, target_masks, p=1)
-            # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
-            # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
-            # cost_class = pos_cost_class[:, tgt_ids] - neg_cost_class[:, tgt_ids]
-
             # Final cost matrix
             # C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou
-            C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou + self.cost_mask * cost_mask
+            C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou
             C = C.view(bs, num_queries, -1).cpu()
 
             if layer is None:
@@ -148,4 +140,4 @@ class HungarianMatcher(nn.Module):
 
 def build_matcher(args):
     return HungarianMatcher(cost_class=args["set_cost_class"], cost_bbox=args["set_cost_bbox"],
-                            cost_giou=args["set_cost_giou"], cost_mask=args["set_cost_mask"])
+                            cost_giou=args["set_cost_giou"])

@@ -76,7 +76,7 @@ detr: {
   lr_linear_proj_mult: 0.1,
   lr_linear_proj_names: ['reference_points', 'sampling_offsets'],
   hidden_dim: 256,
-  num_feature_levels: 1,
+  num_feature_levels: 6,
   input_dim: 256,
   aux_loss: True,
   enc_layers: 6,
@@ -88,11 +88,9 @@ detr: {
   set_cost_class: 6, # 6
   set_cost_bbox: 5, # 5
   set_cost_giou: 2, # 2
-  set_cost_mask: 5, # 2
   weight_loss_ce: 2, # 2
-  weight_loss_bbox: 5, # 5
-  weight_loss_giou: 2, # 2
-  weight_loss_mask: 5, # 2
+  weight_loss_bbox: 0, # 5
+  weight_loss_giou: 0, # 2
   with_act_reg: False,
   weight_loss_act: 4,
   weight_decay: 1.0e-4,
@@ -111,5 +109,5 @@ detr: {
   dn_label_noise_ratio: 0.5,
   dn_labelbook_size: 2,
   focal_alpha: 0.25,
-  use_dab: False
+  use_dab: True
 }

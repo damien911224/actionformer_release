@@ -121,21 +121,6 @@ class DeformableTransformer(nn.Module):
             init_reference_out = reference_points
             query_embed = None
 
-        # prev_index = 0
-        # new_query_pos = list()
-        # temporal_lens = list()
-        # for i in range(6):
-        #     new_t = t // (2 ** i)
-        #     temporal_lens.append(new_t)
-        #     this_query_pos = query_embed[:, prev_index:prev_index + new_t]
-        #     prev_index += new_t
-        #     this_query_pos = this_query_pos + self.query_level_embed[i].view(1, 1, -1)
-        #     new_query_pos.append(this_query_pos)
-        # new_query_pos = torch.concat(new_query_pos, dim=1)
-
-        # tgt_temporal_lens = torch.as_tensor(temporal_lens, dtype=torch.long, device=src_flatten.device)
-        # tgt_level_start_index = torch.cat((temporal_lens.new_zeros((1,)), temporal_lens.cumsum(0)[:-1]))
-
         # decoder
         hs, inter_references = self.decoder(tgt, reference_points, memory,
                                             temporal_lens, level_start_index, query_embed)
@@ -229,8 +214,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
         self.norm1 = nn.LayerNorm(d_model)
 
         # self attention
-        self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
-        # self.self_attn = DeformAttn(d_model, 5, n_heads, n_points)
+        # self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
+        self.self_attn = DeformAttn(d_model, n_levels, n_heads, n_points)
         self.dropout2 = nn.Dropout(dropout)
         self.norm2 = nn.LayerNorm(d_model)
 
@@ -252,21 +237,21 @@ class DeformableTransformerDecoderLayer(nn.Module):
         tgt = self.norm3(tgt)
         return tgt
 
-    def forward(self, tgt, query_pos, reference_points, src, src_spatial_shapes, level_start_index):
+    def forward(self, tgt, query_pos, reference_points, src, src_pos, src_spatial_shapes, level_start_index):
         # self attention
-        q = k = self.with_pos_embed(tgt, query_pos)
-        tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))[0].transpose(0, 1)
-        # tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos + tgt_pos[0]),
-        #                           reference_points,
-        #                           self.with_pos_embed(tgt, query_pos + tgt_pos[0]),
-        #                           tgt_pos[1], tgt_pos[2])
+        # q = k = self.with_pos_embed(tgt, query_pos)
+        # tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))[0].transpose(0, 1)
+        tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos + src_pos),
+                                  reference_points,
+                                  self.with_pos_embed(tgt, query_pos + src_pos),
+                                  src_spatial_shapes, level_start_index)
         tgt = tgt + self.dropout2(tgt2)
         tgt = self.norm2(tgt)
 
         # cross attention
         tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos),
-                               reference_points,
-                               src, src_spatial_shapes, level_start_index)
+                                  reference_points,
+                                  src, src_spatial_shapes, level_start_index)
         tgt = tgt + self.dropout1(tgt2)
         tgt = self.norm1(tgt)
 
@@ -290,7 +275,7 @@ class DeformableTransformerDecoder(nn.Module):
         self.query_scale = MLP(d_model, d_model, d_model, 2)
         self.ref_point_head = MLP(2, d_model, d_model, 3)
 
-    def forward(self, tgt, reference_points, src, src_spatial_shapes, src_level_start_index, query_pos=None):
+    def forward(self, tgt, reference_points, src, src_pos, src_spatial_shapes, src_level_start_index, query_pos=None):
         '''
         tgt: [bs, nq, C]
         reference_points: [bs, nq, 1 or 2]
@@ -307,7 +292,7 @@ class DeformableTransformerDecoder(nn.Module):
                 raw_query_pos = self.ref_point_head(reference_points_input[:, :, 0, :])
                 pos_scale = self.query_scale(output) if lid != 0 else 1
                 query_pos = pos_scale * raw_query_pos
-            output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index)
+            output = layer(output, query_pos, reference_points_input, src, src_pos, src_spatial_shapes, src_level_start_index)
             
             # hack implementation for segment refinement
             if self.bbox_embed is not None:

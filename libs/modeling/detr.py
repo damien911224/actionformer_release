@@ -60,7 +60,7 @@ class DINO(nn.Module):
         self.pos_2d_embeds = pos_2d_embeds
         # self.bbox_mask_embed = MLP(hidden_dim, hidden_dim, hidden_dim, 3)
         # self.class_mask_embed = MLP(hidden_dim, hidden_dim, hidden_dim, 3)
-        self.mask_embed = MLP(hidden_dim, hidden_dim, hidden_dim, 3)
+        # self.mask_embed = MLP(hidden_dim, hidden_dim, hidden_dim, 3)
         self.bbox_embed = MLP(hidden_dim, hidden_dim, 2, 3)
         self.class_embed = nn.Linear(hidden_dim, num_classes * 1)
         # self.start_embed = MLP(hidden_dim, hidden_dim, 1, 3)
@@ -310,29 +310,30 @@ class DINO(nn.Module):
             # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features.size(0), 1, 1)
 
         # query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
-        query_embeds = self.query_embed.weight
+        # query_embeds = self.query_embed.weight
 
-        # proposals = torch.cat(proposals, dim=1)
-        # prop_query_label = self.prop_label_enc(proposals[..., 0].long())
+        proposals = torch.cat(proposals, dim=1)
+        prop_query_label = self.prop_label_enc(proposals[..., 0].long())
         # prop_query_label = prop_query_label + self.prop_score_enc(proposals[..., -1].unsqueeze(-1))
-        # # prop_query_bbox = torch.cat([proposals[..., 1:-1],
-        # #                              ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
-        # #                              (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
-        # # points = torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
-        # # scales = torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
-        # # prop_query_bbox = torch.cat([proposals[..., 1:-1], points, scales], dim=-1)
-        # # prop_query_bbox = torch.stack((inverse_sigmoid(proposals[..., 1:-1].flatten(1)),
-        # #                                input_query_bbox.flatten(1)), dim=-1)
+        # prop_query_bbox = torch.cat([proposals[..., 1:-1],
+        #                              ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
+        #                              (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
+        # points = torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
+        # scales = torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
+        # prop_query_bbox = torch.cat([proposals[..., 1:-1], points, scales], dim=-1)
+        # prop_query_bbox = torch.stack((inverse_sigmoid(proposals[..., 1:-1].flatten(1)),
+        #                                input_query_bbox.flatten(1)), dim=-1)
         # prop_query_bbox = torch.stack((proposals[..., 1:-1].flatten(1),
         #                                torch.cat(((proposals[..., 1] - proposals[..., 0] + 1.0) / 2.0,
         #                                           (proposals[..., 0] - proposals[..., 1] + 1.0) / 2.0), dim=-1)),
         #                                dim=-1)
-        # prop_query_label = prop_query_label.repeat(1, 2, 1)
-        # # prop_query_bbox = torch.cat([proposals[..., 1:-1]], dim=-1)
-        # prop_query_bbox = inverse_sigmoid(prop_query_bbox)
-        # prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
-        # # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
-        # query_embeds = prop_query_embeds
+        prop_query_label = prop_query_label.repeat(1, 2, 1)
+        prop_query_bbox = torch.cat([((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
+                                     (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
+        prop_query_bbox = inverse_sigmoid(prop_query_bbox)
+        prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
+        # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
+        query_embeds = prop_query_embeds
 
         # hs, init_reference, inter_references, memory, _ = \
         #     self.transformer(srcs, box_srcs, pos_1d, pos_2d, box_pos_1d, box_pos_2d,
@@ -344,7 +345,6 @@ class DINO(nn.Module):
 
         outputs_classes = []
         outputs_coords = []
-        outputs_masks = []
         for lvl in range(hs.shape[0]):
         # for lvl in range(hs[0].shape[0]):
             if lvl == 0:
@@ -378,6 +378,8 @@ class DINO(nn.Module):
             #     tmp[..., :2] += reference
             # outputs_coord = tmp.sigmoid()
 
+            outputs_coord = reference.sigmoid()
+
             # outputs_coord = torch.stack((torch.minimum(tmp[..., 0].sigmoid(), tmp[..., 0].sigmoid() + tmp[..., 1].tanh()),
             #                              torch.maximum(tmp[..., 0].sigmoid(), tmp[..., 0].sigmoid() + tmp[..., 1].tanh())),
             #                             dim=-1)
@@ -394,28 +396,26 @@ class DINO(nn.Module):
             # end_tmp += reference[..., 1][..., None]
             # outputs_coord = torch.cat([start_tmp.sigmoid(), end_tmp.sigmoid()], dim=-1)
 
-            # N, Q, C
-            embeddings = self.mask_embed[lvl](hs[lvl])
-            # N, Q, T
-            outputs_mask = torch.bmm(embeddings, memory.permute(0, 2, 1)).sigmoid()
-            masked_hs = torch.bmm(outputs_mask, pos_1d_l.permute(0, 2, 1)) / outputs_mask.sum(-1)[..., None]
-            tmp = self.bbox_embed[lvl](masked_hs)
-            if reference.shape[-1] == 4:
-                # tmp += reference
-                tmp += reference[..., :2]
-            else:
-                assert reference.shape[-1] == 2
-                tmp[..., :2] += reference
-            outputs_coord = tmp.sigmoid()
+            # # N, Q, C
+            # embeddings = self.mask_embed[lvl](hs[lvl])
+            # # N, Q, T
+            # outputs_mask = torch.bmm(embeddings, memory.permute(0, 2, 1)).sigmoid()
+            # masked_hs = torch.bmm(outputs_mask, pos_1d_l.permute(0, 2, 1)) / outputs_mask.sum(-1)[..., None]
+            # tmp = self.bbox_embed[lvl](masked_hs)
+            # if reference.shape[-1] == 4:
+            #     # tmp += reference
+            #     tmp += reference[..., :2]
+            # else:
+            #     assert reference.shape[-1] == 2
+            #     tmp[..., :2] += reference
+            # outputs_coord = tmp.sigmoid()
 
             outputs_class = self.class_embed[lvl](hs[lvl])
             # outputs_class = self.class_embed[lvl](hs[0][lvl])
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)
-            outputs_masks.append(outputs_mask)
         outputs_class = torch.stack(outputs_classes)
         outputs_coord = torch.stack(outputs_coords)
-        outputs_mask = torch.stack(outputs_masks)
 
         # dn post process
         if self.dn_number > 0 and dn_meta is not None:
@@ -425,7 +425,7 @@ class DINO(nn.Module):
 
         if not self.with_act_reg:
             # out = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord[-1]}
-            out = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord[-1], 'pred_masks': outputs_mask[-1]}
+            out = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord[-1]}
         else:
             # perform RoIAlign
             roi_features = list()
@@ -450,19 +450,19 @@ class DINO(nn.Module):
                    'pred_boxes': last_layer_reg, 'pred_actionness': pred_actionness}
 
         if self.aux_loss:
-            out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord, outputs_mask)
+            out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord)
 
         out['dn_meta'] = dn_meta
 
         return out
 
     @torch.jit.unused
-    def _set_aux_loss(self, outputs_class, outputs_coord, outputs_mask):
+    def _set_aux_loss(self, outputs_class, outputs_coord):
         # this is a workaround to make torchscript happy, as torchscript
         # doesn't support dictionary with non-homogeneous values, such
         # as a dict having both a Tensor and a list.
-        return [{'pred_logits': a, 'pred_boxes': b, 'pred_masks': c}
-                for a, b, c in zip(outputs_class[:-1], outputs_coord[:-1], outputs_mask[-1])]
+        return [{'pred_logits': a, 'pred_boxes': b}
+                for a, b in zip(outputs_class[:-1], outputs_coord[:-1])]
 
     def _to_roi_align_format(self, rois, T, scale_factor=1):
         '''Convert RoIs to RoIAlign format.
@@ -655,8 +655,6 @@ class SetCriterion_DINO(nn.Module):
         # src_masks = interpolate(src_masks[:, None], size=target_masks.shape[-2:],
         #                         mode="bilinear", align_corners=False)
         src_masks = src_masks.flatten(1)
-        print(target_masks.shape)
-        print(src_masks.shape)
 
         target_masks = target_masks.view(src_masks.shape)
         losses = {
@@ -1040,13 +1038,13 @@ def build_dino(args):
     )
 
     matcher = build_matcher(args)
-    # weight_dict = {'loss_ce': args["weight_loss_ce"],
-    #                'loss_bbox': args["weight_loss_bbox"],
-    #                'loss_giou': args["weight_loss_giou"]}
     weight_dict = {'loss_ce': args["weight_loss_ce"],
                    'loss_bbox': args["weight_loss_bbox"],
-                   'loss_giou': args["weight_loss_giou"],
-                   'loss_mask': args["weight_loss_mask"]}
+                   'loss_giou': args["weight_loss_giou"]}
+    # weight_dict = {'loss_ce': args["weight_loss_ce"],
+    #                'loss_bbox': args["weight_loss_bbox"],
+    #                'loss_giou': args["weight_loss_giou"],
+    #                'loss_mask': args["weight_loss_mask"]}
     clean_weight_dict = copy.deepcopy(weight_dict)
 
     if args["use_dn"]:
@@ -1060,8 +1058,8 @@ def build_dino(args):
             aux_weight_dict.update({k + f'_{i}': v for k, v in clean_weight_dict.items()})
         weight_dict.update(aux_weight_dict)
 
-    # losses = ['labels', 'boxes']
-    losses = ['labels', 'boxes', 'masks']
+    losses = ['labels', 'boxes']
+    # losses = ['labels', 'boxes', 'masks']
     # losses = ['labels', 'boxes', 'cardinality']
 
     if args["with_act_reg"]:
