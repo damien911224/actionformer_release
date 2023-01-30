@@ -646,7 +646,6 @@ class SetCriterion_DINO(nn.Module):
         src_masks = outputs["pred_masks"]
         src_masks = src_masks[src_idx]
         target_masks = [t["masks"] for t in targets]
-        print(tgt_idx)
         # TODO use valid to mask invalid areas due to padding in loss
         target_masks, valid = nested_tensor_from_tensor_list(target_masks).decompose()
         target_masks = target_masks.to(src_masks)
