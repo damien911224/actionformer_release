@@ -645,11 +645,11 @@ class SetCriterion_DINO(nn.Module):
         tgt_idx = self._get_tgt_permutation_idx(indices)
         src_masks = outputs["pred_masks"]
         src_masks = src_masks[src_idx]
-        target_masks = [t["masks"] for t in targets]
+        target_masks = torch.cat([t["masks"] for t in targets], dim=0).flatten(1)
         # TODO use valid to mask invalid areas due to padding in loss
-        target_masks, valid = nested_tensor_from_tensor_list(target_masks).decompose()
-        target_masks = target_masks.to(src_masks)
-        target_masks = target_masks[tgt_idx].flatten(1)
+        # target_masks, valid = nested_tensor_from_tensor_list(target_masks).decompose()
+        # target_masks = target_masks.to(src_masks)
+        # target_masks = target_masks[tgt_idx].flatten(1)
 
         # upsample predictions to the target size
         # src_masks = interpolate(src_masks[:, None], size=target_masks.shape[-2:],
