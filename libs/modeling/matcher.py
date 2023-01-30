@@ -112,18 +112,14 @@ class HungarianMatcher(nn.Module):
             #               segment_iou(out_bbox[..., :2], tgt_bbox[..., :2])) / 2.0
             cost_giou = -segment_iou(segment_cw_to_t1t2(out_bbox), tgt_bbox[..., :2])
 
-            src_masks = outputs["pred_boxes"]
-            target_masks = torch.cat([v["masks"] for v in targets])
-            prob = src_masks.sigmoid()
-            ce_loss = F.binary_cross_entropy_with_logits(src_masks, target_masks, reduction="none")
-            p_t = prob * target_masks + (1 - prob) * (1 - target_masks)
-            cost_mask = ce_loss * ((1 - p_t) ** gamma)
-            if alpha >= 0:
-                alpha_t = alpha * target_masks + (1 - alpha) * (1 - target_masks)
-                cost_mask = alpha_t * cost_mask
+            # out_prob = outputs["pred_boxes"]
+            # target_masks = torch.cat([v["masks"] for v in targets])
+            # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
+            # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
+            # cost_class = pos_cost_class[:, tgt_ids] - neg_cost_class[:, tgt_ids]
 
             # Final cost matrix
-            C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou + self.cost_mask * cost_mask
+            C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou
             C = C.view(bs, num_queries, -1).cpu()
 
             if layer is None:
