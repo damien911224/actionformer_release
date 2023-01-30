@@ -641,7 +641,7 @@ class SetCriterion_DINO(nn.Module):
 
         src_idx = self._get_src_permutation_idx(indices)
         tgt_idx = self._get_tgt_permutation_idx(indices)
-        src_masks = outputs["pred_bboxs"]
+        src_masks = outputs["pred_masks"]
         src_masks = src_masks[src_idx]
         target_masks = torch.stack([t["masks"] for t in targets], dim=0)
         # TODO use valid to mask invalid areas due to padding in loss
@@ -1037,11 +1037,13 @@ def build_dino(args):
     )
 
     matcher = build_matcher(args)
+    # weight_dict = {'loss_ce': args["weight_loss_ce"],
+    #                'loss_bbox': args["weight_loss_bbox"],
+    #                'loss_giou': args["weight_loss_giou"]}
     weight_dict = {'loss_ce': args["weight_loss_ce"],
                    'loss_bbox': args["weight_loss_bbox"],
-                   'loss_giou': args["weight_loss_giou"]}
-    # weight_dict = {'loss_ce': args["weight_loss_ce"],
-    #                'loss_mask': args["weight_loss_mask"]}
+                   'loss_giou': args["weight_loss_giou"],
+                   'loss_mask': args["weight_loss_mask"]}
     clean_weight_dict = copy.deepcopy(weight_dict)
 
     if args["use_dn"]:
@@ -1055,8 +1057,8 @@ def build_dino(args):
             aux_weight_dict.update({k + f'_{i}': v for k, v in clean_weight_dict.items()})
         weight_dict.update(aux_weight_dict)
 
-    losses = ['labels', 'boxes']
-    # losses = ['labels', 'boxes', 'masks']
+    # losses = ['labels', 'boxes']
+    losses = ['labels', 'boxes', 'masks']
     # losses = ['labels', 'boxes', 'cardinality']
 
     if args["with_act_reg"]:
