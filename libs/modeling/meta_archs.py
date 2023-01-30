@@ -344,9 +344,6 @@ class PtTransformer(nn.Module):
         feats, masks = self.backbone(batched_inputs, batched_masks)
         fpn_feats, fpn_masks = self.neck(feats, masks)
 
-        print(masks)
-        exit()
-
         # compute the point coordinate along the FPN
         # this is used for computing the GT or decode the final results
         # points: List[T x 4] with length = # fpn levels
