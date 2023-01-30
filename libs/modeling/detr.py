@@ -90,30 +90,25 @@ class DINO(nn.Module):
         if self.num_patterns > 0:
             self.patterns_embed = nn.Embedding(self.num_patterns, hidden_dim)
 
-        # if num_feature_levels > 1:
-        #     input_proj_list = []
-        #     # input_proj_list = [
-        #     #     nn.Sequential(
-        #     #         nn.Conv1d(2048, hidden_dim, kernel_size=1),
-        #     #         nn.GroupNorm(32, hidden_dim))]
-        #
-        #     for _ in range(num_feature_levels):
-        #         input_proj_list.append(nn.Sequential(
-        #             nn.Conv1d(input_dim, hidden_dim, kernel_size=1),
-        #             nn.GroupNorm(max(min(hidden_dim // 8, 32), 1), hidden_dim)))
-        #
-        #     self.input_proj = nn.ModuleList(input_proj_list)
-        # else:
-        #     self.input_proj = nn.ModuleList([
-        #         nn.Sequential(
-        #             nn.Conv1d(2048, hidden_dim, kernel_size=1),
-        #             nn.GroupNorm(32, hidden_dim),
-        #         )])
-        self.input_proj = nn.ModuleList([
-            nn.Sequential(
-                nn.Conv1d(2048, hidden_dim, kernel_size=1),
-                nn.GroupNorm(32, hidden_dim),
-            )])
+        if num_feature_levels > 1:
+            input_proj_list = []
+            # input_proj_list = [
+            #     nn.Sequential(
+            #         nn.Conv1d(2048, hidden_dim, kernel_size=1),
+            #         nn.GroupNorm(32, hidden_dim))]
+
+            for _ in range(num_feature_levels):
+                input_proj_list.append(nn.Sequential(
+                    nn.Conv1d(input_dim, hidden_dim, kernel_size=1),
+                    nn.GroupNorm(max(min(hidden_dim // 8, 32), 1), hidden_dim)))
+
+            self.input_proj = nn.ModuleList(input_proj_list)
+        else:
+            self.input_proj = nn.ModuleList([
+                nn.Sequential(
+                    nn.Conv1d(2048, hidden_dim, kernel_size=1),
+                    nn.GroupNorm(32, hidden_dim),
+                )])
 
         self.aux_loss = aux_loss
         self.with_box_refine = with_box_refine
@@ -313,29 +308,29 @@ class DINO(nn.Module):
             # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(features.size(0), 1, 1)
 
         # query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
-        query_embeds = self.query_embed.weight
+        # query_embeds = self.query_embed.weight
 
-        # proposals = torch.cat(proposals, dim=1)
-        # prop_query_label = self.prop_label_enc(proposals[..., 0].long())
-        # prop_query_label = prop_query_label + self.prop_score_enc(proposals[..., -1].unsqueeze(-1))
-        # # prop_query_bbox = torch.cat([proposals[..., 1:-1],
-        # #                              ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
-        # #                              (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
-        # # points = torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
-        # # scales = torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
-        # # prop_query_bbox = torch.cat([proposals[..., 1:-1], points, scales], dim=-1)
-        # # prop_query_bbox = torch.stack((inverse_sigmoid(proposals[..., 1:-1].flatten(1)),
-        # #                                input_query_bbox.flatten(1)), dim=-1)
-        # prop_query_bbox = torch.stack((proposals[..., 1:-1].flatten(1),
-        #                                torch.cat(((proposals[..., 1] - proposals[..., 0] + 1.0) / 2.0,
-        #                                           (proposals[..., 0] - proposals[..., 1] + 1.0) / 2.0), dim=-1)),
-        #                                dim=-1)
-        # prop_query_label = prop_query_label.repeat(1, 2, 1)
-        # # prop_query_bbox = torch.cat([proposals[..., 1:-1]], dim=-1)
-        # prop_query_bbox = inverse_sigmoid(prop_query_bbox)
-        # prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
-        # # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
-        # query_embeds = prop_query_embeds
+        proposals = torch.cat(proposals, dim=1)
+        prop_query_label = self.prop_label_enc(proposals[..., 0].long())
+        prop_query_label = prop_query_label + self.prop_score_enc(proposals[..., -1].unsqueeze(-1))
+        # prop_query_bbox = torch.cat([proposals[..., 1:-1],
+        #                              ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
+        #                              (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
+        # points = torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
+        # scales = torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
+        # prop_query_bbox = torch.cat([proposals[..., 1:-1], points, scales], dim=-1)
+        # prop_query_bbox = torch.stack((inverse_sigmoid(proposals[..., 1:-1].flatten(1)),
+        #                                input_query_bbox.flatten(1)), dim=-1)
+        prop_query_bbox = torch.stack((proposals[..., 1:-1].flatten(1),
+                                       torch.cat(((proposals[..., 1] - proposals[..., 0] + 1.0) / 2.0,
+                                                  (proposals[..., 0] - proposals[..., 1] + 1.0) / 2.0), dim=-1)),
+                                       dim=-1)
+        prop_query_label = prop_query_label.repeat(1, 2, 1)
+        # prop_query_bbox = torch.cat([proposals[..., 1:-1]], dim=-1)
+        prop_query_bbox = inverse_sigmoid(prop_query_bbox)
+        prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
+        # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
+        query_embeds = prop_query_embeds
 
         # hs, init_reference, inter_references, memory, _ = \
         #     self.transformer(srcs, box_srcs, pos_1d, pos_2d, box_pos_1d, box_pos_2d,
@@ -378,11 +373,11 @@ class DINO(nn.Module):
             else:
                 assert reference.shape[-1] == 2
                 tmp[..., :2] += reference
-            outputs_coord = tmp.sigmoid()
-            # outputs_coord = torch.stack((torch.minimum(tmp[..., 0].sigmoid(), tmp[..., 0].sigmoid() + tmp[..., 1].tanh()),
-            #                              torch.maximum(tmp[..., 0].sigmoid(), tmp[..., 0].sigmoid() + tmp[..., 1].tanh())),
-            #                             dim=-1)
-            # outputs_coord = torch.clamp(outputs_coord, 0.0, 1.0)
+            # outputs_coord = tmp.sigmoid()
+            outputs_coord = torch.stack((torch.minimum(tmp[..., 0].sigmoid(), tmp[..., 0].sigmoid() + tmp[..., 1].tanh()),
+                                         torch.maximum(tmp[..., 0].sigmoid(), tmp[..., 0].sigmoid() + tmp[..., 1].tanh())),
+                                        dim=-1)
+            outputs_coord = torch.clamp(outputs_coord, 0.0, 1.0)
 
             # if lvl == 0:
             #     reference = init_reference
