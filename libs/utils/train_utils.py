@@ -483,6 +483,8 @@ def train_one_epoch(
         high_IoU_flags = IoUs >= 0.60
         high_IoU_proposals = torch.where(high_IoU_flags[..., None], proposals, torch.zeros_like(proposals)).cuda()
 
+        print(high_IoU_flags.float().sum() / N)
+
         # start_index = 0
         # pyramidal_proposals = list()
         # for feat in backbone_features:
