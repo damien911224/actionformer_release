@@ -478,7 +478,7 @@ def train_one_epoch(
 
         N, P, _ = segments.shape
         # segments_input = segments.view((N * P, 2))
-        IoU_mat = segment_ops.batched_segment_iou(segments_input, segments_input)
+        IoU_mat = segment_ops.batched_segment_iou(segments, segments)
         print(IoU_mat.shape)
         exit()
         IoUs = IoU_mat.max(dim=1)[0].view((N, P))
