@@ -273,8 +273,8 @@ class DeformableTransformerDecoder(nn.Module):
         self.class_embed = None
 
         self.query_scale = MLP(d_model, d_model, d_model, 2)
-        # self.ref_point_head = MLP(2, d_model, d_model, 3)
-        self.ref_point_head = MLP(3, d_model, d_model, 3)
+        # self.ref_point_head = MLP(2, d_model, d_model, 2)
+        self.ref_point_head = MLP(3, d_model, d_model, 2)
 
     def forward(self, tgt, reference_points, src, src_pos, src_spatial_shapes, src_level_start_index, query_pos=None):
         '''
