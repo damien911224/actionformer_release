@@ -1140,7 +1140,7 @@ def valid_one_epoch(
 
             # boxes = torch.clamp((boxes + backbone_boxes) / 2.0, 0.0, 1.0)
             boxes = backbone_boxes
-            # scores = scores * backbone_scores
+            scores = scores * backbone_scores
 
             durations = [x["duration"] for x in video_list]
             boxes = boxes * torch.Tensor(durations)
