@@ -478,10 +478,10 @@ def train_one_epoch(
 
         N, P, _ = segments.shape
         IoU_mat = segment_ops.batched_segment_iou(segments, segments)
-        print(IoU_mat.max(dim=1)[0])
+        print(IoU_mat.max(dim=-1)[0])
         zero_diag = torch.ones_like(size=(P, P), dtype=torch.float32).fill_diag_(0.0).unsqueeze(0)
         IoU_mat = IoU_mat * zero_diag
-        IoUs = IoU_mat.max(dim=1)[0]
+        IoUs = IoU_mat.max(dim=-1)[0]
         print(IoUs)
         exit()
         high_IoU_flags = IoUs >= 0.60
