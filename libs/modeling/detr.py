@@ -33,7 +33,7 @@ class DINO(nn.Module):
 
     def __init__(self, transformer, num_classes, num_queries,
                  pos_1d_embeds, pos_2d_embeds, num_feature_levels, input_dim,
-                 aux_loss=True, with_box_refine=False, two_stage=False,
+                 aux_loss=True, with_box_refine=True, two_stage=False,
                  use_dab=True, num_patterns=0, random_refpoints_xy=False,
                  dn_number=100, dn_box_noise_scale=0.4, dn_label_noise_ratio=0.5, dn_labelbook_size=100,
                  with_act_reg=True):
@@ -314,7 +314,7 @@ class DINO(nn.Module):
 
         proposals = torch.cat(proposals, dim=1)
         prop_query_label = self.prop_label_enc(proposals[..., 0].long())
-        prop_query_label = prop_query_label + self.prop_score_enc(proposals[..., -1].unsqueeze(-1))
+        # prop_query_label = prop_query_label + self.prop_score_enc(proposals[..., -1].unsqueeze(-1))
         # prop_query_bbox = torch.cat([proposals[..., 1:-1],
         #                              ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
         #                              (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
@@ -329,7 +329,8 @@ class DINO(nn.Module):
         #                                dim=-1)
         # prop_query_label = prop_query_label.repeat(1, 2, 1)
         prop_query_bbox = torch.cat([((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
-                                     (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
+                                     (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1),
+                                     proposals[..., -1].unsqueeze(-1)], dim=-1)
         prop_query_bbox = inverse_sigmoid(prop_query_bbox)
         prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
         # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
@@ -378,7 +379,7 @@ class DINO(nn.Module):
             #     tmp[..., :2] += reference
             # outputs_coord = tmp.sigmoid()
 
-            outputs_coord = reference.sigmoid()
+            outputs_coord = reference[..., :2].sigmoid()
 
             # outputs_coord = torch.stack((torch.minimum(tmp[..., 0].sigmoid(), tmp[..., 0].sigmoid() + tmp[..., 1].tanh()),
             #                              torch.maximum(tmp[..., 0].sigmoid(), tmp[..., 0].sigmoid() + tmp[..., 1].tanh())),
@@ -410,7 +411,7 @@ class DINO(nn.Module):
             #     tmp[..., :2] += reference
             # outputs_coord = tmp.sigmoid()
 
-            outputs_class = self.class_embed[lvl](hs[lvl])
+            outputs_class = reference[..., -1:] + self.class_embed[lvl](hs[lvl])
             # outputs_class = self.class_embed[lvl](hs[0][lvl])
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)

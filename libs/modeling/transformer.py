@@ -273,6 +273,7 @@ class DeformableTransformerDecoder(nn.Module):
         self.class_embed = None
 
         self.query_scale = MLP(d_model, d_model, d_model, 2)
+        # self.ref_point_head = MLP(3, d_model, d_model, 3)
         self.ref_point_head = MLP(2, d_model, d_model, 3)
 
     def forward(self, tgt, reference_points, src, src_pos, src_spatial_shapes, src_level_start_index, query_pos=None):
@@ -300,6 +301,11 @@ class DeformableTransformerDecoder(nn.Module):
                 tmp = self.bbox_embed[lid](output)
                 if reference_points.shape[-1] == 2:
                     new_reference_points = tmp + inverse_sigmoid(reference_points)
+                    new_reference_points = new_reference_points.sigmoid()
+                elif reference_points.shape[-1] == 3:
+                    tmp = self.class_embed[lid](output)
+                    new_reference_points = inverse_sigmoid(reference_points)
+                    new_reference_points[..., -1] = tmp + new_reference_points[..., -1]
                     new_reference_points = new_reference_points.sigmoid()
                 else:
                     # at the 0-th decoder layer
