@@ -227,7 +227,8 @@ def sigmoid_focal_loss(inputs, targets, num_boxes, alpha: float = 0.25, gamma: f
         loss *= mask
         return loss.sum() / num_boxes
 
-    return loss.mean(1).sum() / num_boxes
+    # return loss.mean(1).sum() / num_boxes
+    return loss.sum() / num_boxes
 
 
 class PostProcessSegm(nn.Module):

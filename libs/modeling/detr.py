@@ -572,8 +572,7 @@ class SetCriterion_DINO(nn.Module):
         #           src_logits.shape[1]
         # loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2,
         #                              mask=valid_masks)
-        loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2) * \
-                  torch.sum((boxes[..., -1] > 0.0).float(), dim=1)
+        loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2)
 
         losses = {'loss_ce': loss_ce}
 
