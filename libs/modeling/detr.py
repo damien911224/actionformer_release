@@ -575,6 +575,8 @@ class SetCriterion_DINO(nn.Module):
 
         # print((boxes[..., -1].unsqueeze(-1) > 0.0).float().sum().cpu().numpy())
 
+        print((boxes[..., -1].unsqueeze(-1) > 1.0e-3).float().sum())
+
         src_logits = src_logits[boxes[..., -1].unsqueeze(-1) > 1.0e-3]
         target_classes_onehot = target_classes_onehot[boxes[..., -1].unsqueeze(-1) > 1.0e-3]
 
