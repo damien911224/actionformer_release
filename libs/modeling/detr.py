@@ -519,7 +519,7 @@ class SetCriterion_DINO(nn.Module):
 
         src_logits = outputs['pred_logits']
 
-        boxes = outputs['pred_boxes'].detach().cpu()
+        boxes = outputs['pred_boxes'].detach()
         # scores, labels = torch.max(src_logits.detach().cpu(), dim=-1)
 
         # src_segments = outputs['pred_boxes'].view((-1, 2))
