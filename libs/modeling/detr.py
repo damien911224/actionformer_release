@@ -431,9 +431,8 @@ class DINO(nn.Module):
 
             iou_mat = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments), target_segments[..., :2])
             gt_iou = iou_mat.max(dim=1)[0]
-            scores = gt_iou.view(outputs_class[-1].shape[:2]).detach().cpu()
+            scores = gt_iou.view(outputs_class[-1].shape[:2]).detach().cpu().unsqueeze(-1)
             out['pred_logits'] = inverse_sigmoid(scores)
-
         else:
             # perform RoIAlign
             roi_features = list()
