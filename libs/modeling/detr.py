@@ -573,14 +573,10 @@ class SetCriterion_DINO(nn.Module):
         # loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2,
         #                              mask=valid_masks)
 
-        # print((boxes[..., -1].unsqueeze(-1) > 0.0).float().sum().cpu().numpy())
-
-        print((boxes[..., -1].unsqueeze(-1) > 1.0e-3).float().sum())
-
         src_logits = src_logits[boxes[..., -1].unsqueeze(-1) > 1.0e-3]
         target_classes_onehot = target_classes_onehot[boxes[..., -1].unsqueeze(-1) > 1.0e-3]
 
-        loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2)
+        loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2) * src_logits.shape[1]
 
         losses = {'loss_ce': loss_ce}
 
