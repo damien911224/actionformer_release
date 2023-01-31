@@ -482,6 +482,8 @@ def train_one_epoch(
         IoUs = IoU_mat.max(dim=1)[0]
         high_IoU_flags = IoUs >= 0.60
         high_IoU_proposals = proposals[high_IoU_flags.view((N, P))]
+        print(high_IoU_proposals.shape)
+        exit()
 
         # start_index = 0
         # pyramidal_proposals = list()
