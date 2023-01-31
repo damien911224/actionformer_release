@@ -314,7 +314,7 @@ class DINO(nn.Module):
 
         proposals = torch.cat(proposals, dim=1)
         prop_query_label = self.prop_label_enc(proposals[..., 0].long())
-        # prop_query_label = prop_query_label + self.prop_score_enc(proposals[..., -1].unsqueeze(-1))
+        prop_query_label = prop_query_label + self.prop_score_enc(proposals[..., -1].unsqueeze(-1))
         # prop_query_bbox = torch.cat([proposals[..., 1:-1],
         #                              ((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
         #                              (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1)], dim=-1)
@@ -517,8 +517,8 @@ class SetCriterion_DINO(nn.Module):
 
         src_logits = outputs['pred_logits']
 
-        boxes = outputs['pred_boxes'].detach().cpu()
-        scores, labels = torch.max(src_logits.detach().cpu(), dim=-1)
+        # boxes = outputs['pred_boxes'].detach().cpu()
+        # scores, labels = torch.max(src_logits.detach().cpu(), dim=-1)
 
         src_segments = outputs['pred_boxes'].view((-1, 2))
         target_segments = torch.cat([t['boxes'] for t in targets], dim=0)
