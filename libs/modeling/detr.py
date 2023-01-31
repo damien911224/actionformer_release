@@ -422,6 +422,8 @@ class DINO(nn.Module):
         outputs_class = torch.stack(outputs_classes)
         outputs_coord = torch.stack(outputs_coords)
 
+        exit()
+
         # dn post process
         if self.dn_number > 0 and dn_meta is not None:
             outputs_class, outputs_coord = \
