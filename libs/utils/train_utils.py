@@ -15,7 +15,7 @@ import torch.nn.functional as F
 from .lr_schedulers import LinearWarmupMultiStepLR, LinearWarmupCosineAnnealingLR
 from .postprocessing import postprocess_results
 from ..modeling import MaskedConv1D, Scale, AffineDropPath, LayerNorm
-from ..utils import batched_nms
+from ..utils import batched_nms, segment_ops
 
 ################################################################################
 def fix_random_seed(seed, include_cuda=True):
@@ -426,7 +426,7 @@ def train_one_epoch(
         backbone_losses, backbone_results, backbone_features = backbone(video_list, data_type=data_type, nms=False)
         backbone_loss = backbone_losses["final_loss"]
 
-        T = backbone_features[0].size(2)
+        # T = backbone_features[0].size(2)
         detr_target_dict = list()
         for b_i in range(len(video_list)):
             batch_dict = dict()
@@ -476,16 +476,23 @@ def train_one_epoch(
         segments = torch.stack(segments, dim=0)
         proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
 
-        start_index = 0
-        pyramidal_proposals = list()
-        for feat in backbone_features:
-            this_len = feat.size(2)
-            this_proposals = proposals[:, start_index:start_index + this_len]
-            pyramidal_proposals.append(this_proposals)
-            start_index += this_len
+        segments_input = segments.view((-1, 2))
+        IoU_mat = segment_ops.segment_iou(segments_input, segments_input)
+        IoUs = IoU_mat.max(dim=1)[0]
+        high_IoU_flags = IoUs >= 0.60
+        high_IoU_proposals = proposals[high_IoU_flags]
+
+        # start_index = 0
+        # pyramidal_proposals = list()
+        # for feat in backbone_features:
+        #     this_len = feat.size(2)
+        #     this_proposals = proposals[:, start_index:start_index + this_len]
+        #     pyramidal_proposals.append(this_proposals)
+        #     start_index += this_len
 
         # detr_predictions = detr(features, proposals, detr_target_dict)
-        detr_predictions = detr(features, pyramidal_proposals, detr_target_dict)
+        # detr_predictions = detr(features, pyramidal_proposals, detr_target_dict)
+        detr_predictions = detr(features, high_IoU_proposals, detr_target_dict)
         detr_loss_dict = detr_criterion(detr_predictions, detr_target_dict)
         weight_dict = detr_criterion.weight_dict
         detr_loss = sum(detr_loss_dict[k] * weight_dict[k] for k in detr_loss_dict.keys() if k in weight_dict)
@@ -1107,19 +1114,26 @@ def valid_one_epoch(
             segments = torch.stack(segments, dim=0)
             proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
 
+            segments_input = segments.view((-1, 2))
+            IoU_mat = segment_ops.segment_iou(segments_input, segments_input)
+            IoUs = IoU_mat.max(dim=1)[0]
+            high_IoU_flags = IoUs >= 0.60
+            high_IoU_proposals = proposals[high_IoU_flags]
+
             features = [feat for feat in backbone_features]
             # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
 
-            start_index = 0
-            pyramidal_proposals = list()
-            for feat in backbone_features:
-                this_len = feat.size(2)
-                this_proposals = proposals[:, start_index:start_index + this_len]
-                pyramidal_proposals.append(this_proposals)
-                start_index += this_len
+            # start_index = 0
+            # pyramidal_proposals = list()
+            # for feat in backbone_features:
+            #     this_len = feat.size(2)
+            #     this_proposals = proposals[:, start_index:start_index + this_len]
+            #     pyramidal_proposals.append(this_proposals)
+            #     start_index += this_len
 
             # detr_predictions = detr(features, proposals)
-            detr_predictions = detr(features, pyramidal_proposals)
+            # detr_predictions = detr(features, pyramidal_proposals)
+            detr_predictions = detr(features, high_IoU_proposals)
 
             boxes = detr_predictions["pred_boxes"].detach().cpu()
             # boxes = (boxes[..., :2] +
@@ -1128,7 +1142,7 @@ def valid_one_epoch(
             # boxes = boxes[..., :2]
             logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
             # logits = (logits[..., 0] * 1.0 + logits[..., 1] * 0.5 + logits[..., 1] * 0.2).unsqueeze(-1)
-            scores, labels = torch.max(logits, dim=-1)
+            detr_scores, detr_labels = torch.max(logits, dim=-1)
             if "pred_actionness" in detr_predictions.keys():
                 actionness = detr_predictions["pred_actionness"].detach().cpu()
                 scores = scores * actionness.squeeze(-1)
@@ -1140,7 +1154,9 @@ def valid_one_epoch(
 
             # boxes = torch.clamp((boxes + backbone_boxes) / 2.0, 0.0, 1.0)
             boxes = backbone_boxes
-            scores = scores * backbone_scores
+            # scores = scores * backbone_scores
+            scores = backbone_scores
+            scores[high_IoU_flags] *= detr_scores
 
             durations = [x["duration"] for x in video_list]
             boxes = boxes * torch.Tensor(durations)

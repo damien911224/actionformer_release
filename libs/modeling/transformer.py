@@ -214,8 +214,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
         self.norm1 = nn.LayerNorm(d_model)
 
         # self attention
-        # self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
-        self.self_attn = DeformAttn(d_model, n_levels, n_heads, n_points)
+        self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
+        # self.self_attn = DeformAttn(d_model, n_levels, n_heads, n_points)
         self.dropout2 = nn.Dropout(dropout)
         self.norm2 = nn.LayerNorm(d_model)
 
@@ -239,12 +239,12 @@ class DeformableTransformerDecoderLayer(nn.Module):
 
     def forward(self, tgt, query_pos, reference_points, src, src_pos, src_spatial_shapes, level_start_index):
         # self attention
-        # q = k = self.with_pos_embed(tgt, query_pos)
-        # tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))[0].transpose(0, 1)
-        tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos + src_pos),
-                                  reference_points,
-                                  self.with_pos_embed(tgt, query_pos + src_pos),
-                                  src_spatial_shapes, level_start_index)
+        q = k = self.with_pos_embed(tgt, query_pos)
+        tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))[0].transpose(0, 1)
+        # tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos + src_pos),
+        #                           reference_points,
+        #                           self.with_pos_embed(tgt, query_pos + src_pos),
+        #                           src_spatial_shapes, level_start_index)
         tgt = tgt + self.dropout2(tgt2)
         tgt = self.norm2(tgt)
 
@@ -273,8 +273,8 @@ class DeformableTransformerDecoder(nn.Module):
         self.class_embed = None
 
         self.query_scale = MLP(d_model, d_model, d_model, 2)
-        # self.ref_point_head = MLP(2, d_model, d_model, 3)
-        self.ref_point_head = MLP(3, d_model, d_model, 3)
+        self.ref_point_head = MLP(2, d_model, d_model, 3)
+        # self.ref_point_head = MLP(3, d_model, d_model, 3)
 
     def forward(self, tgt, reference_points, src, src_pos, src_spatial_shapes, src_level_start_index, query_pos=None):
         '''
