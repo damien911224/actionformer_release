@@ -1117,9 +1117,10 @@ def valid_one_epoch(
             proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1)
 
             N, P, _ = segments.shape
-            segments_input = segments.view((N * P, 2))
-            IoU_mat = segment_ops.segment_iou(segments_input, segments_input)
-            IoUs = IoU_mat.max(dim=1)[0].view((N, P))
+            IoU_mat = segment_ops.batched_segment_iou(segments, segments)
+            zero_diag = torch.ones(size=(P, P), dtype=torch.float32).fill_diagonal_(0.0).unsqueeze(0)
+            IoU_mat = IoU_mat * zero_diag
+            IoUs = IoU_mat.max(dim=-1)[0]
             high_IoU_flags = IoUs >= 0.60
             high_IoU_proposals = torch.where(high_IoU_flags[..., None], proposals, torch.zeros_like(proposals)).cuda()
 
