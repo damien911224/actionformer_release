@@ -574,7 +574,7 @@ class color_sys():
         return self.colors[idx]
 
 
-def inverse_sigmoid(x, eps=1e-3):
+def inverse_sigmoid(x, eps=1e-7):
     x = x.clamp(min=0, max=1)
     x1 = x.clamp(min=eps)
     x2 = (1 - x).clamp(min=eps)
