@@ -482,7 +482,6 @@ def train_one_epoch(
         IoU_mat = IoU_mat * zero_diag
         IoUs = IoU_mat.max(dim=-1)[0]
         high_IoU_flags = IoUs >= 0.60
-        print(high_IoU_flags.float().sum())
         high_IoU_proposals = torch.where(high_IoU_flags[..., None], proposals, torch.zeros_like(proposals)).cuda()
 
         # start_index = 0

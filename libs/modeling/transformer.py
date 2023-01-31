@@ -297,6 +297,7 @@ class DeformableTransformerDecoder(nn.Module):
             
             # hack implementation for segment refinement
             if self.bbox_embed is not None:
+                print("Iterative")
                 # update the reference point/segment of the next layer according to the output from the current layer
                 tmp = self.bbox_embed[lid](output)
                 if reference_points.shape[-1] == 2:
