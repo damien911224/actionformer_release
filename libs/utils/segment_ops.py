@@ -107,8 +107,8 @@ def batched_segment_iou(segments1, segments2):
     area1 = segment_length(segments1)
     area2 = segment_length(segments2)
 
-    l = torch.max(segments1[..., None, 0], segments2[..., 0])  # N,M
-    r = torch.min(segments1[..., None, 1], segments2[..., 1])  # N,M
+    l = torch.max(segments1[..., 0].unsqueeze(-2), segments2[..., 0])  # N,M
+    r = torch.min(segments1[..., 1].unsqueeze(-2), segments2[..., 1])  # N,M
     inter = (r - l).clamp(min=0)  # [N,M]
 
     union = area1[..., None] + area2 - inter
