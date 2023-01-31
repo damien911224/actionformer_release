@@ -1115,11 +1115,12 @@ def valid_one_epoch(
             segments = torch.stack(segments, dim=0)
             proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
 
-            segments_input = segments.view((-1, 2))
+            N, P, _ = segments.shape
+            segments_input = segments.view((N * P, 2))
             IoU_mat = segment_ops.segment_iou(segments_input, segments_input)
             IoUs = IoU_mat.max(dim=1)[0]
             high_IoU_flags = IoUs >= 0.60
-            high_IoU_proposals = proposals[high_IoU_flags]
+            high_IoU_proposals = proposals[high_IoU_flags.view((N, P))]
 
             features = [feat for feat in backbone_features]
             # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
