@@ -481,7 +481,7 @@ def train_one_epoch(
         IoU_mat = segment_ops.segment_iou(segments_input, segments_input)
         IoUs = IoU_mat.max(dim=1)[0]
         high_IoU_flags = IoUs >= 0.60
-        high_IoU_proposals = proposals.view((N * P, 4))[high_IoU_flags].view((N, P, 4))
+        high_IoU_proposals = torch.where(high_IoU_flags, proposals, torch.zeros_like(proposals))
 
         # start_index = 0
         # pyramidal_proposals = list()
@@ -1120,7 +1120,7 @@ def valid_one_epoch(
             IoU_mat = segment_ops.segment_iou(segments_input, segments_input)
             IoUs = IoU_mat.max(dim=1)[0]
             high_IoU_flags = IoUs >= 0.60
-            high_IoU_proposals = proposals.view((N * P, 4))[high_IoU_flags].view((N, P, 4))
+            high_IoU_proposals = torch.where(high_IoU_flags, proposals, torch.zeros_like(proposals))
 
             features = [feat for feat in backbone_features]
             # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
