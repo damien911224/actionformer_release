@@ -414,7 +414,7 @@ class DINO(nn.Module):
             # outputs_coord = tmp.sigmoid()
 
             # outputs_class = reference[..., -1:] + self.class_embed[lvl](hs[lvl])
-            outputs_class = self.class_embed[lvl](hs[0][lvl])
+            outputs_class = self.class_embed[lvl](hs[lvl])
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)
         outputs_class = torch.stack(outputs_classes)
