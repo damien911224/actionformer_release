@@ -305,7 +305,7 @@ class DeformableTransformerDecoder(nn.Module):
                 elif reference_points.shape[-1] == 3:
                     tmp = self.class_embed[lid](output)
                     new_reference_points = inverse_sigmoid(reference_points)
-                    new_reference_points[..., -1] = tmp + new_reference_points[..., -1]
+                    new_reference_points[..., -1] = tmp.squeeze(-1) + new_reference_points[..., -1]
                     new_reference_points = new_reference_points.sigmoid()
                 else:
                     # at the 0-th decoder layer
