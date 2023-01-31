@@ -519,7 +519,7 @@ class SetCriterion_DINO(nn.Module):
 
         src_logits = outputs['pred_logits']
 
-        # boxes = outputs['pred_boxes'].detach()
+        boxes = outputs['pred_boxes'].detach()
         # scores, labels = torch.max(src_logits.detach().cpu(), dim=-1)
 
         # src_segments = outputs['pred_boxes'].view((-1, 2))
@@ -572,6 +572,10 @@ class SetCriterion_DINO(nn.Module):
         #           src_logits.shape[1]
         # loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2,
         #                              mask=valid_masks)
+
+        src_logits = src_logits.flatten(0, 1)[boxes[..., -1] > 0.0]
+        target_classes_onehot = target_classes_onehot.flatten(0, 1)[boxes[..., -1] > 0.0]
+
         loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2)
 
         losses = {'loss_ce': loss_ce}
