@@ -117,8 +117,6 @@ class DeformableTransformer(nn.Module):
             init_reference_out = reference_points
         else:
             reference_points = query_embed[..., self.d_model:].sigmoid()
-            print(reference_points)
-            exit()
             tgt = query_embed[..., :self.d_model]
             init_reference_out = reference_points
             query_embed = None

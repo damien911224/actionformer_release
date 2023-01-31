@@ -333,10 +333,7 @@ class DINO(nn.Module):
         # prop_query_bbox = torch.cat([((proposals[..., 1] + proposals[..., 2]) / 2.0).unsqueeze(-1),
         #                              (proposals[..., 2] - proposals[..., 1]).unsqueeze(-1),
         #                              proposals[..., -1].unsqueeze(-1)], dim=-1)
-        print(prop_query_bbox[0, 0])
         prop_query_bbox = inverse_sigmoid(prop_query_bbox)
-        print(prop_query_bbox.sigmoid()[0, 0])
-        exit()
         prop_query_embeds = torch.cat((prop_query_label, prop_query_bbox), dim=2)
         # query_embeds = torch.cat((query_embeds, prop_query_embeds), dim=1)
         query_embeds = prop_query_embeds
@@ -385,7 +382,6 @@ class DINO(nn.Module):
             # outputs_coord = tmp.sigmoid()
 
             outputs_coord = reference[..., :2].sigmoid()
-            print(outputs_coord)
 
             # outputs_coord = torch.stack((torch.minimum(tmp[..., 0].sigmoid(), tmp[..., 0].sigmoid() + tmp[..., 1].tanh()),
             #                              torch.maximum(tmp[..., 0].sigmoid(), tmp[..., 0].sigmoid() + tmp[..., 1].tanh())),
@@ -423,8 +419,6 @@ class DINO(nn.Module):
             outputs_coords.append(outputs_coord)
         outputs_class = torch.stack(outputs_classes)
         outputs_coord = torch.stack(outputs_coords)
-
-        exit()
 
         # dn post process
         if self.dn_number > 0 and dn_meta is not None:
@@ -581,8 +575,8 @@ class SetCriterion_DINO(nn.Module):
 
         # print((boxes[..., -1].unsqueeze(-1) > 0.0).float().sum().cpu().numpy())
 
-        src_logits = src_logits[boxes[..., -1].unsqueeze(-1) > 0.0]
-        target_classes_onehot = target_classes_onehot[boxes[..., -1].unsqueeze(-1) > 0.0]
+        src_logits = src_logits[boxes[..., -1].unsqueeze(-1) > 1.0e-3]
+        target_classes_onehot = target_classes_onehot[boxes[..., -1].unsqueeze(-1) > 1.0e-3]
 
         loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2)
 
