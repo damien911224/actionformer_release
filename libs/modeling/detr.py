@@ -426,12 +426,13 @@ class DINO(nn.Module):
         if not self.with_act_reg:
             out = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord[-1]}
 
-            # target_segments = torch.cat([t['boxes'] for t in targets], dim=0)
-            # iou_mat = segment_ops.segment_iou(outputs_coord[-1], target_segments[..., :2])
-            # gt_iou = iou_mat.max(dim=1)[0]
-            # scores = gt_iou.view(outputs_class[-1].shape[:2]).detach().cpu()
-            #
-            # out['pred_logits'] = inverse_sigmoid(scores)
+            src_segments = outputs_coord[-1].view((-1, 2))
+            target_segments = torch.cat([t['boxes'] for t in targets], dim=0)
+
+            iou_mat = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments), target_segments[..., :2])
+            gt_iou = iou_mat.max(dim=1)[0]
+            scores = gt_iou.view(outputs_class[-1].shape[:2]).detach().cpu()
+            out['pred_logits'] = inverse_sigmoid(scores)
 
         else:
             # perform RoIAlign
