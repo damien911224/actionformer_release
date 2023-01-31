@@ -49,7 +49,7 @@ def segment_t1t2_to_cw(x):
 
 
 def segment_length(segments):
-    return (segments[:, 1]-segments[:, 0]).clamp(min=0)
+    return (segments[..., 1]-segments[..., 0]).clamp(min=0)
 
 
 # modified from torchvision to also return the union
@@ -93,6 +93,32 @@ def segment_iou(segments1, segments2):
     return iou
 
 
+def batched_segment_iou(segments1, segments2):
+    """
+    Temporal IoU between
+    The boxes should be in [x0, y0, x1, y1] format
+    Returns a [N, M] pairwise matrix, where N = len(segments1)
+    and M = len(segments2)
+    """
+    # degenerate boxes gives inf / nan results
+    # so do an early check
+    # assert (segments1[:, 1] >= segments1[:, 0]).all()
+
+    area1 = segment_length(segments1)
+    area2 = segment_length(segments2)
+
+    l = torch.max(segments1[..., None, 0], segments2[..., 0])  # N,M
+    r = torch.min(segments1[..., None, 1], segments2[..., 1])  # N,M
+    inter = (r - l).clamp(min=0)  # [N,M]
+
+    union = area1[..., None] + area2 - inter
+
+    iou = torch.where(union > 0.0, inter / (union + 1.0e-7), torch.zeros_like(union))
+    iou = torch.where(torch.isnan(union), torch.zeros_like(iou), iou)
+
+    return iou
+
+
 def temporal_iou_numpy(proposal_min, proposal_max, gt_min, gt_max):
     """Compute IoU score between a groundtruth instance and the proposals.
     Args:
@@ -110,26 +136,6 @@ def temporal_iou_numpy(proposal_min, proposal_max, gt_min, gt_max):
     union_len = len_anchors - inter_len + gt_max - gt_min
     jaccard = np.divide(inter_len, union_len)
     return jaccard
-
-
-def temporal_iou_numpy(proposal_min, proposal_max, gt_min, gt_max):
-    """Compute IoP score between a groundtruth bbox and the proposals.
-    Compute the IoP which is defined as the overlap ratio with
-    groundtruth proportional to the duration of this proposal.
-    Args:
-        proposal_min (list[float]): List of temporal anchor min.
-        proposal_max (list[float]): List of temporal anchor max.
-        gt_min (float): Groundtruth temporal box min.
-        gt_max (float): Groundtruth temporal box max.
-    Returns:
-        list[float]: List of intersection over anchor scores.
-    """
-    len_anchors = np.array(proposal_max - proposal_min)
-    int_tmin = np.maximum(proposal_min, gt_min)
-    int_tmax = np.minimum(proposal_max, gt_max)
-    inter_len = np.maximum(int_tmax - int_tmin, 0.)
-    scores = np.divide(inter_len, len_anchors)
-    return scores
 
 
 def soft_nms(proposals, alpha, low_threshold, high_threshold, top_k):
