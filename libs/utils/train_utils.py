@@ -474,14 +474,14 @@ def train_one_epoch(
         labels = torch.stack(labels, dim=0)
         scores = torch.stack(scores, dim=0)
         segments = torch.stack(segments, dim=0)
-        proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
+        proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1)
 
         N, P, _ = segments.shape
         segments_input = segments.view((N * P, 2))
         IoU_mat = segment_ops.segment_iou(segments_input, segments_input)
         IoUs = IoU_mat.max(dim=1)[0]
         high_IoU_flags = IoUs >= 0.60
-        high_IoU_proposals = torch.where(high_IoU_flags, proposals, torch.zeros_like(proposals))
+        high_IoU_proposals = torch.where(high_IoU_flags, proposals, torch.zeros_like(proposals)).cuda()
 
         # start_index = 0
         # pyramidal_proposals = list()
@@ -1113,14 +1113,14 @@ def valid_one_epoch(
             labels = torch.stack(labels, dim=0)
             scores = torch.stack(scores, dim=0)
             segments = torch.stack(segments, dim=0)
-            proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1).cuda()
+            proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1)
 
             N, P, _ = segments.shape
             segments_input = segments.view((N * P, 2))
             IoU_mat = segment_ops.segment_iou(segments_input, segments_input)
             IoUs = IoU_mat.max(dim=1)[0]
             high_IoU_flags = IoUs >= 0.60
-            high_IoU_proposals = torch.where(high_IoU_flags.cuda(), proposals, torch.zeros_like(proposals))
+            high_IoU_proposals = torch.where(high_IoU_flags, proposals, torch.zeros_like(proposals)).cuda()
 
             features = [feat for feat in backbone_features]
             # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
