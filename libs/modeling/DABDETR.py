@@ -160,13 +160,11 @@ class DABDETR(nn.Module):
                - "aux_outputs": Optional, only returned when auxilary losses are activated. It is a list of
                                 dictionnaries containing the two above keys for each decoder layer.
         """
-        # if not isinstance(samples, NestedTensor):
-        #     if isinstance(samples, (list, tuple)):
-        #         samples = NestedTensor(*samples)
-        #     else:
-        #         samples = nested_tensor_from_tensor_list(samples)  # (n, c, t)
-        n, c, t = samples.shape
-        samples = NestedTensor(samples)
+        if not isinstance(samples, NestedTensor):
+            if isinstance(samples, (list, tuple)):
+                samples = NestedTensor(*samples)
+            else:
+                samples = nested_tensor_from_tensor_list(samples)  # (n, c, t)
 
         pos = [self.position_embedding(samples)]
         src, mask = samples.tensors, samples.mask
