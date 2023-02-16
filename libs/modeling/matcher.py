@@ -117,9 +117,9 @@ class HungarianMatcher(nn.Module):
             C = C.view(bs, num_queries, -1).cpu()
 
             if layer is None:
-                sizes = [len(v["boxes"]) for v in targets]
+                sizes = [len(v["segments"]) for v in targets]
             else:
-                sizes = [len(v["boxes"].repeat(2 ** (5 - layer), 1)) for v in targets]
+                sizes = [len(v["segments"].repeat(2 ** (5 - layer), 1)) for v in targets]
 
             # indices = list()
             # for m_i in range(1):
