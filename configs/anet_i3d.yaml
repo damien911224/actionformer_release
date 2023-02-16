@@ -98,7 +98,7 @@ detr: {
   with_act_reg: False,
   weight_loss_act: 4,
   weight_decay: 1.0e-4,
-  nhead: 8,
+  nheads: 8,
   dropout: 0.1,
   dim_feedforward: 1024,
   pre_norm: False,
