@@ -60,7 +60,7 @@ class HungarianMatcher(nn.Module):
             # out_sims = outputs["pred_sims"].flatten(0, 1).softmax(-1)
             # out_prob = out_prob[..., 0].unsqueeze(-1) * out_embeds
             # out_prob = out_sims
-            out_bbox = outputs["pred_boxes"].flatten(0, 1)  # [batch_size * num_queries, 4]
+            out_bbox = outputs["pred_segments"].flatten(0, 1)  # [batch_size * num_queries, 4]
 
             # Also concat the target labels and boxes
             # tgt_ids = torch.cat([v["labels"] for v in targets])
