@@ -235,8 +235,8 @@ def main(args):
             mAP = valid_one_epoch(
                 val_loader,
                 model_emas[0].module,
-                detr_model_ema.module,
-                # detr,
+                # detr_model_ema.module,
+                detr,
                 data_types[0],
                 epoch,
                 cfg['test_cfg'],
