@@ -5,6 +5,7 @@ import time
 import datetime
 import glob
 from pprint import pprint
+from easydict import EasyDict
 
 # torch imports
 import torch
@@ -21,7 +22,8 @@ from libs.modeling import make_meta_arch
 from libs.utils import (train_one_epoch, valid_one_epoch, ANETdetection,
                         save_checkpoint, make_optimizer, make_scheduler,
                         fix_random_seed, ModelEma)
-from libs.modeling.detr import build_dino
+# from libs.modeling.detr import build_dino
+from libs.modeling.DABDETR import build
 
 ################################################################################
 def main(args):
@@ -97,8 +99,8 @@ def main(args):
 
     """ DETR """
     cfg['detr']['num_feature_levels'] *= len(data_types)
-    detr, detr_criterion = build_dino(cfg['detr'])
-    detr_, _ = build_dino(cfg['detr'])
+    detr, detr_criterion = build(EasyDict(cfg['detr']))
+    detr_, _ = build(EasyDict(cfg['detr']))
     detr_.load_state_dict(detr.state_dict())
     detr = detr.cuda()
     detr_ = detr_.cuda()

@@ -412,7 +412,7 @@ def train_one_epoch(
     # number of iterations per epoch
     num_iters = len(train_loader)
     # switch to train mode
-    backbone.train()
+    # backbone.train()
     detr.train()
 
     # main training loop
@@ -420,11 +420,11 @@ def train_one_epoch(
     start = time.time()
     for iter_idx, video_list in enumerate(train_loader, 0):
         # zero out optim
-        backbone_optimizer.zero_grad(set_to_none=True)
+        # backbone_optimizer.zero_grad(set_to_none=True)
         detr_optimizer.zero_grad(set_to_none=True)
-        # forward / backward the model
-        backbone_losses, backbone_results, backbone_features = backbone(video_list, data_type=data_type, nms=False)
-        backbone_loss = backbone_losses["final_loss"]
+        # # forward / backward the model
+        # backbone_losses, backbone_results, backbone_features = backbone(video_list, data_type=data_type, nms=False)
+        # backbone_loss = backbone_losses["final_loss"]
 
         # T = backbone_features[0].size(2)
         detr_target_dict = list()
@@ -447,42 +447,42 @@ def train_one_epoch(
 
             detr_target_dict.append(batch_dict)
 
-        features = [feat for feat in backbone_features]
-        # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
+        # features = [feat for feat in backbone_features]
+        features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
 
-        labels = list()
-        scores = list()
-        segments = list()
-        for p, x in zip(backbone_results, video_list):
-            this_labels = p["labels"].float()
-            this_scores = p["scores"].float()
-            this_segments = p["segments"] / x["duration"]
-
-            # sorted_indices = torch.argsort(this_scores, descending=True)[:100]
-            # this_labels = this_labels[sorted_indices]
-            # this_scores = this_scores[sorted_indices]
-            # this_segments = this_segments[sorted_indices]
-
-            # if len(this_labels) < 100:
-            #     this_labels = F.pad(this_labels, (0, 100 - len(this_labels)))
-            #     this_scores = F.pad(this_scores, (0, 100 - len(this_scores)))
-            #     this_segments = F.pad(this_segments, (0, 0, 0, 100 - len(this_segments)))
-
-            labels.append(this_labels)
-            scores.append(this_scores)
-            segments.append(this_segments)
-        labels = torch.stack(labels, dim=0)
-        scores = torch.stack(scores, dim=0)
-        segments = torch.stack(segments, dim=0)
-        proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1)
-
-        N, P, _ = segments.shape
-        IoU_mat = segment_ops.batched_segment_iou(segments, segments)
-        zero_diag = torch.ones(size=(P, P), dtype=torch.float32).fill_diagonal_(0.0).unsqueeze(0)
-        IoU_mat = IoU_mat * zero_diag
-        IoUs = IoU_mat.max(dim=-1)[0]
-        high_IoU_flags = IoUs >= 0.60
-        high_IoU_proposals = torch.where(high_IoU_flags[..., None], proposals, torch.zeros_like(proposals)).cuda()
+        # labels = list()
+        # scores = list()
+        # segments = list()
+        # for p, x in zip(backbone_results, video_list):
+        #     this_labels = p["labels"].float()
+        #     this_scores = p["scores"].float()
+        #     this_segments = p["segments"] / x["duration"]
+        #
+        #     # sorted_indices = torch.argsort(this_scores, descending=True)[:100]
+        #     # this_labels = this_labels[sorted_indices]
+        #     # this_scores = this_scores[sorted_indices]
+        #     # this_segments = this_segments[sorted_indices]
+        #
+        #     # if len(this_labels) < 100:
+        #     #     this_labels = F.pad(this_labels, (0, 100 - len(this_labels)))
+        #     #     this_scores = F.pad(this_scores, (0, 100 - len(this_scores)))
+        #     #     this_segments = F.pad(this_segments, (0, 0, 0, 100 - len(this_segments)))
+        #
+        #     labels.append(this_labels)
+        #     scores.append(this_scores)
+        #     segments.append(this_segments)
+        # labels = torch.stack(labels, dim=0)
+        # scores = torch.stack(scores, dim=0)
+        # segments = torch.stack(segments, dim=0)
+        # proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1)
+        #
+        # N, P, _ = segments.shape
+        # IoU_mat = segment_ops.batched_segment_iou(segments, segments)
+        # zero_diag = torch.ones(size=(P, P), dtype=torch.float32).fill_diagonal_(0.0).unsqueeze(0)
+        # IoU_mat = IoU_mat * zero_diag
+        # IoUs = IoU_mat.max(dim=-1)[0]
+        # high_IoU_flags = IoUs >= 0.60
+        # high_IoU_proposals = torch.where(high_IoU_flags[..., None], proposals, torch.zeros_like(proposals)).cuda()
 
         # start_index = 0
         # pyramidal_proposals = list()
@@ -494,12 +494,14 @@ def train_one_epoch(
 
         # detr_predictions = detr(features, proposals, detr_target_dict)
         # detr_predictions = detr(features, pyramidal_proposals, detr_target_dict)
-        detr_predictions = detr(features, high_IoU_proposals, detr_target_dict)
+        # detr_predictions = detr(features, high_IoU_proposals, detr_target_dict)
+        detr_predictions = detr(features)
         detr_loss_dict = detr_criterion(detr_predictions, detr_target_dict)
         weight_dict = detr_criterion.weight_dict
         detr_loss = sum(detr_loss_dict[k] * weight_dict[k] for k in detr_loss_dict.keys() if k in weight_dict)
 
-        final_loss = backbone_loss + detr_loss
+        final_loss = detr_loss
+        # final_loss = backbone_loss + detr_loss
         # final_loss = detr_loss
         # final_loss = backbone_loss
 
@@ -513,14 +515,14 @@ def train_one_epoch(
         # backbone_scheduler.step()
         detr_scheduler.step()
 
-        if backbone_model_ema is not None:
-            backbone_model_ema.update(backbone)
+        # if backbone_model_ema is not None:
+        #     backbone_model_ema.update(backbone)
         if detr_model_ema is not None:
             detr_model_ema.update(detr)
 
         losses = dict()
-        for k, v in backbone_losses.items():
-            losses["backbone_" + k] = v
+        # for k, v in backbone_losses.items():
+        #     losses["backbone_" + k] = v
 
         for k, v in detr_loss_dict.items():
             if "dn" not in k and k[-2] != "_":
@@ -1065,7 +1067,7 @@ def valid_one_epoch(
     # set up meters
     batch_time = AverageMeter()
     # switch to evaluate mode
-    backbone.eval()
+    # backbone.eval()
     detr.eval()
     # dict for results (for our evaluation code)
     results = {
@@ -1075,57 +1077,57 @@ def valid_one_epoch(
         'label': [],
         'score': []
     }
-    backbone_results = {
-        'video-id': [],
-        't-start': [],
-        't-end': [],
-        'label': [],
-        'score': []
-    }
+    # backbone_results = {
+    #     'video-id': [],
+    #     't-start': [],
+    #     't-end': [],
+    #     'label': [],
+    #     'score': []
+    # }
 
     # loop over validation set
     start = time.time()
     for iter_idx, video_list in enumerate(val_loader, 0):
         # forward the model (wo. grad)
         with torch.no_grad():
-            output, backbone_features = backbone(video_list, data_type=data_type, nms=False)
+            # output, backbone_features = backbone(video_list, data_type=data_type, nms=False)
 
-            labels = list()
-            scores = list()
-            segments = list()
-            for p, x in zip(output, video_list):
-                this_labels = p["labels"].float()
-                this_scores = p["scores"]
-                this_segments = p["segments"] / x["duration"]
+            # labels = list()
+            # scores = list()
+            # segments = list()
+            # for p, x in zip(output, video_list):
+            #     this_labels = p["labels"].float()
+            #     this_scores = p["scores"]
+            #     this_segments = p["segments"] / x["duration"]
+            #
+            #     # sorted_indices = torch.argsort(this_scores, descending=True)[:100]
+            #     # this_labels = this_labels[sorted_indices]
+            #     # this_scores = this_scores[sorted_indices]
+            #     # this_segments = this_segments[sorted_indices]
+            #     #
+            #     # if len(this_labels) < 100:
+            #     #     this_labels = F.pad(this_labels, (0, 100 - len(this_labels)))
+            #     #     this_scores = F.pad(this_scores, (0, 100 - len(this_scores)))
+            #     #     this_segments = F.pad(this_segments, (0, 0, 0, 100 - len(this_segments)))
+            #
+            #     labels.append(this_labels)
+            #     scores.append(this_scores)
+            #     segments.append(this_segments)
+            # labels = torch.stack(labels, dim=0)
+            # scores = torch.stack(scores, dim=0)
+            # segments = torch.stack(segments, dim=0)
+            # proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1)
+            #
+            # N, P, _ = segments.shape
+            # IoU_mat = segment_ops.batched_segment_iou(segments, segments)
+            # zero_diag = torch.ones(size=(P, P), dtype=torch.float32).fill_diagonal_(0.0).unsqueeze(0)
+            # IoU_mat = IoU_mat * zero_diag
+            # IoUs = IoU_mat.max(dim=-1)[0]
+            # high_IoU_flags = IoUs >= 0.60
+            # high_IoU_proposals = torch.where(high_IoU_flags[..., None], proposals, torch.zeros_like(proposals)).cuda()
 
-                # sorted_indices = torch.argsort(this_scores, descending=True)[:100]
-                # this_labels = this_labels[sorted_indices]
-                # this_scores = this_scores[sorted_indices]
-                # this_segments = this_segments[sorted_indices]
-                #
-                # if len(this_labels) < 100:
-                #     this_labels = F.pad(this_labels, (0, 100 - len(this_labels)))
-                #     this_scores = F.pad(this_scores, (0, 100 - len(this_scores)))
-                #     this_segments = F.pad(this_segments, (0, 0, 0, 100 - len(this_segments)))
-
-                labels.append(this_labels)
-                scores.append(this_scores)
-                segments.append(this_segments)
-            labels = torch.stack(labels, dim=0)
-            scores = torch.stack(scores, dim=0)
-            segments = torch.stack(segments, dim=0)
-            proposals = torch.cat((labels.unsqueeze(-1), segments, scores.unsqueeze(-1)), dim=-1)
-
-            N, P, _ = segments.shape
-            IoU_mat = segment_ops.batched_segment_iou(segments, segments)
-            zero_diag = torch.ones(size=(P, P), dtype=torch.float32).fill_diagonal_(0.0).unsqueeze(0)
-            IoU_mat = IoU_mat * zero_diag
-            IoUs = IoU_mat.max(dim=-1)[0]
-            high_IoU_flags = IoUs >= 0.60
-            high_IoU_proposals = torch.where(high_IoU_flags[..., None], proposals, torch.zeros_like(proposals)).cuda()
-
-            features = [feat for feat in backbone_features]
-            # features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
+            # features = [feat for feat in backbone_features]
+            features = [torch.stack([x["feats"] for x in video_list], dim=0).cuda()]
 
             # start_index = 0
             # pyramidal_proposals = list()
@@ -1135,32 +1137,32 @@ def valid_one_epoch(
             #     pyramidal_proposals.append(this_proposals)
             #     start_index += this_len
 
+            detr_predictions = detr(features)
             # detr_predictions = detr(features, proposals)
             # detr_predictions = detr(features, pyramidal_proposals)
-            detr_predictions = detr(features, high_IoU_proposals)
+            # detr_predictions = detr(features, high_IoU_proposals)
 
             boxes = detr_predictions["pred_boxes"].detach().cpu()
-            # boxes = (boxes[..., :2] +
-            #          torch.stack((torch.clamp(boxes[..., 2] - boxes[..., 3] / 2.0, 0.0, 1.0),
-            #                       torch.clamp(boxes[..., 2] + boxes[..., 3] / 2.0, 0.0, 1.0)), dim=-1)) / 2.0
+            boxes = torch.stack((torch.clamp(boxes[..., 2] - boxes[..., 3] / 2.0, 0.0, 1.0),
+                                 torch.clamp(boxes[..., 2] + boxes[..., 3] / 2.0, 0.0, 1.0)), dim=-1)
             # boxes = boxes[..., :2]
             logits = detr_predictions["pred_logits"].detach().cpu().sigmoid()
             # logits = (logits[..., 0] * 1.0 + logits[..., 1] * 0.5 + logits[..., 1] * 0.2).unsqueeze(-1)
             detr_scores, detr_labels = torch.max(logits, dim=-1)
-            if "pred_actionness" in detr_predictions.keys():
-                actionness = detr_predictions["pred_actionness"].detach().cpu()
-                scores = scores * actionness.squeeze(-1)
+            # if "pred_actionness" in detr_predictions.keys():
+            #     actionness = detr_predictions["pred_actionness"].detach().cpu()
+            #     scores = scores * actionness.squeeze(-1)
 
-            proposals = proposals.cpu()
-            backbone_boxes = proposals[..., 1:3]
-            backbone_scores = proposals[..., -1]
-            backbone_labels = proposals[..., 0].long()
+            # proposals = proposals.cpu()
+            # backbone_boxes = proposals[..., 1:3]
+            # backbone_scores = proposals[..., -1]
+            # backbone_labels = proposals[..., 0].long()
 
             # boxes = torch.clamp((boxes + backbone_boxes) / 2.0, 0.0, 1.0)
-            boxes = backbone_boxes
+            # boxes = backbone_boxes
             # scores = scores * backbone_scores
-            scores = backbone_scores
-            scores[high_IoU_flags] *= detr_scores[high_IoU_flags]
+            # scores = backbone_scores
+            # scores[high_IoU_flags] *= detr_scores[high_IoU_flags]
 
             durations = [x["duration"] for x in video_list]
             boxes = boxes * torch.Tensor(durations)
@@ -1204,47 +1206,47 @@ def valid_one_epoch(
                     results['label'].append(labels[vid_idx])
                     results['score'].append(scores[vid_idx])
 
-            durations = [x["duration"] for x in video_list]
-            backbone_boxes = backbone_boxes * torch.Tensor(durations)
-
-            nmsed_boxes = list()
-            nmsed_labels = list()
-            nmsed_scores = list()
-            for b, l, s in zip(backbone_boxes, backbone_labels, backbone_scores):
-                if test_cfg['nms_method'] != 'none':
-                    # 2: batched nms (only implemented on CPU)
-                    b, s, l = batched_nms(
-                        b.contiguous(), s.contiguous(), l.contiguous(),
-                        test_cfg['iou_threshold'],
-                        test_cfg['min_score'],
-                        test_cfg['max_seg_num'],
-                        use_soft_nms=(test_cfg['nms_method'] == 'soft'),
-                        multiclass=test_cfg['multiclass_nms'],
-                        sigma=test_cfg['nms_sigma'],
-                        voting_thresh=test_cfg['voting_thresh']
-                    )
-                nmsed_boxes.append(b)
-                nmsed_labels.append(l)
-                nmsed_scores.append(s)
-            backbone_boxes = torch.stack(nmsed_boxes, dim=0)
-            backbone_boxes = torch.where(backbone_boxes.isnan(), torch.zeros_like(backbone_boxes), backbone_boxes)
-            backbone_labels = torch.stack(nmsed_labels, dim=0)
-            backbone_labels = torch.where(backbone_labels.isnan(), torch.zeros_like(backbone_labels), backbone_labels)
-            backbone_scores = torch.stack(nmsed_scores, dim=0)
-            backbone_scores = torch.where(backbone_scores.isnan(), torch.zeros_like(backbone_scores), backbone_scores)
-
-            # upack the results into ANet format
-            num_vids = len(backbone_boxes)
-            for vid_idx in range(num_vids):
-                if backbone_boxes[vid_idx].shape[0] > 0:
-                    backbone_results['video-id'].extend(
-                        [video_list[vid_idx]['video_id']] *
-                        backbone_boxes[vid_idx].shape[0]
-                    )
-                    backbone_results['t-start'].append(backbone_boxes[vid_idx][:, 0])
-                    backbone_results['t-end'].append(backbone_boxes[vid_idx][:, 1])
-                    backbone_results['label'].append(backbone_labels[vid_idx])
-                    backbone_results['score'].append(backbone_scores[vid_idx])
+            # durations = [x["duration"] for x in video_list]
+            # backbone_boxes = backbone_boxes * torch.Tensor(durations)
+            #
+            # nmsed_boxes = list()
+            # nmsed_labels = list()
+            # nmsed_scores = list()
+            # for b, l, s in zip(backbone_boxes, backbone_labels, backbone_scores):
+            #     if test_cfg['nms_method'] != 'none':
+            #         # 2: batched nms (only implemented on CPU)
+            #         b, s, l = batched_nms(
+            #             b.contiguous(), s.contiguous(), l.contiguous(),
+            #             test_cfg['iou_threshold'],
+            #             test_cfg['min_score'],
+            #             test_cfg['max_seg_num'],
+            #             use_soft_nms=(test_cfg['nms_method'] == 'soft'),
+            #             multiclass=test_cfg['multiclass_nms'],
+            #             sigma=test_cfg['nms_sigma'],
+            #             voting_thresh=test_cfg['voting_thresh']
+            #         )
+            #     nmsed_boxes.append(b)
+            #     nmsed_labels.append(l)
+            #     nmsed_scores.append(s)
+            # backbone_boxes = torch.stack(nmsed_boxes, dim=0)
+            # backbone_boxes = torch.where(backbone_boxes.isnan(), torch.zeros_like(backbone_boxes), backbone_boxes)
+            # backbone_labels = torch.stack(nmsed_labels, dim=0)
+            # backbone_labels = torch.where(backbone_labels.isnan(), torch.zeros_like(backbone_labels), backbone_labels)
+            # backbone_scores = torch.stack(nmsed_scores, dim=0)
+            # backbone_scores = torch.where(backbone_scores.isnan(), torch.zeros_like(backbone_scores), backbone_scores)
+            #
+            # # upack the results into ANet format
+            # num_vids = len(backbone_boxes)
+            # for vid_idx in range(num_vids):
+            #     if backbone_boxes[vid_idx].shape[0] > 0:
+            #         backbone_results['video-id'].extend(
+            #             [video_list[vid_idx]['video_id']] *
+            #             backbone_boxes[vid_idx].shape[0]
+            #         )
+            #         backbone_results['t-start'].append(backbone_boxes[vid_idx][:, 0])
+            #         backbone_results['t-end'].append(backbone_boxes[vid_idx][:, 1])
+            #         backbone_results['label'].append(backbone_labels[vid_idx])
+            #         backbone_results['score'].append(backbone_scores[vid_idx])
 
         # printing
         if (iter_idx != 0) and iter_idx % (print_freq) == 0:
@@ -1264,29 +1266,29 @@ def valid_one_epoch(
     results['label'] = torch.cat(results['label']).numpy()
     results['score'] = torch.cat(results['score']).numpy()
 
-    backbone_results['t-start'] = torch.cat(backbone_results['t-start']).numpy()
-    backbone_results['t-end'] = torch.cat(backbone_results['t-end']).numpy()
-    backbone_results['label'] = torch.cat(backbone_results['label']).numpy()
-    backbone_results['score'] = torch.cat(backbone_results['score']).numpy()
+    # backbone_results['t-start'] = torch.cat(backbone_results['t-start']).numpy()
+    # backbone_results['t-end'] = torch.cat(backbone_results['t-end']).numpy()
+    # backbone_results['label'] = torch.cat(backbone_results['label']).numpy()
+    # backbone_results['score'] = torch.cat(backbone_results['score']).numpy()
 
     if evaluator is not None:
         if (ext_score_file is not None) and isinstance(ext_score_file, str):
             results = postprocess_results(results, ext_score_file)
-            backbone_results = postprocess_results(backbone_results, ext_score_file)
+            # backbone_results = postprocess_results(backbone_results, ext_score_file)
         # call the evaluator
         _, mAP = evaluator.evaluate(results, verbose=True)
-        _, backbone_mAP = evaluator.evaluate(backbone_results, verbose=True)
+        # _, backbone_mAP = evaluator.evaluate(backbone_results, verbose=True)
     else:
         # dump to a pickle file that can be directly used for evaluation
         with open(output_file, "wb") as f:
             pickle.dump(results, f)
         mAP = 0.0
-        backbone_mAP = 0.0
+        # backbone_mAP = 0.0
 
     # log mAP to tb_writer
     if tb_writer is not None:
         tb_writer.add_scalar('validation/mAP', mAP, curr_epoch)
-        tb_writer.add_scalar('validation/backbone_mAP', backbone_mAP, curr_epoch)
+        # tb_writer.add_scalar('validation/backbone_mAP', backbone_mAP, curr_epoch)
 
     return mAP
 
