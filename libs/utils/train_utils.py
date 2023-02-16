@@ -448,7 +448,7 @@ def train_one_epoch(
             detr_target_dict.append(batch_dict)
 
         # features = [feat for feat in backbone_features]
-        features = torch.stack([torch.stack([x["feats"] for x in video_list], dim=0).cuda()])
+        features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
 
         # labels = list()
         # scores = list()
@@ -1127,7 +1127,7 @@ def valid_one_epoch(
             # high_IoU_proposals = torch.where(high_IoU_flags[..., None], proposals, torch.zeros_like(proposals)).cuda()
 
             # features = [feat for feat in backbone_features]
-            features = torch.stack([torch.stack([x["feats"] for x in video_list], dim=0).cuda()])
+            features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
 
             # start_index = 0
             # pyramidal_proposals = list()
