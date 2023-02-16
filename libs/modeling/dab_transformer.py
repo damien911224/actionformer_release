@@ -14,7 +14,7 @@ import math
 import copy
 import os
 from typing import Optional, List
-from utils.misc import inverse_sigmoid
+from ..utils.misc import inverse_sigmoid
 
 import torch
 import torch.nn.functional as F

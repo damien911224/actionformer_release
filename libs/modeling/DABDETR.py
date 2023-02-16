@@ -20,13 +20,13 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from utils import segment_ops
-from utils.misc import (NestedTensor, nested_tensor_from_tensor_list,
+from ..utils import segment_ops
+from ..utils.misc import (NestedTensor, nested_tensor_from_tensor_list,
                        accuracy, get_world_size,
                        is_dist_avail_and_initialized, inverse_sigmoid)
-from modeling.matcher import build_matcher
-from modeling.position_encoding import build_position_encoding
-from utils.custom_loss import sigmoid_focal_loss
+from .modeling.matcher import build_matcher
+from .modeling.position_encoding import build_position_encoding
+from ..utils.custom_loss import sigmoid_focal_loss
 from .dab_transformer import build_transformer
 
 # if not cfg.disable_cuda:
