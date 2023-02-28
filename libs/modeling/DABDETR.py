@@ -200,13 +200,15 @@ class DABDETR(nn.Module):
         # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
         #        'Q_weights': torch.mean(Q_weights, dim=0), 'K_weights': torch.mean(K_weights, dim=0),
         #        'C_weights': C_weights[-1]}
-        out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
-               'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights[-1]}
+        # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
+        #        'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights[-1]}
         # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
         #        'Q_weights': torch.mean(Q_weights, dim=0), 'K_weights': torch.mean(K_weights, dim=0),
         #        'C_weights': torch.mean(C_weights, dim=0)}
         # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
         #        'Q_weights': normalized_Q_weights, 'K_weights': normalized_K_weights, 'C_weights': C_weights[-1]}
+        out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
+               'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights}
 
         if self.with_act_reg:
             # perform RoIAlign
@@ -273,19 +275,35 @@ class SetCriterion(nn.Module):
         """
         assert 'pred_logits' in outputs
         src_logits = outputs['pred_logits']
-
         idx = self._get_src_permutation_idx(indices)
-        target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
-        target_classes = torch.full(src_logits.shape[:2], self.num_classes,
-                                    dtype=torch.int64, device=src_logits.device)
-        target_classes[idx] = target_classes_o
 
+        src_segments = outputs['pred_segments'][idx]
+        target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, indices)], dim=0)
+        IoUs = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments),
+                                       segment_ops.segment_cw_to_t1t2(target_segments))
+        IoUs = torch.diag(IoUs).detach()
+
+        target_classes = torch.full(src_logits.shape[:2], self.num_classes, dtype=torch.int64, device=src_logits.device)
         target_classes_onehot = torch.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2] + 1],
                                             dtype=src_logits.dtype, layout=src_logits.layout, device=src_logits.device)
-        target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
 
-        target_classes_onehot = target_classes_onehot[:,:,:-1]
-        loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_segments, alpha=self.focal_alpha, gamma=2) * src_logits.shape[1]  # nq
+        target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
+        target_classes[idx] = target_classes_o
+        target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
+        target_classes_onehot[idx] = target_classes_onehot[idx]
+
+        # for i, this_indices in enumerate(indices):
+        #     idx = self._get_src_permutation_idx(this_indices)
+        #     target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, this_indices)])
+        #     target_classes[idx] = target_classes_o
+        #     target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
+        #     target_classes_onehot[idx] = target_classes_onehot[idx] * (1.0 - 0.2 * i)
+
+        target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs.unsqueeze(-1)
+
+        target_classes_onehot = target_classes_onehot[:, :, :-1]
+        loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_segments, alpha=self.focal_alpha, gamma=2) * \
+                  src_logits.shape[1]  # nq
         losses = {'loss_ce': loss_ce}
 
         if log:
@@ -358,55 +376,67 @@ class SetCriterion(nn.Module):
         """
         assert 'Q_weights' in outputs
         assert 'C_weights' in outputs
+        assert 'pred_segments' in outputs
 
-        Q_weights = torch.mean(outputs["Q_weights"], dim=0)
-        C_weights = outputs["C_weights"].detach()
+        # IoUs = list()
+        # for n_i in range(len(targets)):
+        #     src_segments = outputs['pred_segments'][n_i]
+        #     tgt_segments = targets[n_i]['segments']
+        #     # this_IoUs = list()
+        #     # for t_i in range(len(tgt_segments)):
+        #     #     this_IoU = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(tgt_segments[t_i]),
+        #     #                                        segment_ops.segment_cw_to_t1t2(src_segments))
+        #     #     this_IoU = torch.max(this_IoU, dim=1)[0]
+        #     #     this_IoUs.append(this_IoU)
+        #     this_IoU = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(tgt_segments),
+        #                                        segment_ops.segment_cw_to_t1t2(src_segments))
+        #     this_IoU = torch.max(this_IoU, dim=1)[0]
+        #     this_IoU = torch.mean(this_IoU, dim=0)
+        #     IoUs.append(this_IoU)
+        #     print(this_IoU)
+        # IoUs = torch.stack(IoUs).detach()
+        # IoU_weight = IoUs / 0.5
+        # print(IoU_weight.shape)
+        # exit()
 
-        N, Q, K = C_weights.shape
+        # Q_weights = torch.mean(outputs["Q_weights"], dim=0)
+        # Q_weights = outputs["Q_weights"]
+        # normalized_Q_weights = Q_weights[0]
+        # for i in range(len(Q_weights) - 1):
+        #     normalized_Q_weights = torch.sqrt(
+        #         torch.bmm(normalized_Q_weights, Q_weights[i + 1].transpose(1, 2)) + 1.0e-7)
+        #     normalized_Q_weights = normalized_Q_weights / torch.sum(normalized_Q_weights, dim=-1, keepdim=True)
+        # Q_weights = normalized_Q_weights
 
-        # C_indices = torch.argsort(-C_weights, dim=-1).float()
-        # QQ_weights = torch.bmm(C_indices, C_indices.transpose(1, 2))
-        # target_Q_weights = F.softmax(QQ_weights, dim=-1)
+        Q_weights = outputs["Q_weights"].flatten(0, 1)
 
-        # C_weights = F.softmax(C_weights, dim=-1)
-        QQ_weights = torch.bmm(C_weights, C_weights.transpose(1, 2))
-        # target_Q_weights = F.log_softmax(QQ_weights, dim=-1)
-        # target_Q_weights = F.softmax(QQ_weights * 25.0, dim=-1)
-        QQ_weights = torch.sqrt(QQ_weights)
+        # C_weights = outputs["C_weights"][-1].detach()
+        # QQ_weights = torch.bmm(C_weights, C_weights.transpose(1, 2))
+        # QQ_weights = torch.sqrt(QQ_weights)
+        # target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
+
+        # C_weights = outputs["C_weights"].detach()
+        # normalized_QQ_weights = torch.sqrt(torch.bmm(C_weights[0], C_weights[0].transpose(1, 2)) + 1.0e-7)
+        # normalized_QQ_weights = normalized_QQ_weights / torch.sum(normalized_QQ_weights, dim=-1, keepdim=True)
+        # for i in range(len(C_weights) - 1):
+        #     QQ_weights = torch.sqrt(torch.bmm(C_weights[i + 1], C_weights[i + 1].transpose(1, 2)) + 1.0e-7)
+        #     QQ_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
+        #     normalized_QQ_weights = torch.sqrt(torch.bmm(normalized_QQ_weights, QQ_weights) + 1.0e-7)
+        #     normalized_QQ_weights = normalized_QQ_weights / torch.sum(normalized_QQ_weights, dim=-1, keepdim=True)
+        # target_Q_weights = normalized_QQ_weights
+
+        C_weights = outputs["C_weights"].flatten(0, 1).detach()
+        QQ_weights = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
         target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
-        # src_C_weights = C_weights.unsqueeze(2).tile(1, 1, Q, 1).flatten(0, 2)
-        # src_C_weights = (src_C_weights + 1.0e-7).log()
-        # tgt_C_weights = C_weights.unsqueeze(1).tile(1, Q, 1, 1).flatten(0, 2)
-        # tgt_C_weights = (tgt_C_weights + 1.0e-7).log()
-        # QQ_weights = F.kl_div(src_C_weights, tgt_C_weights, log_target=True, reduction="none").sum(-1)
-        # target_Q_weights = F.softmax(QQ_weights.view(N, Q, Q), dim=-1)
-        # temparature_scale = (torch.max(C_weights) / torch.max(QQ_weights)).detach()
-        # target_Q_weights = F.softmax(QQ_weights * temparature_scale, dim=-1)
-        # target_Q_weights = F.log_softmax(QQ_weights * 10000.0, dim=-1)
-        # target_Q_weights = F.log_softmax(torch.bmm(torch.log(C_weights),
-        #                                            torch.log(C_weights).transpose(1, 2)), dim=-1)
 
-        # print(torch.argsort(-target_Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
-        # print(torch.max(target_Q_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
-        # print(torch.max(C_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
-        # print(target_Q_weights[0, 0].detach().cpu().numpy())
-        # print((torch.max(C_weights) - torch.max(target_Q_weights)).detach().cpu().numpy())
-
-        # NQ, Q
-        # src_QQ = F.normalize(Q_weights, dim=-1).flatten(0, 1)
         src_QQ = (Q_weights.flatten(0, 1) + 1.0e-7).log()
-        # src_QQ = F.log_softmax(Q_weights.flatten(0, 1), -1)
-        # NQ, Q
-        # tgt_QQ = F.normalize(target_Q_weights, dim=-1).flatten(0, 1)
         tgt_QQ = (target_Q_weights.flatten(0, 1) + 1.0e-7).log()
 
         losses = {}
 
-        # loss_QQ = 1.0 - torch.bmm(src_QQ.unsqueeze(-1), tgt_QQ.unsqueeze(1))
-        # loss_QQ = torch.square(src_QQ - dummy)
-        # loss_QQ = torch.sum(-tgt_QQ * torch.log(src_QQ + 1.0e-5), dim=-1)
-        # loss_QQ = loss_QQ.sum(dim=(1, 2))
         loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1)
+        # loss_QQ = loss_QQ * IoU_weight.unsqueeze(-1)
+        # loss_QQ = loss_QQ.sum() / loss_QQ
         loss_QQ = loss_QQ.mean()
 
         losses['loss_QQ'] = loss_QQ
@@ -421,14 +451,29 @@ class SetCriterion(nn.Module):
         assert 'C_weights' in outputs
 
         K_weights = torch.mean(outputs["K_weights"], dim=0)
-        C_weights = outputs["C_weights"].detach()
 
-        N, Q, K = C_weights.shape
+        # K_weights = outputs["K_weights"]
+        # normalized_K_weights = K_weights[0]
+        # for i in range(len(K_weights) - 1):
+        #     normalized_K_weights = torch.sqrt(
+        #         torch.bmm(normalized_K_weights, K_weights[i + 1].transpose(1, 2)) + 1.0e-7)
+        #     normalized_K_weights = normalized_K_weights / torch.sum(normalized_K_weights, dim=-1, keepdim=True)
+        # K_weights = normalized_K_weights
 
-        KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
-        # target_K_weights = F.softmax(KK_weights * 50.0, dim=-1)
-        KK_weights = torch.sqrt(KK_weights)
-        target_K_weights = KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)
+        # C_weights = outputs["C_weights"][-1].detach()
+        # KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
+        # KK_weights = torch.sqrt(KK_weights)
+        # target_K_weights = KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)
+
+        # C_weights = outputs["C_weights"].detach()
+        # normalized_KK_weights = torch.sqrt(torch.bmm(C_weights[0].transpose(1, 2), C_weights[0]) + 1.0e-7)
+        # normalized_KK_weights = normalized_KK_weights / torch.sum(normalized_KK_weights, dim=-1, keepdim=True)
+        # for i in range(len(C_weights) - 1):
+        #     KK_weights = torch.sqrt(torch.bmm(C_weights[i + 1].transpose(1, 2), C_weights[i + 1]) + 1.0e-7)
+        #     KK_weights = KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)
+        #     normalized_KK_weights = torch.sqrt(torch.bmm(normalized_KK_weights, KK_weights) + 1.0e-7)
+        #     normalized_KK_weights = normalized_KK_weights / torch.sum(normalized_KK_weights, dim=-1, keepdim=True)
+        # target_K_weights = normalized_KK_weights
 
         # print(torch.argsort(-target_K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
         # print(torch.max(target_K_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
@@ -437,6 +482,13 @@ class SetCriterion(nn.Module):
         # print((torch.max(C_weights) - torch.max(target_K_weights)).detach().cpu().numpy())
 
         # NK, K
+
+        C_weights = torch.mean(outputs["C_weights"], dim=0).detach()
+        # C_weights = outputs["C_weights"][-1].detach()
+        KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
+        KK_weights = torch.sqrt(KK_weights + 1.0e-7)
+        target_K_weights = KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)
+
         src_KK = (K_weights.flatten(0, 1) + 1.0e-7).log()
         tgt_KK = (target_K_weights.flatten(0, 1) + 1.0e-7).log()
 
@@ -611,7 +663,7 @@ def build(args):
 
     weight_dict = {
         'loss_ce': args.weight_loss_ce,
-        'loss_seg': args.weight_loss_bbox,
+        'loss_segments': args.weight_loss_bbox,
         'loss_iou': args.weight_loss_giou}
 
     # if args.act_reg:
