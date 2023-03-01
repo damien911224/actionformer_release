@@ -24,6 +24,7 @@ from libs.utils import (train_one_epoch, valid_one_epoch, ANETdetection,
                         fix_random_seed, ModelEma)
 # from libs.modeling.detr import build_dino
 from libs.modeling.DABDETR import build
+import json
 
 ################################################################################
 def main(args):
@@ -213,6 +214,8 @@ def main(args):
 
     is_best = False
     best_mAP = -1
+    best_APs = None
+    best_results = None
     for epoch in range(args.start_epoch, max_epochs):
         # train for one epoch
         train_one_epoch(
@@ -232,7 +235,7 @@ def main(args):
             print_freq=args.print_freq)
 
         if (epoch >= 0 and epoch % 1 == 0) or epoch == max_epochs - 1:
-            mAP = valid_one_epoch(
+            APs, mAP, results = valid_one_epoch(
                 val_loader,
                 model_emas[0].module,
                 detr_model_ema.module,
@@ -250,6 +253,8 @@ def main(args):
             is_best = mAP >= best_mAP
             if is_best:
                 best_mAP = mAP
+                best_APs = APs
+                best_results = results
 
         # save ckpt once in a while
         if (
@@ -288,6 +293,19 @@ def main(args):
                 file_folder=detr_ckpt_folder,
                 file_name='epoch_{:03d}.pth.tar'.format(epoch)
             )
+
+    # print the results
+    print('[RESULTS] Action detection results on {:s}.'.format(cfg['dataset_name'])
+    )
+    block = ''
+    for tiou, tiou_mAP in zip(det_eval.tiou_thresholds, best_APs):
+        block += '\n|tIoU = {:.2f}: mAP = {:.2f} (%)'.format(tiou, tiou_mAP * 100)
+    print(block)
+    print('Avearge mAP: {:.2f} (%)'.format(best_mAP * 100))
+
+    result_json_path = os.path.join(ckpt_root_folder, "results.json")
+    with open(result_json_path, "w") as fp:
+        json.dump(best_results, fp, indent=4, sort_keys=True)
 
     # wrap up
     tb_writer.close()

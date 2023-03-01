@@ -1275,13 +1275,13 @@ def valid_one_epoch(
             results = postprocess_results(results, ext_score_file)
             # backbone_results = postprocess_results(backbone_results, ext_score_file)
         # call the evaluator
-        _, mAP = evaluator.evaluate(results, verbose=True)
+        APs, mAP = evaluator.evaluate(results, verbose=True)
         # _, backbone_mAP = evaluator.evaluate(backbone_results, verbose=True)
     else:
         # dump to a pickle file that can be directly used for evaluation
         with open(output_file, "wb") as f:
             pickle.dump(results, f)
-        mAP = 0.0
+        APs, mAP = None, 0.0
         # backbone_mAP = 0.0
 
     # log mAP to tb_writer
@@ -1289,7 +1289,7 @@ def valid_one_epoch(
         tb_writer.add_scalar('validation/mAP', mAP, curr_epoch)
         # tb_writer.add_scalar('validation/backbone_mAP', backbone_mAP, curr_epoch)
 
-    return mAP
+    return mAP, APs, results
 
 def valid_one_epoch_phase_1(
         val_loader,
