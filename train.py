@@ -235,7 +235,7 @@ def main(args):
             print_freq=args.print_freq)
 
         if (epoch >= 0 and epoch % 1 == 0) or epoch == max_epochs - 1:
-            APs, mAP, results = valid_one_epoch(
+            mAP, APs, results = valid_one_epoch(
                 val_loader,
                 model_emas[0].module,
                 detr_model_ema.module,
