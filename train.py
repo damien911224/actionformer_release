@@ -303,9 +303,9 @@ def main(args):
     print(block)
     print('Avearge mAP: {:.2f} (%)'.format(best_mAP * 100))
 
-    result_json_path = os.path.join(ckpt_root_folder, "results.json")
-    with open(result_json_path, "w") as fp:
-        json.dump(best_results, fp, indent=4, sort_keys=True)
+    # result_json_path = os.path.join(ckpt_root_folder, "results.json")
+    # with open(result_json_path, "w") as fp:
+    #     json.dump(best_results, fp, indent=4, sort_keys=True)
 
     # wrap up
     tb_writer.close()
