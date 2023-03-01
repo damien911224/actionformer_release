@@ -294,6 +294,8 @@ def main(args):
                 file_name='epoch_{:03d}.pth.tar'.format(epoch)
             )
 
+        break
+
     # print the results
     print('[RESULTS] Action detection results on {:s}.'.format(cfg['dataset_name'])
     )
