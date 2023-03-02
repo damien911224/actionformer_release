@@ -62,3 +62,53 @@ test_cfg: {
   duration_thresh: 0.001,
 }
 output_folder: ./ckpt/
+
+# DINO DETR
+detr: {
+  num_classes: 1,
+  num_queries: 40, # 756
+  temporal_length: 192,
+  lr: 1.0e-4, # 1.0e-3
+  lr_linear_proj_mult: 0.1,
+  lr_linear_proj_names: [], # ['reference_points', 'sampling_offsets']
+  hidden_dim: 256,
+  num_feature_levels: 1,
+  input_dim: 256,
+  aux_loss: True,
+  enc_layers: 2,
+  dec_layers: 4,
+  enc_n_points: 4,
+  dec_n_points: 4,
+  two_stage: False,
+  eos_coef: 0.1,
+  set_cost_class: 2, # 6
+  set_cost_bbox: 5, # 5
+  set_cost_giou: 2, # 2
+  weight_loss_ce: 2, # 2
+  weight_loss_bbox: 5, # 5
+  weight_loss_giou: 2, # 2
+  weight_loss_KK: 5,
+  weight_loss_QQ: 5,
+  use_KK: True,
+  use_QQ: True,
+  with_act_reg: False,
+  weight_loss_act: 4,
+  weight_decay: 1.0e-4,
+  nheads: 8,
+  dropout: 0.1,
+  dim_feedforward: 1024,
+  pre_norm: False,
+  scalar: 5,
+  label_noise_scale: 0.2,
+  box_noise_scale: 0.4,
+  num_patterns: 0,
+  temperature: 1.0,
+  use_dn: False,
+  dn_number: 100,
+  dn_box_noise_scale: 0.4,
+  dn_label_noise_ratio: 0.5,
+  dn_labelbook_size: 2,
+  focal_alpha: 0.25,
+  use_dab: True,
+  position_embedding: "sine",
+}
