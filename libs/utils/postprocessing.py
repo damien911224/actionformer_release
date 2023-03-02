@@ -94,7 +94,7 @@ def results_to_array(results, num_pred):
     return results_dict
 
 
-def postprocess_results(results, cls_score_file, num_pred=200, topk=2):
+def postprocess_results(results, cls_score_file, num_pred=200, topk=1):
 
     # load results and convert to dict
     if isinstance(results, str):
