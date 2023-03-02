@@ -93,8 +93,8 @@ detr: {
   weight_loss_giou: 2, # 2
   weight_loss_KK: 5,
   weight_loss_QQ: 5,
-  use_KK: True,
-  use_QQ: True,
+  use_KK: False,
+  use_QQ: False,
   with_act_reg: False,
   weight_loss_act: 4,
   weight_decay: 1.0e-4,
