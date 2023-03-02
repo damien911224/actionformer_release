@@ -86,8 +86,8 @@ class DABDETR(nn.Module):
 
         self.input_proj = nn.ModuleList([
             nn.Sequential(
-                # nn.Conv1d(2048, hidden_dim, kernel_size=1),
-                nn.Conv1d(512, hidden_dim, kernel_size=1),
+                nn.Conv1d(2048, hidden_dim, kernel_size=1),
+                # nn.Conv1d(512, hidden_dim, kernel_size=1),
                 nn.GroupNorm(32, hidden_dim),
             )])
         # self.backbone = backbone
