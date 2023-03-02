@@ -19,7 +19,7 @@ dataset: {
   trunc_thresh: 0.5,
   crop_ratio: [0.9, 1.0],
   # upsample the features to a fixed length of 192
-  max_seq_len: 768,
+  max_seq_len: 368,
   force_upsampling: True,
 }
 model: {
@@ -35,7 +35,7 @@ model: {
 }
 opt: {
   learning_rate: 1.0e-4,
-  epochs: 20,
+  epochs: 30,
   weight_decay: 1.0e-4, # 0.05
 }
 loader: {
@@ -71,7 +71,7 @@ output_folder: ./ckpt/
 detr: {
   num_classes: 1,
   num_queries: 40, # 756
-  temporal_length: 768,
+  temporal_length: 368,
   lr: 1.0e-4, # 1.0e-3
   lr_linear_proj_mult: 0.1,
   lr_linear_proj_names: [], # ['reference_points', 'sampling_offsets']
@@ -93,8 +93,8 @@ detr: {
   weight_loss_giou: 2, # 2
   weight_loss_KK: 5,
   weight_loss_QQ: 5,
-  use_KK: False,
-  use_QQ: False,
+  use_KK: True,
+  use_QQ: True,
   with_act_reg: False,
   weight_loss_act: 4,
   weight_decay: 1.0e-4,
