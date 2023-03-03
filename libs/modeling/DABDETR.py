@@ -74,15 +74,15 @@ class DABDETR(nn.Module):
 
         self.refpoint_embed = nn.Embedding(num_queries, query_dim)
         self.random_refpoints_xy = random_refpoints_xy
-        if random_refpoints_xy:
-            # import ipdb; ipdb.set_trace()
-            self.refpoint_embed.weight.data[:, :1].uniform_(0, 1)
-            self.refpoint_embed.weight.data[:, :1] = inverse_sigmoid(self.refpoint_embed.weight.data[:, :1])
-            self.refpoint_embed.weight.data[:, :1].requires_grad = False
-
-            # self.refpoint_embed.weight.data[:, :2].uniform_(0, 1)
-            # self.refpoint_embed.weight.data[:, :2] = inverse_sigmoid(self.refpoint_embed.weight.data[:, :2])
-            # self.refpoint_embed.weight.data[:, :2].requires_grad = False
+        # if random_refpoints_xy:
+        #     # import ipdb; ipdb.set_trace()
+        #     self.refpoint_embed.weight.data[:, :1].uniform_(0, 1)
+        #     self.refpoint_embed.weight.data[:, :1] = inverse_sigmoid(self.refpoint_embed.weight.data[:, :1])
+        #     self.refpoint_embed.weight.data[:, :1].requires_grad = False
+        #
+        #     # self.refpoint_embed.weight.data[:, :2].uniform_(0, 1)
+        #     # self.refpoint_embed.weight.data[:, :2] = inverse_sigmoid(self.refpoint_embed.weight.data[:, :2])
+        #     # self.refpoint_embed.weight.data[:, :2].requires_grad = False
 
         self.input_proj = nn.ModuleList([
             nn.Sequential(
@@ -451,15 +451,15 @@ class SetCriterion(nn.Module):
         assert 'K_weights' in outputs
         assert 'C_weights' in outputs
 
-        K_weights = torch.mean(outputs["K_weights"], dim=0)
+        # K_weights = torch.mean(outputs["K_weights"], dim=0)
 
-        # K_weights = outputs["K_weights"]
-        # normalized_K_weights = K_weights[0]
-        # for i in range(len(K_weights) - 1):
-        #     normalized_K_weights = torch.sqrt(
-        #         torch.bmm(normalized_K_weights, K_weights[i + 1].transpose(1, 2)) + 1.0e-7)
-        #     normalized_K_weights = normalized_K_weights / torch.sum(normalized_K_weights, dim=-1, keepdim=True)
-        # K_weights = normalized_K_weights
+        K_weights = outputs["K_weights"]
+        normalized_K_weights = K_weights[0]
+        for i in range(len(K_weights) - 1):
+            normalized_K_weights = torch.sqrt(
+                torch.bmm(normalized_K_weights, K_weights[i + 1].transpose(1, 2)) + 1.0e-7)
+            normalized_K_weights = normalized_K_weights / torch.sum(normalized_K_weights, dim=-1, keepdim=True)
+        K_weights = normalized_K_weights
 
         # C_weights = outputs["C_weights"][-1].detach()
         # KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
