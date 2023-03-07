@@ -13,7 +13,7 @@ dataset: {
   file_ext: .npy,
   num_classes: 1,
   input_dim: 2048,
-  feat_stride: 8,
+  feat_stride: 16,
   num_frames: 16,
   default_fps: 25,
   trunc_thresh: 0.5,
