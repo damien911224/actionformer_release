@@ -297,8 +297,8 @@ class TransformerEncoderLayer(nn.Module):
     def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1,
                  activation="relu", normalize_before=False):
         super().__init__()
-        self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-        # self.self_attn = RelativeAttention(d_model, nhead, dropout=dropout)
+        # self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
+        self.self_attn = RelativeAttention(d_model, nhead, dropout=dropout)
         # Implementation of Feedforward model
         self.linear1 = nn.Linear(d_model, dim_feedforward)
         self.dropout = nn.Dropout(dropout)
@@ -321,18 +321,18 @@ class TransformerEncoderLayer(nn.Module):
                 src_mask: Optional[Tensor] = None,
                 src_key_padding_mask: Optional[Tensor] = None,
                 pos: Optional[Tensor] = None):
-        q = k = self.with_pos_embed(src, pos)
-        src2, K_weights = self.self_attn(q, k, value=src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)
+        # q = k = self.with_pos_embed(src, pos)
+        # src2, K_weights = self.self_attn(q, k, value=src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)
 
-        # q = k = src.transpose(1, 0)
-        # # q = k = self.with_pos_embed(src, pos).transpose(1, 0)
-        # src2, K_weights = self.self_attn(q, k, value=src.transpose(1, 0),
-        #                                  attn_mask=src_mask, key_padding_mask=src_key_padding_mask)
-        # src2 = src2.transpose(1, 0)
+        q = k = src.transpose(1, 0)
+        # q = k = self.with_pos_embed(src, pos).transpose(1, 0)
+        src2, K_weights = self.self_attn(q, k, value=src.transpose(1, 0),
+                                         attn_mask=src_mask, key_padding_mask=src_key_padding_mask)
+        src2 = src2.transpose(1, 0)
 
-        # print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
-        # print(torch.max(K_weights[0].detach().cpu(), dim=-1)[0][:10])
-        # K_weights = F.softmax(self.weight_buffer(K_weights), dim=-1)
+        print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+        print(torch.max(K_weights[0].detach().cpu(), dim=-1)[0][:10])
+        K_weights = F.softmax(self.weight_buffer(K_weights), dim=-1)
 
         src = src + self.dropout1(src2)
         src = self.norm1(src)
