@@ -13,13 +13,13 @@ dataset: {
   file_ext: .npy,
   num_classes: 1,
   input_dim: 2048,
-  feat_stride: 16,
+  feat_stride: 8,
   num_frames: 16,
   default_fps: 25,
   trunc_thresh: 0.5,
   crop_ratio: [0.9, 1.0],
   # upsample the features to a fixed length of 192
-  max_seq_len: 192,
+  max_seq_len: 384,
   force_upsampling: True,
 }
 
