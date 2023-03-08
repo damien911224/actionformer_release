@@ -435,7 +435,7 @@ def train_one_epoch(
                      0.5 * video_list[b_i]["feat_num_frames"]) / video_list[b_i]["fps"] / video_list[b_i]["duration"]
             boxes = torch.clamp(boxes, 0.0, 1.0)
             batch_dict["segments"] = torch.cat((((boxes[..., 0] + boxes[..., 1]) / 2.0).unsqueeze(-1),
-                                             (boxes[..., 1] - boxes[..., 0]).unsqueeze(-1)), dim=-1).cuda()
+                                                (boxes[..., 1] - boxes[..., 0]).unsqueeze(-1)), dim=-1).cuda()
             # masks = list()
             # for box in boxes:
             #     T_box = (box * (T - 1)).int()
