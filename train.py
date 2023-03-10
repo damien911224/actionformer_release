@@ -297,13 +297,14 @@ def main(args):
         break
 
     # print the results
-    print('[RESULTS] Action detection results on {:s}.'.format(cfg['dataset_name'])
-    )
+    result_txt = ""
+    result_txt += '[RESULTS] Action detection results on {:s}.'.format(cfg['dataset_name']) + "\n"
     block = ''
     for tiou, tiou_mAP in zip(det_eval.tiou_thresholds, best_APs):
         block += '\n|tIoU = {:.2f}: mAP = {:.2f} (%)'.format(tiou, tiou_mAP * 100)
-    print(block)
-    print('Avearge mAP: {:.2f} (%)'.format(best_mAP * 100))
+    result_txt += block + "\n"
+    result_txt += 'Avearge mAP: {:.2f} (%)'.format(best_mAP * 100)
+    print(result_txt)
 
     result_dict = dict({"version": "VERSION 1.3",
                         "results": dict(),
@@ -326,6 +327,10 @@ def main(args):
     result_json_path = os.path.join(ckpt_root_folder, "results.json")
     with open(result_json_path, "w") as fp:
         json.dump(result_dict, fp, indent=4, sort_keys=True)
+
+    result_text_path = os.path.join(ckpt_root_folder, "results.txt")
+    with open(result_text_path, "w") as fp:
+        fp.write(result_txt)
 
     # wrap up
     tb_writer.close()
