@@ -303,9 +303,35 @@ def main(args):
     print(block)
     print('Avearge mAP: {:.2f} (%)'.format(best_mAP * 100))
 
+    results = {
+        'video-id': [],
+        't-start': [],
+        't-end': [],
+        'label': [],
+        'score': []
+    }
+
+    result_dict = dict({"version": "VERSION 1.3",
+                        "results": dict(),
+                        "external_data":
+                            {"used": True,
+                             "details": "3D-CNN for feature extracting is pre-trained on Kinetics-400"}})
+
+    for r_i in range(len(best_results["video-id"])):
+        video_id = best_results["video-id"][r_i]
+        start_time = best_results["t-start"][r_i].item()
+        end_time = best_results["t-end"][r_i].item()
+        label = best_results["label"][r_i].item()
+        score = best_results["score"][r_i].item()
+
+        if video_id not in result_dict["results"].keys():
+            result_dict["results"][video_id] = list()
+
+        result_dict["results"][video_id].append({"label": label, "score": score, "segment": (start_time, end_time)})
+
     result_json_path = os.path.join(ckpt_root_folder, "results.json")
     with open(result_json_path, "w") as fp:
-        json.dump(best_results, fp, indent=4, sort_keys=True)
+        json.dump(result_dict, fp, indent=4, sort_keys=True)
 
     # wrap up
     tb_writer.close()
