@@ -294,6 +294,8 @@ def main(args):
                 file_name='epoch_{:03d}.pth.tar'.format(epoch)
             )
 
+        break
+
     # print the results
     print('[RESULTS] Action detection results on {:s}.'.format(cfg['dataset_name'])
     )
@@ -302,14 +304,6 @@ def main(args):
         block += '\n|tIoU = {:.2f}: mAP = {:.2f} (%)'.format(tiou, tiou_mAP * 100)
     print(block)
     print('Avearge mAP: {:.2f} (%)'.format(best_mAP * 100))
-
-    results = {
-        'video-id': [],
-        't-start': [],
-        't-end': [],
-        'label': [],
-        'score': []
-    }
 
     result_dict = dict({"version": "VERSION 1.3",
                         "results": dict(),
