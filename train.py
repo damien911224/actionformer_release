@@ -215,6 +215,7 @@ def main(args):
     is_best = False
     best_mAP = -1
     best_APs = None
+    best_epoch = 0
     best_results = None
     for epoch in range(args.start_epoch, max_epochs):
         # train for one epoch
@@ -254,6 +255,7 @@ def main(args):
             if is_best:
                 best_mAP = mAP
                 best_APs = APs
+                best_epoch = epoch
                 best_results = results
 
         # save ckpt once in a while
@@ -294,11 +296,9 @@ def main(args):
                 file_name='epoch_{:03d}.pth.tar'.format(epoch)
             )
 
-        break
-
     # print the results
     result_txt = ""
-    result_txt += '[RESULTS] Action detection results on {:s}.'.format(cfg['dataset_name']) + "\n"
+    result_txt += '[RESULTS] Action detection results on {:s} at E{:02d}.'.format(cfg['dataset_name'], best_epoch) + "\n"
     block = ''
     for tiou, tiou_mAP in zip(det_eval.tiou_thresholds, best_APs):
         block += '\n|tIoU = {:.2f}: mAP = {:.2f} (%)'.format(tiou, tiou_mAP * 100)
