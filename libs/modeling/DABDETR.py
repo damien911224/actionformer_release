@@ -444,15 +444,15 @@ class SetCriterion(nn.Module):
         assert 'K_weights' in outputs
         assert 'C_weights' in outputs
 
-        # K_weights = torch.mean(outputs["K_weights"], dim=0)
+        K_weights = torch.mean(outputs["K_weights"], dim=0)
 
-        K_weights = outputs["K_weights"]
-        normalized_K_weights = K_weights[0]
-        for i in range(len(K_weights) - 1):
-            normalized_K_weights = torch.sqrt(
-                torch.bmm(normalized_K_weights, K_weights[i + 1].transpose(1, 2)) + 1.0e-7)
-            normalized_K_weights = normalized_K_weights / torch.sum(normalized_K_weights, dim=-1, keepdim=True)
-        K_weights = normalized_K_weights
+        # K_weights = outputs["K_weights"]
+        # normalized_K_weights = K_weights[0]
+        # for i in range(len(K_weights) - 1):
+        #     normalized_K_weights = torch.sqrt(
+        #         torch.bmm(normalized_K_weights, K_weights[i + 1].transpose(1, 2)) + 1.0e-7)
+        #     normalized_K_weights = normalized_K_weights / torch.sum(normalized_K_weights, dim=-1, keepdim=True)
+        # K_weights = normalized_K_weights
 
         # C_weights = outputs["C_weights"][-1].detach()
         # KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
