@@ -62,7 +62,7 @@ class HungarianMatcher(nn.Module):
                 tgt_ids = torch.cat([v["labels"] for v in targets if len(v["labels"])])
                 tgt_bbox = torch.cat([v["segments"] for v in targets if len(v["segments"])])
             else:
-                if layer <= 3:
+                if layer <= 1:
                     tgt_ids = torch.cat([v["labels"].repeat(10) for v in targets if len(v["labels"])])
                     tgt_bbox = torch.cat([v["segments"].repeat(10, 1) for v in targets if len(v["segments"])])
                 else:
@@ -87,7 +87,7 @@ class HungarianMatcher(nn.Module):
             if layer is None:
                 sizes = [len(v["segments"]) for v in targets]
             else:
-                if layer <= 3:
+                if layer <= 1:
                     sizes = [len(v["segments"].repeat(10, 1)) for v in targets]
                 else:
                     sizes = [len(v["segments"]) for v in targets]

@@ -282,7 +282,7 @@ class SetCriterion(nn.Module):
         if layer is None:
             target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, indices)], dim=0)
         else:
-            if layer <= 3:
+            if layer <= 1:
                 target_segments = torch.cat([t['segments'].repeat(10, 1)[i] for t, (_, i) in zip(targets, indices)], dim=0)
             else:
                 target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, indices)], dim=0)
@@ -297,7 +297,7 @@ class SetCriterion(nn.Module):
         if layer is None:
             target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
         else:
-            if layer <= 3:
+            if layer <= 1:
                 target_classes_o = torch.cat([t["labels"].repeat(10)[J] for t, (_, J) in zip(targets, indices)])
             else:
                 target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
@@ -342,7 +342,7 @@ class SetCriterion(nn.Module):
         if layer is None:
             target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, indices)], dim=0)
         else:
-            if layer <= 3:
+            if layer <= 1:
                 target_segments = torch.cat([t['segments'].repeat(10, 1)[i] for t, (_, i) in zip(targets, indices)], dim=0)
             else:
                 target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, indices)], dim=0)
