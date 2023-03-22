@@ -88,7 +88,7 @@ class HungarianMatcher(nn.Module):
                 sizes = [len(v["segments"]) for v in targets]
             else:
                 if layer <= 3:
-                    sizes = [len(v["segments"].repeat(2 ** (5 - layer), 1)) for v in targets]
+                    sizes = [len(v["segments"].repeat(10, 1)) for v in targets]
                 else:
                     sizes = [len(v["segments"]) for v in targets]
 
