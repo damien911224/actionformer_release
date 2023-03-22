@@ -580,7 +580,7 @@ class SetCriterion(nn.Module):
 
                     if loss in ('labels', 'segments'):
                         kwargs['layer'] = i
-                        if i <= 3:
+                        if i <= 1:
                             num_segments = sum(len(t["labels"].repeat(10)) for t in targets)
                         else:
                             num_segments = sum(len(t["labels"]) for t in targets)
