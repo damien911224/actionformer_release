@@ -62,12 +62,8 @@ class HungarianMatcher(nn.Module):
                 tgt_ids = torch.cat([v["labels"] for v in targets if len(v["labels"])])
                 tgt_bbox = torch.cat([v["segments"] for v in targets if len(v["segments"])])
             else:
-                if layer <= 3:
-                    tgt_ids = torch.cat([v["labels"].repeat(10) for v in targets if len(v["labels"])])
-                    tgt_bbox = torch.cat([v["segments"].repeat(10, 1) for v in targets if len(v["segments"])])
-                else:
-                    tgt_ids = torch.cat([v["labels"] for v in targets if len(v["labels"])])
-                    tgt_bbox = torch.cat([v["segments"] for v in targets if len(v["segments"])])
+                tgt_ids = torch.cat([v["labels"].repeat(2 ** (5 - layer)) for v in targets if len(v["labels"])])
+                tgt_bbox = torch.cat([v["segments"].repeat(2 ** (5 - layer), 1) for v in targets if len(v["segments"])])
 
             # Compute the classification cost.
             alpha = 0.25
@@ -87,10 +83,7 @@ class HungarianMatcher(nn.Module):
             if layer is None:
                 sizes = [len(v["segments"]) for v in targets]
             else:
-                if layer <= 3:
-                    sizes = [len(v["segments"].repeat(2 ** (5 - layer), 1)) for v in targets]
-                else:
-                    sizes = [len(v["segments"]) for v in targets]
+                sizes = [len(v["segments"].repeat(2 ** (5 - layer), 1)) for v in targets]
 
             # indices = list()
             # for m_i in range(1):

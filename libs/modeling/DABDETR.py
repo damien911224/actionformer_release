@@ -270,7 +270,7 @@ class SetCriterion(nn.Module):
         self.losses = losses
         self.focal_alpha = focal_alpha
 
-    def loss_labels(self, outputs, targets, indices, num_segments, log=True):
+    def loss_labels(self, outputs, targets, indices, num_segments, log=True, layer=None):
         """Classification loss (NLL)
         targets dicts must contain the key "labels" containing a tensor of dim [nb_target_segments]
         """
@@ -279,7 +279,13 @@ class SetCriterion(nn.Module):
         idx = self._get_src_permutation_idx(indices)
 
         src_segments = outputs['pred_segments'][idx]
-        target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, indices)], dim=0)
+        if layer is None:
+            target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, indices)], dim=0)
+        else:
+            if layer <= 3:
+                target_segments = torch.cat([t['segments'].repeat(10, 1)[i] for t, (_, i) in zip(targets, indices)], dim=0)
+            else:
+                target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, indices)], dim=0)
         IoUs = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments),
                                        segment_ops.segment_cw_to_t1t2(target_segments))
         IoUs = torch.diag(IoUs).detach()
@@ -319,7 +325,7 @@ class SetCriterion(nn.Module):
 
         return losses
 
-    def loss_segments(self, outputs, targets, indices, num_segments):
+    def loss_segments(self, outputs, targets, indices, num_segments, layer=None):
         """Compute the losses related to the segmentes, the L1 regression loss and the IoU loss
            targets dicts must contain the key "segments" containing a tensor of dim [nb_target_segments, 2]
            The target segments are expected in format (center, width), normalized by the video length.
@@ -327,7 +333,13 @@ class SetCriterion(nn.Module):
         assert 'pred_segments' in outputs
         idx = self._get_src_permutation_idx(indices)
         src_segments = outputs['pred_segments'][idx]
-        target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, indices)], dim=0)
+        if layer is None:
+            target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, indices)], dim=0)
+        else:
+            if layer <= 3:
+                target_segments = torch.cat([t['segments'].repeat(10, 1)[i] for t, (_, i) in zip(targets, indices)], dim=0)
+            else:
+                target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, indices)], dim=0)
 
         loss_segment = F.l1_loss(src_segments, target_segments, reduction='none')
 
@@ -546,7 +558,7 @@ class SetCriterion(nn.Module):
         # In case of auxiliary losses, we repeat this process with the output of each intermediate layer.
         if 'aux_outputs' in outputs:
             for i, aux_outputs in enumerate(outputs['aux_outputs']):
-                indices = self.matcher(aux_outputs, targets)
+                indices = self.matcher(aux_outputs, targets, layer=i)
                 for loss in self.losses:
                     # we do not compute actionness loss for aux outputs
                     if 'actionness' in loss:
@@ -559,6 +571,20 @@ class SetCriterion(nn.Module):
                     if loss == 'labels':
                         # Logging is enabled only for the last layer
                         kwargs['log'] = False
+
+                    if loss in ('labels', 'segments'):
+                        kwargs['layer'] = i
+                        if i <= 3:
+                            num_segments = sum(len(t["labels"].repeat(10)) for t in targets)
+                        else:
+                            num_segments = sum(len(t["labels"]) for t in targets)
+                    else:
+                        num_segments = sum(len(t["labels"]) for t in targets)
+                    num_segments = torch.as_tensor([num_segments], dtype=torch.float,
+                                                   device=next(iter(outputs.values())).device)
+                    if is_dist_avail_and_initialized():
+                        torch.distributed.all_reduce(num_segments)
+                    num_segments = torch.clamp(num_segments / get_world_size(), min=1).item()
                     l_dict = self.get_loss(loss, aux_outputs, targets, indices, num_segments, **kwargs)
                     l_dict = {k + f'_{i}': v for k, v in l_dict.items()}
                     losses.update(l_dict)
