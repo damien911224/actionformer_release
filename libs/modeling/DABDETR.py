@@ -518,9 +518,6 @@ class SetCriterion(nn.Module):
         assert 'pred_speeds' in outputs
         src_speeds = outputs['pred_speeds'].squeeze(-1)
         tgt_speeds = torch.stack([t['speeds'] for t in targets], dim=0)
-        print(src_speeds.shape)
-        print(tgt_speeds.shape)
-        exit()
 
         loss_speed = F.l1_loss(src_speeds, tgt_speeds, reduction='none')
 
