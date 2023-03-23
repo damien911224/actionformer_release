@@ -583,9 +583,12 @@ class SetCriterion(nn.Module):
                 indices = self.matcher(aux_outputs, targets, layer=layer)
                 for loss in self.losses:
                     # we do not compute actionness loss for aux outputs
-                    if 'actionness' in loss:
+                    if 'QQ' in loss or 'KK' in loss:
                         continue
-         
+
+                    if 'speed' in loss:
+                        continue
+
                     kwargs = {}
                     if loss == 'labels':
                         # Logging is enabled only for the last layer
