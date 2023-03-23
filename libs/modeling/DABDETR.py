@@ -184,7 +184,7 @@ class DABDETR(nn.Module):
         outputs_class = self.class_embed(hs)
         print(memory.shape)
         exit()
-        outputs_speed = self.speed_embed(torch.mean(memory, dim=1)).sigmoid()
+        outputs_speed = self.speed_embed(torch.mean(memory.permute(1, 0, 2), dim=1)).sigmoid()
 
         # normalized_Q_weights = Q_weights[0]
         # for i in range(len(Q_weights) - 1):
