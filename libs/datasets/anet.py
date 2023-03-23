@@ -185,8 +185,6 @@ class ActivityNetDataset(Dataset):
             num_frames = feat_stride
         feat_offset = 0.5 * num_frames / feat_stride
 
-        print(feat_stride)
-
         # T x C -> C x T
         feats = torch.from_numpy(np.ascontiguousarray(feats.transpose()))
 

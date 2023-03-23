@@ -69,6 +69,7 @@ class DABDETR(nn.Module):
         hidden_dim = transformer.d_model
         self.class_embed = nn.Linear(hidden_dim, num_classes)
         self.segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
+        self.speed_embed = MLP(hidden_dim, hidden_dim, 1, 3)
 
         self.query_dim = query_dim
 
@@ -181,6 +182,7 @@ class DABDETR(nn.Module):
         # outputs_coord = segment_ops.segment_t1t2_to_cw(tmp.sigmoid())
 
         outputs_class = self.class_embed(hs)
+        outputs_speed = self.speed_embed(hs[-1])
 
         # normalized_Q_weights = Q_weights[0]
         # for i in range(len(Q_weights) - 1):
@@ -209,7 +211,8 @@ class DABDETR(nn.Module):
         # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
         #        'Q_weights': normalized_Q_weights, 'K_weights': normalized_K_weights, 'C_weights': C_weights[-1]}
         out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
-               'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights}
+               'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights,
+               'pred_speeds': outputs_speed}
 
         if self.with_act_reg:
             # perform RoIAlign
@@ -229,7 +232,6 @@ class DABDETR(nn.Module):
 
         if self.aux_loss:
             out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord)
-            # out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord, Q_weights, K_weights, C_weights)
 
         return out
 
@@ -512,6 +514,18 @@ class SetCriterion(nn.Module):
         losses['loss_KK'] = loss_KK
         return losses
 
+    def loss_speed(self, outputs, targets, indices, num_segments):
+        assert 'pred_speeds' in outputs
+        src_speeds = outputs['pred_speeds'].squeeze(-1)
+        tgt_speeds = targets['speeds']
+
+        loss_speed = F.l2_loss(src_speeds, tgt_speeds, reduction='none')
+
+        losses = {}
+        losses['loss_segments'] = loss_speed.mean()
+
+        return losses
+
     def _get_src_permutation_idx(self, indices):
         # permute predictions following indices
         batch_idx = torch.cat([torch.full_like(src, i) for i, (src, _) in enumerate(indices)])
@@ -531,6 +545,7 @@ class SetCriterion(nn.Module):
             'actionness': self.loss_actionness,
             "QQ": self.loss_QQ,
             "KK": self.loss_KK,
+            "speed": self.loss_speed,
         }
 
         assert loss in loss_map, f'do you really want to compute {loss} loss?'
@@ -564,13 +579,11 @@ class SetCriterion(nn.Module):
         # In case of auxiliary losses, we repeat this process with the output of each intermediate layer.
         if 'aux_outputs' in outputs:
             for i, aux_outputs in enumerate(outputs['aux_outputs']):
-                indices = self.matcher(aux_outputs, targets, layer=i)
+                layer = None
+                indices = self.matcher(aux_outputs, targets, layer=layer)
                 for loss in self.losses:
                     # we do not compute actionness loss for aux outputs
                     if 'actionness' in loss:
-                        continue
-
-                    if 'QQ' in loss or 'KK' in loss:
                         continue
          
                     kwargs = {}
@@ -578,9 +591,9 @@ class SetCriterion(nn.Module):
                         # Logging is enabled only for the last layer
                         kwargs['log'] = False
 
-                    if loss in ('labels', 'segments'):
-                        kwargs['layer'] = i
-                        if i <= 1:
+                    if layer is not None and loss in ('labels', 'segments'):
+                        kwargs['layer'] = layer
+                        if layer <= 1:
                             num_segments = sum(len(t["labels"].repeat(10)) for t in targets)
                         else:
                             num_segments = sum(len(t["labels"]) for t in targets)
@@ -703,6 +716,10 @@ def build(args):
     if args.use_QQ:
         weight_dict["loss_QQ"] = args.weight_loss_QQ
         losses.append("QQ")
+
+    if True:
+        weight_dict["loss_speed"] = 1.0
+        losses.append("speed")
 
     if args.aux_loss:
         aux_weight_dict = {}

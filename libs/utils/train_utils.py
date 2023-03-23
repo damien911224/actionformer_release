@@ -444,6 +444,8 @@ def train_one_epoch(
             #     masks.append(this_mask)
             # batch_dict["masks"] = torch.stack(masks, dim=0).cuda()
 
+            batch_dict["speeds"] = (torch.clamp(video_list[b_i]["feat_stride"], min=0.0, max=30.0) / 30.0).cuda()
+
             detr_target_dict.append(batch_dict)
 
         # features = [feat for feat in backbone_features]
