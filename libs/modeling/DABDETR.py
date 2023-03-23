@@ -522,7 +522,7 @@ class SetCriterion(nn.Module):
         loss_speed = F.l1_loss(src_speeds, tgt_speeds, reduction='none')
 
         losses = {}
-        losses['loss_segments'] = loss_speed.mean()
+        losses['loss_speed'] = loss_speed.mean()
 
         return losses
 
