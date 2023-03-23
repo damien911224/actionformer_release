@@ -519,7 +519,7 @@ class SetCriterion(nn.Module):
         src_speeds = outputs['pred_speeds'].squeeze(-1)
         tgt_speeds = torch.stack([t['speeds'] for t in targets], dim=0)
 
-        loss_speed = F.l2_loss(src_speeds, tgt_speeds, reduction='none')
+        loss_speed = F.l1_loss(src_speeds, tgt_speeds, reduction='none')
 
         losses = {}
         losses['loss_segments'] = loss_speed.mean()
