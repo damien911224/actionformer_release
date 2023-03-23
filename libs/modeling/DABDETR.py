@@ -278,36 +278,34 @@ class SetCriterion(nn.Module):
         """
         assert 'pred_logits' in outputs
         src_logits = outputs['pred_logits']
-        idx = self._get_src_permutation_idx(indices)
-
-        src_segments = outputs['pred_segments'][idx]
-        if layer is None:
-            target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, indices)], dim=0)
-        else:
-            if layer <= 1:
-                target_segments = torch.cat([t['segments'].repeat(10, 1)[i] for t, (_, i) in zip(targets, indices)], dim=0)
-            else:
-                target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, indices)], dim=0)
-        IoUs = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments),
-                                       segment_ops.segment_cw_to_t1t2(target_segments))
-        IoUs = torch.diag(IoUs).detach()
-
         target_classes = torch.full(src_logits.shape[:2], self.num_classes, dtype=torch.int64, device=src_logits.device)
         target_classes_onehot = torch.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2] + 1],
                                             dtype=src_logits.dtype, layout=src_logits.layout, device=src_logits.device)
-
-        if layer is None:
-            target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
-        else:
-            if layer <= 1:
-                target_classes_o = torch.cat([t["labels"].repeat(10)[J] for t, (_, J) in zip(targets, indices)])
+        for this_indices in indices:
+            idx = self._get_src_permutation_idx(this_indices)
+            src_segments = outputs['pred_segments'][idx]
+            if layer is None:
+                target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, this_indices)], dim=0)
             else:
-                target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
-        target_classes[idx] = target_classes_o
-        target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
-        target_classes_onehot[idx] = target_classes_onehot[idx]
+                if layer <= 1:
+                    target_segments = torch.cat([t['segments'].repeat(10, 1)[i] for t, (_, i) in zip(targets, this_indices)], dim=0)
+                else:
+                    target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, this_indices)], dim=0)
+            IoUs = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments),
+                                           segment_ops.segment_cw_to_t1t2(target_segments))
+            IoUs = torch.diag(IoUs).detach()
 
-        target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs.unsqueeze(-1)
+            if layer is None:
+                target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, this_indices)])
+            else:
+                if layer <= 1:
+                    target_classes_o = torch.cat([t["labels"].repeat(10)[J] for t, (_, J) in zip(targets, this_indices)])
+                else:
+                    target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, this_indices)])
+            target_classes[idx] = target_classes_o
+            target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
+            # target_classes_onehot[idx] = target_classes_onehot[idx]
+            target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs.unsqueeze(-1)
 
         target_classes_onehot = target_classes_onehot[:, :, :-1]
         loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_segments, alpha=self.focal_alpha, gamma=2) * \
@@ -720,9 +718,9 @@ def build(args):
         weight_dict["loss_QQ"] = args.weight_loss_QQ
         losses.append("QQ")
 
-    if True:
-        weight_dict["loss_speed"] = 1.0
-        losses.append("speed")
+    # if True:
+    #     weight_dict["loss_speed"] = 1.0
+    #     losses.append("speed")
 
     if args.aux_loss:
         aux_weight_dict = {}
