@@ -169,15 +169,16 @@ class DABDETR(nn.Module):
                 samples = nested_tensor_from_tensor_list(samples)  # (n, c, t)
 
         pos = self.position_embedding(samples)
-        if speeds is not None:
-            # N, C
-            speed_embed = self.speed_embed(speeds.unsqueeze(-1))
-            pos = pos + speed_embed.unsqueeze(-1)
         src, mask = samples.tensors, samples.mask
+        src = self.input_proj[0](src)
+        if speeds is not None:
+            # N, C, 1
+            speed_embed = self.speed_embed(speeds.unsqueeze(-1)).unsqueeze(-1)
+            src = src + speed_embed.unsqueeze(-1)
 
         embedweight = self.refpoint_embed.weight
         hs, reference, memory, Q_weights, K_weights, C_weights = \
-            self.transformer(self.input_proj[0](src), mask, embedweight, pos)
+            self.transformer(src, mask, embedweight, pos)
 
         reference_before_sigmoid = inverse_sigmoid(reference)
         tmp = self.segment_embed(hs)
