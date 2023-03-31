@@ -69,7 +69,7 @@ class DABDETR(nn.Module):
         hidden_dim = transformer.d_model
         self.class_embed = nn.Linear(hidden_dim, num_classes)
         self.segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
-        self.speed_embed = MLP(hidden_dim, hidden_dim, 1, 3)
+        self.speed_embed = nn.Linear(1, hidden_dim)
 
         self.query_dim = query_dim
 
@@ -146,7 +146,7 @@ class DABDETR(nn.Module):
         # NOTE: stop gradient here to stablize training
         return rois_abs.view((B*N, 3)).detach()
 
-    def forward(self, samples):
+    def forward(self, samples, speeds=None):
         """ The forward expects a NestedTensor, which consists of:
                - samples.tensors: batched images, of shape [batch_size x 3 x H x W]
                - samples.mask: a binary mask of shape [batch_size x H x W], containing 1 on padded pixels
@@ -168,12 +168,16 @@ class DABDETR(nn.Module):
             else:
                 samples = nested_tensor_from_tensor_list(samples)  # (n, c, t)
 
-        pos = [self.position_embedding(samples)]
+        pos = self.position_embedding(samples)
+        if speeds is not None:
+            # N, C
+            speed_embed = self.speed_embed(speeds.unsqueeze(-1))
+            pos = pos + speed_embed.unsqueeze(-1)
         src, mask = samples.tensors, samples.mask
 
         embedweight = self.refpoint_embed.weight
         hs, reference, memory, Q_weights, K_weights, C_weights = \
-            self.transformer(self.input_proj[0](src), mask, embedweight, pos[-1])
+            self.transformer(self.input_proj[0](src), mask, embedweight, pos)
 
         reference_before_sigmoid = inverse_sigmoid(reference)
         tmp = self.segment_embed(hs)
@@ -182,7 +186,7 @@ class DABDETR(nn.Module):
         # outputs_coord = segment_ops.segment_t1t2_to_cw(tmp.sigmoid())
 
         outputs_class = self.class_embed(hs)
-        outputs_speed = self.speed_embed(torch.mean(memory.permute(1, 0, 2), dim=1)).sigmoid()
+        # outputs_speed = self.speed_embed(torch.mean(memory.permute(1, 0, 2), dim=1)).sigmoid()
 
         # normalized_Q_weights = Q_weights[0]
         # for i in range(len(Q_weights) - 1):
@@ -211,8 +215,7 @@ class DABDETR(nn.Module):
         # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
         #        'Q_weights': normalized_Q_weights, 'K_weights': normalized_K_weights, 'C_weights': C_weights[-1]}
         out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
-               'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights,
-               'pred_speeds': outputs_speed}
+               'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights}
 
         if self.with_act_reg:
             # perform RoIAlign

@@ -444,12 +444,13 @@ def train_one_epoch(
             #     masks.append(this_mask)
             # batch_dict["masks"] = torch.stack(masks, dim=0).cuda()
 
-            batch_dict["speeds"] = (torch.clamp(torch.tensor(video_list[b_i]["feat_stride"]), min=0.0, max=30.0) / 30.0).cuda()
+            batch_dict["speeds"] = torch.tensor(video_list[b_i]["feat_stride"]).cuda()
 
             detr_target_dict.append(batch_dict)
 
         # features = [feat for feat in backbone_features]
         features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
+        speeds = torch.stack([x["feat_stride"] for x in video_list], dim=0).cuda()
 
         # labels = list()
         # scores = list()
@@ -496,7 +497,7 @@ def train_one_epoch(
         # detr_predictions = detr(features, proposals, detr_target_dict)
         # detr_predictions = detr(features, pyramidal_proposals, detr_target_dict)
         # detr_predictions = detr(features, high_IoU_proposals, detr_target_dict)
-        detr_predictions = detr(features)
+        detr_predictions = detr(features, speeds=speeds)
         detr_loss_dict = detr_criterion(detr_predictions, detr_target_dict)
         weight_dict = detr_criterion.weight_dict
         detr_loss = sum(detr_loss_dict[k] * weight_dict[k] for k in detr_loss_dict.keys() if k in weight_dict)
