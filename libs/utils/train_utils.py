@@ -450,7 +450,7 @@ def train_one_epoch(
 
         # features = [feat for feat in backbone_features]
         features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
-        speeds = torch.stack(torch.Tensor([x["feat_stride"] for x in video_list]), dim=0).cuda()
+        speeds = torch.stack([torch.tensor(x["feat_stride"]) for x in video_list], dim=0).cuda()
 
         # labels = list()
         # scores = list()
@@ -1130,7 +1130,7 @@ def valid_one_epoch(
 
             # features = [feat for feat in backbone_features]
             features = torch.stack([x["feats"] for x in video_list], dim=0).cuda()
-            speeds = torch.stack(torch.Tensor([x["feat_stride"] for x in video_list]), dim=0).cuda()
+            speeds = torch.stack([torch.tensor(x["feat_stride"]) for x in video_list], dim=0).cuda()
 
             # start_index = 0
             # pyramidal_proposals = list()
