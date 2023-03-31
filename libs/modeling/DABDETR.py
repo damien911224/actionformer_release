@@ -174,10 +174,7 @@ class DABDETR(nn.Module):
         if speeds is not None:
             # N, C, 1
             speed_embed = self.speed_embed(speeds.unsqueeze(-1)).unsqueeze(-1)
-            print(src.shape)
-            print(speed_embed.shape)
-            exit()
-            src = src + speed_embed.unsqueeze(-1)
+            src = src + speed_embed
 
         embedweight = self.refpoint_embed.weight
         hs, reference, memory, Q_weights, K_weights, C_weights = \
