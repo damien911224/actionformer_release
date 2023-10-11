@@ -149,7 +149,6 @@ class ConvTransformerBackbone(nn.Module):
             out_feats += (x, )
             out_masks += (mask, )
             all_att.append(att)
-        all_att = torch.stack(all_att)
 
         return out_feats, out_masks, all_att
 
