@@ -95,8 +95,6 @@ def main(args):
     mAP = valid_one_epoch(
         val_loader,
         model,
-        None,
-        None,
         -1,
         evaluator=det_eval,
         output_file=output_file,
