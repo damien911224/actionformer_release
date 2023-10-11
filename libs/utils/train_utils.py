@@ -1333,6 +1333,7 @@ def valid_one_epoch(
 
             for a in att:
                 print(a.shape)
+            exit()
 
             # unpack the results into ANet format
             num_vids = len(output)
