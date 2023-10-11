@@ -130,8 +130,11 @@ class ConvTransformerBackbone(nn.Module):
             x = x + pe[:, :, :T] * mask.to(x.dtype)
 
         # stem transformer
+        all_att = list()
         for idx in range(len(self.stem)):
-            x, mask = self.stem[idx](x, mask)
+            x, mask, att = self.stem[idx](x, mask)
+        all_att.append(att)
+        all_att = torch.stack(att)
 
         # prep for outputs
         out_feats = tuple()
@@ -146,7 +149,7 @@ class ConvTransformerBackbone(nn.Module):
             out_feats += (x, )
             out_masks += (mask, )
 
-        return out_feats, out_masks
+        return out_feats, out_masks, all_att
 
 @register_backbone("conv")
 class ConvBackbone(nn.Module):
