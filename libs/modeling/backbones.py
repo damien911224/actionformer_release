@@ -134,7 +134,7 @@ class ConvTransformerBackbone(nn.Module):
         for idx in range(len(self.stem)):
             x, mask, att = self.stem[idx](x, mask)
         all_att.append(att)
-        all_att = torch.stack(att)
+        all_att = torch.stack(all_att)
 
         # prep for outputs
         out_feats = tuple()
