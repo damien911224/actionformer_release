@@ -341,7 +341,7 @@ class PtTransformer(nn.Module):
         batched_inputs, batched_masks = self.preprocessing(video_list, data_type=data_type)
 
         # forward the network (backbone -> neck -> heads)
-        feats, masks = self.backbone(batched_inputs, batched_masks)
+        feats, masks, att = self.backbone(batched_inputs, batched_masks)
         fpn_feats, fpn_masks = self.neck(feats, masks)
 
         # compute the point coordinate along the FPN
@@ -394,7 +394,7 @@ class PtTransformer(nn.Module):
                 video_list, points, fpn_masks,
                 out_cls_logits, out_offsets, nms=nms
             )
-            return results, fpn_feats
+            return results, fpn_feats, att
 
     @torch.no_grad()
     def preprocessing(self, video_list, padding_val=0.0, data_type="fusion"):
