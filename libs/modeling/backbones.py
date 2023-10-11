@@ -133,8 +133,7 @@ class ConvTransformerBackbone(nn.Module):
         all_att = list()
         for idx in range(len(self.stem)):
             x, mask, att = self.stem[idx](x, mask)
-        all_att.append(att)
-        all_att = torch.stack(all_att)
+            all_att.append(att)
 
         # prep for outputs
         out_feats = tuple()
@@ -143,11 +142,14 @@ class ConvTransformerBackbone(nn.Module):
         out_feats += (x, )
         out_masks += (mask, )
 
+        all_att = list()
         # main branch with downsampling
         for idx in range(len(self.branch)):
-            x, mask = self.branch[idx](x, mask)
+            x, mask, att = self.branch[idx](x, mask)
             out_feats += (x, )
             out_masks += (mask, )
+            all_att.append(att)
+        all_att = torch.stack(all_att)
 
         return out_feats, out_masks, all_att
 
