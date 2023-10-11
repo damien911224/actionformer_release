@@ -731,7 +731,7 @@ class TransformerBlock(nn.Module):
 
     def forward(self, x, mask, pos_embd=None):
         # pre-LN transformer: https://arxiv.org/pdf/2002.04745.pdf
-        out, out_mask = self.attn(self.ln1(x), mask)
+        out, out_mask, att = self.attn(self.ln1(x), mask)
         out_mask_float = out_mask.to(out.dtype)
         out = self.pool_skip(x) * out_mask_float + self.drop_path_attn(out)
         # FFN
@@ -739,7 +739,7 @@ class TransformerBlock(nn.Module):
         # optionally add pos_embd to the output
         if pos_embd is not None:
             out += pos_embd * out_mask_float
-        return out, out_mask
+        return out, out_mask, att
 
 
 class ConvBlock(nn.Module):
