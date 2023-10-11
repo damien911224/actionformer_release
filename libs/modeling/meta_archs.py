@@ -401,15 +401,7 @@ class PtTransformer(nn.Module):
         """
             Generate batched features and masks from a list of dict items
         """
-        x_c = video_list[0]['feats'].size(0)
-        if data_type == "fusion":
-            feats = [x['feats'] for x in video_list]
-        elif data_type == "rgb":
-            feats = [x['feats'][:x_c // 2] for x in video_list]
-        elif data_type == "flow":
-            feats = [x['feats'][x_c // 2:] for x in video_list]
-        else:
-            raise ValueError("Invalid Data Type")
+        feats = [x['feats'] for x in video_list]
         feats_lens = torch.as_tensor([feat.shape[-1] for feat in feats])
         max_len = feats_lens.max(0).values.item()
 
