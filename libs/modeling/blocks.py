@@ -309,7 +309,7 @@ class MaskedMHCA(nn.Module):
 
         # output projection + skip connection
         out = self.proj_drop(self.proj(out)) * qx_mask.to(out.dtype)
-        return out, qx_mask
+        return out, qx_mask, att
 
 
 class LocalMaskedMHCA(nn.Module):
