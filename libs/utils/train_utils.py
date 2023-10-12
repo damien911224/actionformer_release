@@ -1332,8 +1332,8 @@ def valid_one_epoch(
             output, _, att = model(video_list)
 
             for a in att:
-                print(a.shape)
-            exit()
+                print(a)
+                exit()
 
             # unpack the results into ANet format
             num_vids = len(output)
