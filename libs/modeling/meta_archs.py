@@ -387,7 +387,7 @@ class PtTransformer(nn.Module):
                 out_cls_logits, out_offsets, nms=nms
             )
 
-            return losses, results, fpn_feats
+            return losses
         else:
             # decode the actions (sigmoid / stride, etc)
             results = self.inference(
