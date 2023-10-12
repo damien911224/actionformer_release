@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import torch.utils.data
 # for visualization
-from torch.utils.tensorboard import SummaryWriter
+from tensorboardX import SummaryWriter
 
 # our code
 from libs.core import load_config
