@@ -55,7 +55,7 @@ model: {
 opt: {
   learning_rate: 1.0e-4, # 1.0e-4
   epochs: 10,
-  weight_decay: 1.0e-4, # 0.05
+  weight_decay: 0.05, # 0.05
 }
 loader: {
   batch_size: 16,
