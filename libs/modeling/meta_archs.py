@@ -727,7 +727,7 @@ class PtTransformer(nn.Module):
         return results
 
     @torch.no_grad()
-    def postprocessing(self, results, nms=False):
+    def postprocessing(self, results, nms=True):
         # input : list of dictionary items
         # (1) push to CPU; (2) NMS; (3) convert to actual time stamps
         processed_results = []
