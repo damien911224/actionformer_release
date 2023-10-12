@@ -1333,7 +1333,7 @@ def valid_one_epoch(
 
             a = att[-1].squeeze(0).mean(0).detach().cpu().numpy()
             print(a.shape)
-            print(a)
+            print(np.argmax(a, -1))
             exit()
 
             # unpack the results into ANet format
