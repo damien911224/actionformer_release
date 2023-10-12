@@ -1331,9 +1331,8 @@ def valid_one_epoch(
         with torch.no_grad():
             output, _, att = model(video_list)
 
-            a = att[0].squeeze(0).detach().cpu().numpy()
+            a = att[1].squeeze(0).mean(1).detach().cpu().numpy()
             print(a.shape)
-            exit()
             print(np.argmax(a, -1))
             exit()
 
