@@ -1331,7 +1331,9 @@ def valid_one_epoch(
         with torch.no_grad():
             output, _, att = model(video_list)
 
-            print(att[-1].squeeze(0).mean(0).detach().cpu().numpy())
+            a = att[-1].squeeze(0).mean(0).detach().cpu().numpy()
+            print(a.shape)
+            print(a)
 
             # unpack the results into ANet format
             num_vids = len(output)
