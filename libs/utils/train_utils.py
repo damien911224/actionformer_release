@@ -1440,9 +1440,9 @@ def valid_one_epoch(
         with torch.no_grad():
             output, _, att = model(video_list)
 
-            # a = att[2].squeeze(0).mean(0).detach().cpu().numpy()
-            # print(a.shape)
-            # print(np.argmax(a, -1))
+            a = att[2].squeeze(0).mean(0).detach().cpu().numpy()
+            print(a.shape)
+            print(np.argmax(a, -1))
 
             # unpack the results into ANet format
             num_vids = len(output)
