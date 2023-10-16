@@ -1450,7 +1450,6 @@ def valid_one_epoch(
                 map = map.mean(0).numpy()
                 # else:
                 #     map = map.mean(0).numpy()
-                print(map.shape)
                 H, W = map.shape
                 H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
                 W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
@@ -1460,8 +1459,6 @@ def valid_one_epoch(
                 ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
                 plt.savefig(os.path.join("./temp", "Q_N{:02d}_L{:02d}.png".format(iter_idx + 1, l_i + 1)))
                 plt.close()
-
-            exit()
 
             # unpack the results into ANet format
             num_vids = len(output)
