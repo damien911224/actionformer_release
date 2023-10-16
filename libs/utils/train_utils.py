@@ -1444,8 +1444,6 @@ def valid_one_epoch(
         with torch.no_grad():
             output, _, att = model(video_list)
 
-            a = att[2].squeeze(0).mean(0).detach().cpu().numpy()
-
             for l_i, map in enumerate(att):
                 map = map.squeeze(0).detach().cpu()
                 if l_i < len(att) - 1:
