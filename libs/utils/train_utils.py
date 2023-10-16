@@ -1446,10 +1446,10 @@ def valid_one_epoch(
 
             for l_i, map in enumerate(att):
                 map = map.squeeze(0).detach().cpu()
-                if l_i < len(att) - 1:
-                    map = map.mean(0).numpy()
-                else:
-                    map = map.mean(1).numpy()
+                # if l_i < len(att) - 1:
+                map = map.mean(0).numpy()
+                # else:
+                #     map = map.mean(0).numpy()
                 print(map.shape)
                 H, W = map.shape
                 H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
