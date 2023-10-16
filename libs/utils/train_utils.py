@@ -17,6 +17,10 @@ from .postprocessing import postprocess_results
 from ..modeling import MaskedConv1D, Scale, AffineDropPath, LayerNorm
 from ..utils import batched_nms, segment_ops
 
+import pandas as pd
+import seaborn as sn
+import matplotlib.pyplot as plt
+
 ################################################################################
 def fix_random_seed(seed, include_cuda=True):
     rng_generator = torch.manual_seed(seed)
@@ -1441,8 +1445,24 @@ def valid_one_epoch(
             output, _, att = model(video_list)
 
             a = att[2].squeeze(0).mean(0).detach().cpu().numpy()
-            print(a.shape)
-            print(np.argmax(a, -1))
+
+            for l_i, map in enumerate(att):
+                map = map.squeeze(0).detach().cpu()
+                if l_i < len(att) - 1:
+                    map = map.mean(0).numpy()
+                else:
+                    map = map.mean(1).numpy()
+                H, W = map.shape
+                H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
+                W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
+                # map -= np.min(map)
+                # map /= np.max(map)
+                df = pd.DataFrame(map, H_labels, W_labels)
+                ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
+                plt.savefig(os.path.join("./temp", "Q_N{:02d}_L{:02d}.png".format(iter_idx + 1, l_i + 1)))
+                plt.close()
+
+            exit()
 
             # unpack the results into ANet format
             num_vids = len(output)
