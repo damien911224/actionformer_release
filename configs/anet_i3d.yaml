@@ -81,7 +81,7 @@ test_cfg: {
   # score fusion
   multiclass_nms: True,
   nms_sigma : 0.75,
-  ext_score_file: ./data/anet_1.3/annotations/cuhk_val_simp_share.json,
+#  ext_score_file: ./data/anet_1.3/annotations/cuhk_val_simp_share.json,
   duration_thresh: 0.001,
 }
 output_folder: ./ckpt/
