@@ -48,9 +48,7 @@ class MaskedConv1D(nn.Module):
         if self.stride > 1:
             # downsample the mask using nearest neighbor
             out_mask = F.interpolate(
-                mask.to(x.dtype),
-                size=T//self.stride,
-                mode='nearest'
+                mask.to(x.dtype), size=out_conv.size(-1), mode='nearest'
             )
         else:
             # masking out the features
@@ -233,18 +231,15 @@ class MaskedMHCA(nn.Module):
         # query conv (depthwise)
         kernel_size = self.n_qx_stride + 1 if self.n_qx_stride > 1 else 3
         stride, padding = self.n_kv_stride, kernel_size // 2
-        # 1d depthwise conv
         self.query_conv = MaskedConv1D(
             self.n_embd, self.n_embd, kernel_size,
             stride=stride, padding=padding, groups=self.n_embd, bias=False
         )
-        # layernorm
         self.query_norm = LayerNorm(self.n_embd)
 
         # key, value conv (depthwise)
         kernel_size = self.n_kv_stride + 1 if self.n_kv_stride > 1 else 3
         stride, padding = self.n_kv_stride, kernel_size // 2
-        # 1d depthwise conv
         self.key_conv = MaskedConv1D(
             self.n_embd, self.n_embd, kernel_size,
             stride=stride, padding=padding, groups=self.n_embd, bias=False
@@ -254,7 +249,6 @@ class MaskedMHCA(nn.Module):
             self.n_embd, self.n_embd, kernel_size,
             stride=stride, padding=padding, groups=self.n_embd, bias=False
         )
-        # layernorm
         self.value_norm = LayerNorm(self.n_embd)
 
         # key, query, value projections for all heads
@@ -309,7 +303,7 @@ class MaskedMHCA(nn.Module):
 
         # output projection + skip connection
         out = self.proj_drop(self.proj(out)) * qx_mask.to(out.dtype)
-        return out, qx_mask, att
+        return out, qx_mask
 
 
 class LocalMaskedMHCA(nn.Module):
@@ -362,18 +356,15 @@ class LocalMaskedMHCA(nn.Module):
         # query conv (depthwise)
         kernel_size = self.n_qx_stride + 1 if self.n_qx_stride > 1 else 3
         stride, padding = self.n_kv_stride, kernel_size // 2
-        # 1d depthwise conv
         self.query_conv = MaskedConv1D(
             self.n_embd, self.n_embd, kernel_size,
             stride=stride, padding=padding, groups=self.n_embd, bias=False
         )
-        # layernorm
         self.query_norm = LayerNorm(self.n_embd)
 
         # key, value conv (depthwise)
         kernel_size = self.n_kv_stride + 1 if self.n_kv_stride > 1 else 3
         stride, padding = self.n_kv_stride, kernel_size // 2
-        # 1d depthwise conv
         self.key_conv = MaskedConv1D(
             self.n_embd, self.n_embd, kernel_size,
             stride=stride, padding=padding, groups=self.n_embd, bias=False
@@ -383,7 +374,6 @@ class LocalMaskedMHCA(nn.Module):
             self.n_embd, self.n_embd, kernel_size,
             stride=stride, padding=padding, groups=self.n_embd, bias=False
         )
-        # layernorm
         self.value_norm = LayerNorm(self.n_embd)
 
         # key, query, value projections for all heads
@@ -648,7 +638,7 @@ class LocalMaskedMHCA(nn.Module):
         out = out.transpose(2, 3).contiguous().view(B, C, -1)
         # output projection + skip connection
         out = self.proj_drop(self.proj(out)) * qx_mask.to(out.dtype)
-        return out, qx_mask, att
+        return out, qx_mask
 
 
 class TransformerBlock(nn.Module):
@@ -731,7 +721,7 @@ class TransformerBlock(nn.Module):
 
     def forward(self, x, mask, pos_embd=None):
         # pre-LN transformer: https://arxiv.org/pdf/2002.04745.pdf
-        out, out_mask, att = self.attn(self.ln1(x), mask)
+        out, out_mask = self.attn(self.ln1(x), mask)
         out_mask_float = out_mask.to(out.dtype)
         out = self.pool_skip(x) * out_mask_float + self.drop_path_attn(out)
         # FFN
@@ -739,7 +729,7 @@ class TransformerBlock(nn.Module):
         # optionally add pos_embd to the output
         if pos_embd is not None:
             out += pos_embd * out_mask_float
-        return out, out_mask, att
+        return out, out_mask
 
 
 class ConvBlock(nn.Module):
@@ -762,7 +752,7 @@ class ConvBlock(nn.Module):
         if n_out is None:
             n_out = n_embd
 
-        # 1x3 (strided) -> 1x3 (basic block in resnet)
+         # 1x3 (strided) -> 1x3 (basic block in resnet)
         width = n_embd * expansion_factor
         self.conv1 = MaskedConv1D(
             n_embd, width, kernel_size, n_ds_stride, padding=padding)
