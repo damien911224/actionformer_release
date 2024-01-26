@@ -135,45 +135,49 @@ def main(args):
         'early_stop_epochs',
         cfg['opt']['epochs'] + cfg['opt']['warmup_epochs']
     )
-    for epoch in range(args.start_epoch, max_epochs):
-        # train for one epoch
-        train_one_epoch(
-            train_loader,
-            model,
-            optimizer,
-            scheduler,
-            epoch,
-            model_ema = model_ema,
-            clip_grad_l2norm = cfg['train_cfg']['clip_grad_l2norm'],
-            tb_writer=tb_writer,
-            print_freq=args.print_freq
-        )
+    # for epoch in range(args.start_epoch, max_epochs):
+    #     # train for one epoch
+    #     train_one_epoch(
+    #         train_loader,
+    #         model,
+    #         optimizer,
+    #         scheduler,
+    #         epoch,
+    #         model_ema = model_ema,
+    #         clip_grad_l2norm = cfg['train_cfg']['clip_grad_l2norm'],
+    #         tb_writer=tb_writer,
+    #         print_freq=args.print_freq
+    #     )
+    #
+    #     # save ckpt once in a while
+    #     if (
+    #         ((epoch + 1) == max_epochs) or
+    #         ((args.ckpt_freq > 0) and ((epoch + 1) % args.ckpt_freq == 0))
+    #     ):
+    #         save_states = {
+    #             'epoch': epoch + 1,
+    #             'state_dict': model.state_dict(),
+    #             'scheduler': scheduler.state_dict(),
+    #             'optimizer': optimizer.state_dict(),
+    #         }
+    #
+    #         save_states['state_dict_ema'] = model_ema.module.state_dict()
+    #         save_checkpoint(
+    #             save_states,
+    #             False,
+    #             file_folder=ckpt_folder,
+    #             file_name='epoch_{:03d}.pth.tar'.format(epoch + 1)
+    #         )
 
-        # save ckpt once in a while
-        if (
-            ((epoch + 1) == max_epochs) or
-            ((args.ckpt_freq > 0) and ((epoch + 1) % args.ckpt_freq == 0))
-        ):
-            save_states = {
-                'epoch': epoch + 1,
-                'state_dict': model.state_dict(),
-                'scheduler': scheduler.state_dict(),
-                'optimizer': optimizer.state_dict(),
-            }
-
-            save_states['state_dict_ema'] = model_ema.module.state_dict()
-            save_checkpoint(
-                save_states,
-                False,
-                file_folder=ckpt_folder,
-                file_name='epoch_{:03d}.pth.tar'.format(epoch + 1)
-            )
+    checkpoint = torch.load("ckpt/thumos_i3d_AF_baseline/epoch_035.pth.tar")
+    model_ema.module.load_state_dict(checkpoint['state_dict_ema'])
+    del checkpoint
 
     """5. Test the model"""
     print("\nStart testing model {:s} ...".format(cfg['model_name']))
     mAP = valid_one_epoch(
         val_loader,
-        model_ema,
+        model_ema.module,
         -1,
         evaluator=det_eval,
         output_file=output_file,

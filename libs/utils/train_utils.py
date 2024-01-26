@@ -1444,21 +1444,21 @@ def valid_one_epoch(
         with torch.no_grad():
             output, _, att = model(video_list)
 
-            for l_i, map in enumerate(att):
-                map = map.squeeze(0).detach().cpu()
-                # if l_i < len(att) - 1:
-                map = map.mean(0).numpy()
-                # else:
-                #     map = map.mean(0).numpy()
-                H, W = map.shape
-                H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
-                W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
-                # map -= np.min(map)
-                # map /= np.max(map)
-                df = pd.DataFrame(map, H_labels, W_labels)
-                ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
-                plt.savefig(os.path.join("./temp", "Q_N{:02d}_L{:02d}.png".format(iter_idx + 1, l_i + 1)))
-                plt.close()
+            # for l_i, map in enumerate(att):
+            #     map = map.squeeze(0).detach().cpu()
+            #     # if l_i < len(att) - 1:
+            #     map = map.mean(0).numpy()
+            #     # else:
+            #     #     map = map.mean(0).numpy()
+            #     H, W = map.shape
+            #     H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
+            #     W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
+            #     # map -= np.min(map)
+            #     # map /= np.max(map)
+            #     df = pd.DataFrame(map, H_labels, W_labels)
+            #     ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
+            #     plt.savefig(os.path.join("./temp", "Q_N{:02d}_L{:02d}.png".format(iter_idx + 1, l_i + 1)))
+            #     plt.close()
 
             # unpack the results into ANet format
             num_vids = len(output)
