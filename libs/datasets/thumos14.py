@@ -188,6 +188,8 @@ class THUMOS14Dataset(Dataset):
 
         # truncate the features during training
         if self.is_training and (segments is not None):
-            data_dict = truncate_feats(data_dict, self.max_seq_len, self.trunc_thresh, self.crop_ratio)
+            data_dict = truncate_feats(
+                data_dict, self.max_seq_len, self.trunc_thresh, feat_offset, self.crop_ratio
+            )
 
         return data_dict
