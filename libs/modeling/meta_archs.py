@@ -51,9 +51,7 @@ class PtTransformerClsHead(nn.Module):
                 )
             )
             if with_ln:
-                self.norm.append(
-                    LayerNorm(out_dim)
-                )
+                self.norm.append(LayerNorm(out_dim))
             else:
                 self.norm.append(nn.Identity())
 
@@ -65,8 +63,9 @@ class PtTransformerClsHead(nn.Module):
 
         # use prior in model initialization to improve stability
         # this will overwrite other weight init
-        bias_value = -(math.log((1 - prior_prob) / prior_prob))
-        torch.nn.init.constant_(self.cls_head.conv.bias, bias_value)
+        if prior_prob > 0:
+            bias_value = -(math.log((1 - prior_prob) / prior_prob))
+            torch.nn.init.constant_(self.cls_head.conv.bias, bias_value)
 
         # a quick fix to empty categories:
         # the weights assocaited with these categories will remain unchanged
@@ -132,9 +131,7 @@ class PtTransformerRegHead(nn.Module):
                 )
             )
             if with_ln:
-                self.norm.append(
-                    LayerNorm(out_dim)
-                )
+                self.norm.append(LayerNorm(out_dim))
             else:
                 self.norm.append(nn.Identity())
 
@@ -176,7 +173,7 @@ class PtTransformer(nn.Module):
             self,
             backbone_type,  # a string defines which backbone we use
             fpn_type,  # a string defines which fpn we use
-            backbone_arch,  # a tuple defines # layers in embed / stem / branch
+            backbone_arch,  # a tuple defines #layers in embed / stem / branch
             scale_factor,  # scale factor between branch layers
             input_dim,  # input feat dim
             max_seq_len,  # max sequence length (used for training)
@@ -285,6 +282,8 @@ class PtTransformer(nn.Module):
                     'with_ln': embd_with_ln
                 }
             )
+        if isinstance(embd_dim, (list, tuple)):
+            embd_dim = sum(embd_dim)
 
         # fpn network: convs
         assert fpn_type in ['fpn', 'identity']
@@ -336,12 +335,12 @@ class PtTransformer(nn.Module):
         # will throw an error if parameters are on different devices
         return list(set(p.device for p in self.parameters()))[0]
 
-    def forward(self, video_list, data_type="rgb", nms=False):
+    def forward(self, video_list):
         # batch the video list into feats (B, C, T) and masks (B, 1, T)
-        batched_inputs, batched_masks = self.preprocessing(video_list, data_type=data_type)
+        batched_inputs, batched_masks = self.preprocessing(video_list)
 
         # forward the network (backbone -> neck -> heads)
-        feats, masks, att = self.backbone(batched_inputs, batched_masks)
+        feats, masks = self.backbone(batched_inputs, batched_masks)
         fpn_feats, fpn_masks = self.neck(feats, masks)
 
         # compute the point coordinate along the FPN
@@ -373,7 +372,8 @@ class PtTransformer(nn.Module):
 
             # compute the gt labels for cls & reg
             # list of prediction targets
-            gt_cls_labels, gt_offsets = self.label_points(points, gt_segments, gt_labels)
+            gt_cls_labels, gt_offsets = self.label_points(
+                points, gt_segments, gt_labels)
 
             # compute the loss and return
             losses = self.losses(
@@ -381,23 +381,18 @@ class PtTransformer(nn.Module):
                 out_cls_logits, out_offsets,
                 gt_cls_labels, gt_offsets
             )
-
-            results = self.inference(
-                video_list, points, fpn_masks,
-                out_cls_logits, out_offsets, nms=nms
-            )
-
             return losses
+
         else:
             # decode the actions (sigmoid / stride, etc)
             results = self.inference(
                 video_list, points, fpn_masks,
-                out_cls_logits, out_offsets, nms=nms
+                out_cls_logits, out_offsets
             )
-            return results, fpn_feats, att
+            return results
 
     @torch.no_grad()
-    def preprocessing(self, video_list, padding_val=0.0, data_type="fusion"):
+    def preprocessing(self, video_list, padding_val=0.0):
         """
             Generate batched features and masks from a list of dict items
         """
@@ -457,7 +452,7 @@ class PtTransformer(nn.Module):
 
     @torch.no_grad()
     def label_points_single_video(self, concat_points, gt_segment, gt_label):
-        # concat_points : F T x 4 (t, regressoin range, stride)
+        # concat_points : F T x 4 (t, regression range, stride)
         # gt_segment : N (#Events) x 2
         # gt_label : N (#Events) x 1
         num_pts = concat_points.shape[0]
@@ -609,7 +604,7 @@ class PtTransformer(nn.Module):
             self,
             video_list,
             points, fpn_masks,
-            out_cls_logits, out_offsets, nms=False
+            out_cls_logits, out_offsets
     ):
         # video_list B (list) [dict]
         # points F (list) [T_i, 4]
@@ -635,7 +630,7 @@ class PtTransformer(nn.Module):
             # inference on a single video (should always be the case)
             results_per_vid = self.inference_single_video(
                 points, fpn_masks_per_vid,
-                cls_logits_per_vid, offsets_per_vid, nms=nms
+                cls_logits_per_vid, offsets_per_vid
             )
             # pass through video meta info
             results_per_vid['video_id'] = vidx
@@ -657,7 +652,6 @@ class PtTransformer(nn.Module):
             fpn_masks,
             out_cls_logits,
             out_offsets,
-            nms=False
     ):
         # points F (list) [T_i, 4]
         # fpn_masks, out_*: F (List) [T_i, C]
@@ -666,38 +660,33 @@ class PtTransformer(nn.Module):
         cls_idxs_all = []
 
         # loop over fpn levels
-        for cls_i, offsets_i, pts_i, mask_i in zip(out_cls_logits, out_offsets, points, fpn_masks):
+        for cls_i, offsets_i, pts_i, mask_i in zip(
+                out_cls_logits, out_offsets, points, fpn_masks
+        ):
             # sigmoid normalization for output logits
             pred_prob = (cls_i.sigmoid() * mask_i.unsqueeze(-1)).flatten()
-            # pred_prob = (cls_i.sigmoid() * mask_i.unsqueeze(-1))
-            # pred_prob, cls_idxs = torch.max(pred_prob, dim=-1)
 
             # Apply filtering to make NMS faster following detectron2
             # 1. Keep seg with confidence score > a threshold
-            if nms:
-                keep_idxs1 = (pred_prob > self.test_pre_nms_thresh)
-            else:
-                keep_idxs1 = (pred_prob >= 0.0)
+            keep_idxs1 = (pred_prob > self.test_pre_nms_thresh)
             pred_prob = pred_prob[keep_idxs1]
             topk_idxs = keep_idxs1.nonzero(as_tuple=True)[0]
 
             # 2. Keep top k top scoring boxes only
-            if nms:
-                num_topk = min(self.test_pre_nms_topk, topk_idxs.size(0))
-                pred_prob, idxs = pred_prob.sort(descending=True)
-                pred_prob = pred_prob[:num_topk].clone()
-                topk_idxs = topk_idxs[idxs[:num_topk]].clone()
-                # cls_idxs = cls_idxs[idxs[:num_topk]].clone()
+            num_topk = min(self.test_pre_nms_topk, topk_idxs.size(0))
+            pred_prob, idxs = pred_prob.sort(descending=True)
+            pred_prob = pred_prob[:num_topk].clone()
+            topk_idxs = topk_idxs[idxs[:num_topk]].clone()
 
             # fix a warning in pytorch 1.9
-            pt_idxs = torch.div(topk_idxs, self.num_classes, rounding_mode='floor')
+            pt_idxs = torch.div(
+                topk_idxs, self.num_classes, rounding_mode='floor'
+            )
             cls_idxs = torch.fmod(topk_idxs, self.num_classes)
 
             # 3. gather predicted offsets
             offsets = offsets_i[pt_idxs]
             pts = pts_i[pt_idxs]
-            # offsets = offsets_i
-            # pts = pts_i
 
             # 4. compute predicted segments (denorm by stride for output offsets)
             seg_left = pts[:, 0] - offsets[:, 0] * pts[:, 3]
@@ -706,10 +695,7 @@ class PtTransformer(nn.Module):
 
             # 5. Keep seg with duration > a threshold (relative to feature grids)
             seg_areas = seg_right - seg_left
-            if nms:
-                keep_idxs2 = seg_areas > self.test_duration_thresh
-            else:
-                keep_idxs2 = seg_areas >= 0.0
+            keep_idxs2 = seg_areas > self.test_duration_thresh
 
             # *_all : N (filtered # of segments) x 2 / 1
             segs_all.append(pred_segs[keep_idxs2])
@@ -727,7 +713,7 @@ class PtTransformer(nn.Module):
         return results
 
     @torch.no_grad()
-    def postprocessing(self, results, nms=True):
+    def postprocessing(self, results):
         # input : list of dictionary items
         # (1) push to CPU; (2) NMS; (3) convert to actual time stamps
         processed_results = []
@@ -742,7 +728,7 @@ class PtTransformer(nn.Module):
             segs = results_per_vid['segments'].detach().cpu()
             scores = results_per_vid['scores'].detach().cpu()
             labels = results_per_vid['labels'].detach().cpu()
-            if nms and self.test_nms_method != 'none':
+            if self.test_nms_method != 'none':
                 # 2: batched nms (only implemented on CPU)
                 segs, scores, labels = batched_nms(
                     segs, scores, labels,
