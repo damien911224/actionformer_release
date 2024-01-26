@@ -154,37 +154,29 @@ class THUMOS14Dataset(Dataset):
         # deal with downsampling (= increased feat stride)
         feats = feats[::self.downsample_rate, :]
         feat_stride = self.feat_stride * self.downsample_rate
+        feat_offset = 0.5 * self.num_frames / feat_stride
         # T x C -> C x T
         feats = torch.from_numpy(np.ascontiguousarray(feats.transpose()))
-        # len_feats = feats.size(1)
-        # if not self.is_training and len_feats > 5000:
-        #     resize_feats = F.interpolate(
-        #         feats.unsqueeze(0),
-        #         size=5000,
-        #         mode='linear',
-        #         align_corners=False
-        #     )
-        #     feats = resize_feats.squeeze(0)
 
         # convert time stamp (in second) into temporal feature grids
         # ok to have small negative values here
         if video_item['segments'] is not None:
             segments = torch.from_numpy(
-                (video_item['segments'] * video_item['fps'] - 0.5 * self.num_frames) / feat_stride
+                video_item['segments'] * video_item['fps'] / feat_stride - feat_offset
             )
             labels = torch.from_numpy(video_item['labels'])
         else:
             segments, labels = None, None
 
         # return a data dict
-        data_dict = {'video_id'        : video_item['id'],
-                     'feats'           : feats,      # C x T
-                     'segments'        : segments,   # N x 2
-                     'labels'          : labels,     # N
-                     'fps'             : video_item['fps'],
-                     'duration'        : video_item['duration'],
-                     'feat_stride'     : feat_stride,
-                     'feat_num_frames' : self.num_frames}
+        data_dict = {'video_id': video_item['id'],
+                     'feats': feats,  # C x T
+                     'segments': segments,  # N x 2
+                     'labels': labels,  # N
+                     'fps': video_item['fps'],
+                     'duration': video_item['duration'],
+                     'feat_stride': feat_stride,
+                     'feat_num_frames': self.num_frames}
 
         # truncate the features during training
         if self.is_training and (segments is not None):
