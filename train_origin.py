@@ -69,6 +69,25 @@ def main(args):
     train_loader = make_data_loader(
         train_dataset, True, rng_generator, **cfg['loader'])
 
+    val_dataset = make_dataset(
+        cfg['dataset_name'], False, cfg['val_split'], **cfg['dataset']
+    )
+    # set bs = 1, and disable shuffle
+    val_loader = make_data_loader(
+        val_dataset, False, None, 1, cfg['loader']['num_workers']
+    )
+
+    det_eval, output_file = None, None
+    if not args.saveonly:
+        val_db_vars = val_dataset.get_attributes()
+        det_eval = ANETdetection(
+            val_dataset.json_file,
+            val_dataset.split[0],
+            tiou_thresholds=val_db_vars['tiou_thresholds']
+        )
+    else:
+        output_file = os.path.join(os.path.split(ckpt_file)[0], 'eval_results.pkl')
+
     """3. create model, optimizer, and scheduler"""
     # model
     model = make_meta_arch(cfg['model_name'], **cfg['model'])
@@ -152,6 +171,19 @@ def main(args):
                 file_folder=ckpt_folder,
                 file_name='epoch_{:03d}.pth.tar'.format(epoch + 1)
             )
+
+    """5. Test the model"""
+    print("\nStart testing model {:s} ...".format(cfg['model_name']))
+    mAP = valid_one_epoch(
+        val_loader,
+        model_ema,
+        -1,
+        evaluator=det_eval,
+        output_file=output_file,
+        ext_score_file=cfg['test_cfg']['ext_score_file'],
+        tb_writer=None,
+        print_freq=args.print_freq
+    )
 
     # wrap up
     tb_writer.close()
