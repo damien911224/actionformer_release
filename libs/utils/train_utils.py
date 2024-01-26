@@ -1495,7 +1495,7 @@ def valid_one_epoch(
         if ext_score_file is not None and isinstance(ext_score_file, str):
             results = postprocess_results(results, ext_score_file)
         # call the evaluator
-        _, mAP, _ = evaluator.evaluate(results, verbose=True)
+        mAP, _ = evaluator.evaluate(results, verbose=True)
     else:
         # dump to a pickle file that can be directly used for evaluation
         with open(output_file, "wb") as f:
