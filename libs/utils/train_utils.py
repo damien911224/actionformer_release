@@ -1442,7 +1442,7 @@ def valid_one_epoch(
     for iter_idx, video_list in enumerate(val_loader, 0):
         # forward the model (wo. grad)
         with torch.no_grad():
-            output, _, att = model(video_list)
+            output = model(video_list)
 
             # for l_i, map in enumerate(att):
             #     map = map.squeeze(0).detach().cpu()
