@@ -19,8 +19,8 @@ dataset: {
   trunc_thresh: 0.5,
   crop_ratio: [0.9, 1.0],
   # upsample the features to a fixed length of 192
-  max_seq_len: 192,
-  force_upsampling: True,
+  max_seq_len: 2304,
+#  force_upsampling: True,
 }
 
 #dataset: {
@@ -40,17 +40,22 @@ dataset: {
 #  force_upsampling: True,
 #}
 
+#model: {
+#  fpn_type: identity,
+#  max_buffer_len_factor: 1.0,
+#  # 192 - 96 - 48 - 24 - 12 - 6
+#  n_mha_win_size: [7, 7, 7, 7, 7, -1],
+##  n_mha_win_size: [-1, -1, -1, -1, -1, -1],
+#  n_head: 4,
+#  embd_dim: 256,
+#  fpn_dim: 256,
+#  head_dim: 256,
+#  use_abs_pe: True,
+#}
 model: {
   fpn_type: identity,
-  max_buffer_len_factor: 1.0,
-  # 192 - 96 - 48 - 24 - 12 - 6
-  n_mha_win_size: [7, 7, 7, 7, 7, -1],
-#  n_mha_win_size: [-1, -1, -1, -1, -1, -1],
-  n_head: 4,
-  embd_dim: 256,
-  fpn_dim: 256,
-  head_dim: 256,
-  use_abs_pe: True,
+  max_buffer_len_factor: 6.0,
+  n_mha_win_size: 19,
 }
 opt: {
   learning_rate: 1.0e-4, # 1.0e-4
