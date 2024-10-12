@@ -9,7 +9,7 @@ from .blocks import MaskedConv1D, Scale, LayerNorm
 from .losses import ctr_diou_loss_1d, sigmoid_focal_loss
 
 from ..utils import batched_nms
-from .deformable_transformer import DeformableTransformerEncoder, DeformableTransformerEncoderLayer
+# from .deformable_transformer import DeformableTransformerEncoder, DeformableTransformerEncoderLayer
 
 
 class PtTransformerClsHead(nn.Module):
