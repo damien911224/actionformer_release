@@ -1495,7 +1495,7 @@ def valid_one_epoch(
         if ext_score_file is not None and isinstance(ext_score_file, str):
             results = postprocess_results(results, ext_score_file)
         # call the evaluator
-        mAP, _ = evaluator.evaluate(results, verbose=True)
+        APs, mAP = evaluator.evaluate(results, verbose=True)
     else:
         # dump to a pickle file that can be directly used for evaluation
         with open(output_file, "wb") as f:
@@ -1506,7 +1506,7 @@ def valid_one_epoch(
     if tb_writer is not None:
         tb_writer.add_scalar('validation/mAP', mAP, curr_epoch)
 
-    return mAP
+    return APs, mAP, results
 
 def valid_one_epoch_phase_1(
         val_loader,

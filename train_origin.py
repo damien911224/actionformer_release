@@ -3,6 +3,7 @@ import argparse
 import os
 import time
 import datetime
+import json
 from pprint import pprint
 
 # torch imports
@@ -175,7 +176,7 @@ def main(args):
 
     """5. Test the model"""
     print("\nStart testing model {:s} ...".format(cfg['model_name']))
-    mAP = valid_one_epoch(
+    APs, mAP, results = valid_one_epoch(
         val_loader,
         model_ema.module,
         -1,
@@ -185,6 +186,43 @@ def main(args):
         tb_writer=None,
         print_freq=args.print_freq
     )
+
+    # print the results
+    result_txt = ""
+    result_txt += '[RESULTS] Action detection results on {:s} at E{:02d}.'.format(cfg['dataset_name'],
+                                                                                  14) + "\n"
+    block = ''
+    for tiou, tiou_mAP in zip(det_eval.tiou_thresholds, APs):
+        block += '\n|tIoU = {:.2f}: mAP = {:.2f} (%)'.format(tiou, tiou_mAP * 100)
+    result_txt += block + "\n"
+    result_txt += 'Avearge mAP: {:.2f} (%)'.format(mAP * 100)
+    print(result_txt)
+
+    result_dict = dict({"version": "VERSION 1.3",
+                        "results": dict(),
+                        "external_data":
+                            {"used": True,
+                             "details": "3D-CNN for feature extracting is pre-trained on Kinetics-400"}})
+
+    for r_i in range(len(results["video-id"])):
+        video_id = results["video-id"][r_i]
+        start_time = results["t-start"][r_i].item()
+        end_time = results["t-end"][r_i].item()
+        label = results["label"][r_i].item()
+        score = results["score"][r_i].item()
+
+        if video_id not in result_dict["results"].keys():
+            result_dict["results"][video_id] = list()
+
+        result_dict["results"][video_id].append({"label": label, "score": score, "segment": (start_time, end_time)})
+
+    result_json_path = os.path.join(ckpt_folder, "results.json")
+    with open(result_json_path, "w") as fp:
+        json.dump(result_dict, fp, indent=4, sort_keys=True)
+
+    result_text_path = os.path.join(ckpt_folder, "results.txt")
+    with open(result_text_path, "w") as fp:
+        fp.write(result_txt)
 
     # wrap up
     tb_writer.close()
