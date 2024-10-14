@@ -136,6 +136,11 @@ def main(args):
         'early_stop_epochs',
         cfg['opt']['epochs'] + cfg['opt']['warmup_epochs']
     )
+
+    best_mAP = -1
+    best_APs = None
+    best_epoch = 0
+    best_results = None
     for epoch in range(args.start_epoch, max_epochs):
         # train for one epoch
         train_one_epoch(
@@ -149,6 +154,24 @@ def main(args):
             tb_writer=tb_writer,
             print_freq=args.print_freq
         )
+
+        APs, mAP, results = valid_one_epoch(
+            val_loader,
+            model_ema.module,
+            -1,
+            evaluator=det_eval,
+            output_file=output_file,
+            ext_score_file=cfg['test_cfg']['ext_score_file'],
+            tb_writer=None,
+            print_freq=args.print_freq
+        )
+
+        is_best = mAP >= best_mAP
+        if is_best:
+            best_mAP = mAP
+            best_APs = APs
+            best_epoch = epoch
+            best_results = results
 
         # save ckpt once in a while
         if (
@@ -174,28 +197,28 @@ def main(args):
     # model_ema.module.load_state_dict(checkpoint['state_dict_ema'])
     # del checkpoint
 
-    """5. Test the model"""
-    print("\nStart testing model {:s} ...".format(cfg['model_name']))
-    APs, mAP, results = valid_one_epoch(
-        val_loader,
-        model_ema.module,
-        -1,
-        evaluator=det_eval,
-        output_file=output_file,
-        ext_score_file=cfg['test_cfg']['ext_score_file'],
-        tb_writer=None,
-        print_freq=args.print_freq
-    )
+    # """5. Test the model"""
+    # print("\nStart testing model {:s} ...".format(cfg['model_name']))
+    # APs, mAP, results = valid_one_epoch(
+    #     val_loader,
+    #     model_ema.module,
+    #     -1,
+    #     evaluator=det_eval,
+    #     output_file=output_file,
+    #     ext_score_file=cfg['test_cfg']['ext_score_file'],
+    #     tb_writer=None,
+    #     print_freq=args.print_freq
+    # )
 
     # print the results
     result_txt = ""
     result_txt += '[RESULTS] Action detection results on {:s} at E{:02d}.'.format(cfg['dataset_name'],
-                                                                                  14) + "\n"
+                                                                                  best_epoch) + "\n"
     block = ''
-    for tiou, tiou_mAP in zip(det_eval.tiou_thresholds, APs):
+    for tiou, tiou_mAP in zip(det_eval.tiou_thresholds, best_APs):
         block += '\n|tIoU = {:.2f}: mAP = {:.2f} (%)'.format(tiou, tiou_mAP * 100)
     result_txt += block + "\n"
-    result_txt += 'Avearge mAP: {:.2f} (%)'.format(mAP * 100)
+    result_txt += 'Avearge mAP: {:.2f} (%)'.format(best_mAP * 100)
     print(result_txt)
 
     result_dict = dict({"version": "VERSION 1.3",
@@ -204,12 +227,12 @@ def main(args):
                             {"used": True,
                              "details": "3D-CNN for feature extracting is pre-trained on Kinetics-400"}})
 
-    for r_i in range(len(results["video-id"])):
-        video_id = results["video-id"][r_i]
-        start_time = results["t-start"][r_i].item()
-        end_time = results["t-end"][r_i].item()
-        label = results["label"][r_i].item()
-        score = results["score"][r_i].item()
+    for r_i in range(len(best_results["video-id"])):
+        video_id = best_results["video-id"][r_i]
+        start_time = best_results["t-start"][r_i].item()
+        end_time = best_results["t-end"][r_i].item()
+        label = best_results["label"][r_i].item()
+        score = best_results["score"][r_i].item()
 
         if video_id not in result_dict["results"].keys():
             result_dict["results"][video_id] = list()
