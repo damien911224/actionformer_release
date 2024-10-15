@@ -137,65 +137,61 @@ def main(args):
         cfg['opt']['epochs'] + cfg['opt']['warmup_epochs']
     )
 
-    best_mAP = -1
-    best_APs = None
-    best_epoch = 0
-    best_results = None
-    for epoch in range(args.start_epoch, max_epochs):
-        # train for one epoch
-        train_one_epoch(
-            train_loader,
-            model,
-            optimizer,
-            scheduler,
-            epoch,
-            model_ema = model_ema,
-            clip_grad_l2norm = cfg['train_cfg']['clip_grad_l2norm'],
-            tb_writer=tb_writer,
-            print_freq=args.print_freq
-        )
-
-        APs, mAP, results = valid_one_epoch(
-            val_loader,
-            model_ema.module,
-            -1,
-            evaluator=det_eval,
-            output_file=output_file,
-            ext_score_file=cfg['test_cfg']['ext_score_file'],
-            tb_writer=None,
-            print_freq=args.print_freq
-        )
-
-        is_best = mAP >= best_mAP
-        if is_best:
-            best_mAP = mAP
-            best_APs = APs
-            best_epoch = epoch
-            best_results = results
-
-        # save ckpt once in a while
-        if (
-            ((epoch + 1) == max_epochs) or
-            ((args.ckpt_freq > 0) and ((epoch + 1) % args.ckpt_freq == 0))
-        ):
-            save_states = {
-                'epoch': epoch + 1,
-                'state_dict': model.state_dict(),
-                'scheduler': scheduler.state_dict(),
-                'optimizer': optimizer.state_dict(),
-            }
-
-            save_states['state_dict_ema'] = model_ema.module.state_dict()
-            save_checkpoint(
-                save_states,
-                False,
-                file_folder=ckpt_folder,
-                file_name='epoch_{:03d}.pth.tar'.format(epoch + 1)
-            )
-
-    # checkpoint = torch.load("ckpt/thumos_i3d_AF_baseline/epoch_035.pth.tar")
-    # model_ema.module.load_state_dict(checkpoint['state_dict_ema'])
-    # del checkpoint
+    # best_mAP = -1
+    # best_APs = None
+    # best_epoch = 0
+    # best_results = None
+    # for epoch in range(args.start_epoch, max_epochs):
+    #     # train for one epoch
+    #     train_one_epoch(
+    #         train_loader,
+    #         model,
+    #         optimizer,
+    #         scheduler,
+    #         epoch,
+    #         model_ema = model_ema,
+    #         clip_grad_l2norm = cfg['train_cfg']['clip_grad_l2norm'],
+    #         tb_writer=tb_writer,
+    #         print_freq=args.print_freq
+    #     )
+    #
+    #     APs, mAP, results = valid_one_epoch(
+    #         val_loader,
+    #         model_ema.module,
+    #         -1,
+    #         evaluator=det_eval,
+    #         output_file=output_file,
+    #         ext_score_file=cfg['test_cfg']['ext_score_file'],
+    #         tb_writer=None,
+    #         print_freq=args.print_freq
+    #     )
+    #
+    #     is_best = mAP >= best_mAP
+    #     if is_best:
+    #         best_mAP = mAP
+    #         best_APs = APs
+    #         best_epoch = epoch
+    #         best_results = results
+    #
+    #     # save ckpt once in a while
+    #     if (
+    #         ((epoch + 1) == max_epochs) or
+    #         ((args.ckpt_freq > 0) and ((epoch + 1) % args.ckpt_freq == 0))
+    #     ):
+    #         save_states = {
+    #             'epoch': epoch + 1,
+    #             'state_dict': model.state_dict(),
+    #             'scheduler': scheduler.state_dict(),
+    #             'optimizer': optimizer.state_dict(),
+    #         }
+    #
+    #         save_states['state_dict_ema'] = model_ema.module.state_dict()
+    #         save_checkpoint(
+    #             save_states,
+    #             False,
+    #             file_folder=ckpt_folder,
+    #             file_name='epoch_{:03d}.pth.tar'.format(epoch + 1)
+    #         )
 
     # """5. Test the model"""
     # print("\nStart testing model {:s} ...".format(cfg['model_name']))
@@ -210,16 +206,85 @@ def main(args):
     #     print_freq=args.print_freq
     # )
 
-    # print the results
-    result_txt = ""
-    result_txt += '[RESULTS] Action detection results on {:s} at E{:02d}.'.format(cfg['dataset_name'],
-                                                                                  best_epoch) + "\n"
-    block = ''
-    for tiou, tiou_mAP in zip(det_eval.tiou_thresholds, best_APs):
-        block += '\n|tIoU = {:.2f}: mAP = {:.2f} (%)'.format(tiou, tiou_mAP * 100)
-    result_txt += block + "\n"
-    result_txt += 'Avearge mAP: {:.2f} (%)'.format(best_mAP * 100)
-    print(result_txt)
+    # # print the results
+    # result_txt = ""
+    # result_txt += '[RESULTS] Action detection results on {:s} at E{:02d}.'.format(cfg['dataset_name'],
+    #                                                                               best_epoch) + "\n"
+    # block = ''
+    # for tiou, tiou_mAP in zip(det_eval.tiou_thresholds, best_APs):
+    #     block += '\n|tIoU = {:.2f}: mAP = {:.2f} (%)'.format(tiou, tiou_mAP * 100)
+    # result_txt += block + "\n"
+    # result_txt += 'Avearge mAP: {:.2f} (%)'.format(best_mAP * 100)
+    # print(result_txt)
+    #
+    # result_dict = dict({"version": "VERSION 1.3",
+    #                     "results": dict(),
+    #                     "external_data":
+    #                         {"used": True,
+    #                          "details": "3D-CNN for feature extracting is pre-trained on Kinetics-400"}})
+    #
+    # for r_i in range(len(best_results["video-id"])):
+    #     video_id = best_results["video-id"][r_i]
+    #     start_time = best_results["t-start"][r_i].item()
+    #     end_time = best_results["t-end"][r_i].item()
+    #     label = best_results["label"][r_i].item()
+    #     score = best_results["score"][r_i].item()
+    #
+    #     if video_id not in result_dict["results"].keys():
+    #         result_dict["results"][video_id] = list()
+    #
+    #     result_dict["results"][video_id].append({"label": label, "score": score, "segment": (start_time, end_time)})
+    #
+    # result_json_path = os.path.join(ckpt_folder, "results.json")
+    # with open(result_json_path, "w") as fp:
+    #     json.dump(result_dict, fp, indent=4, sort_keys=True)
+    #
+    # result_text_path = os.path.join(ckpt_folder, "results.txt")
+    # with open(result_text_path, "w") as fp:
+    #     fp.write(result_txt)
+
+
+    checkpoint = torch.load("ckpt/anet_i3d_origin_L2304/epoch_010.pth.tar")
+    model_ema.module.load_state_dict(checkpoint['state_dict_ema'])
+    del checkpoint
+
+    train_dataset = make_dataset(
+        cfg['dataset_name'], True, cfg['train_split'], **cfg['dataset']
+    )
+
+    loader = make_data_loader(
+        train_dataset, False, None, 1, cfg['loader']['num_workers']
+    )
+
+    APs, mAP, train_results = valid_one_epoch(
+        loader,
+        model_ema.module,
+        -1,
+        evaluator=det_eval,
+        output_file=output_file,
+        ext_score_file=cfg['test_cfg']['ext_score_file'],
+        tb_writer=None,
+        print_freq=args.print_freq
+    )
+
+    val_dataset = make_dataset(
+        cfg['dataset_name'], False, cfg['val_split'], **cfg['dataset']
+    )
+    # set bs = 1, and disable shuffle
+    loader = make_data_loader(
+        val_dataset, False, None, 1, cfg['loader']['num_workers']
+    )
+
+    APs, mAP, val_results = valid_one_epoch(
+        loader,
+        model_ema.module,
+        -1,
+        evaluator=det_eval,
+        output_file=output_file,
+        ext_score_file=cfg['test_cfg']['ext_score_file'],
+        tb_writer=None,
+        print_freq=args.print_freq
+    )
 
     result_dict = dict({"version": "VERSION 1.3",
                         "results": dict(),
@@ -227,12 +292,24 @@ def main(args):
                             {"used": True,
                              "details": "3D-CNN for feature extracting is pre-trained on Kinetics-400"}})
 
-    for r_i in range(len(best_results["video-id"])):
-        video_id = best_results["video-id"][r_i]
-        start_time = best_results["t-start"][r_i].item()
-        end_time = best_results["t-end"][r_i].item()
-        label = best_results["label"][r_i].item()
-        score = best_results["score"][r_i].item()
+    for r_i in range(len(train_results["video-id"])):
+        video_id = train_results["video-id"][r_i]
+        start_time = train_results["t-start"][r_i].item()
+        end_time = train_results["t-end"][r_i].item()
+        label = train_results["label"][r_i].item()
+        score = train_results["score"][r_i].item()
+
+        if video_id not in result_dict["results"].keys():
+            result_dict["results"][video_id] = list()
+
+        result_dict["results"][video_id].append({"label": label, "score": score, "segment": (start_time, end_time)})
+
+    for r_i in range(len(val_results["video-id"])):
+        video_id = val_results["video-id"][r_i]
+        start_time = val_results["t-start"][r_i].item()
+        end_time = val_results["t-end"][r_i].item()
+        label = val_results["label"][r_i].item()
+        score = val_results["score"][r_i].item()
 
         if video_id not in result_dict["results"].keys():
             result_dict["results"][video_id] = list()
@@ -242,10 +319,6 @@ def main(args):
     result_json_path = os.path.join(ckpt_folder, "results.json")
     with open(result_json_path, "w") as fp:
         json.dump(result_dict, fp, indent=4, sort_keys=True)
-
-    result_text_path = os.path.join(ckpt_folder, "results.txt")
-    with open(result_text_path, "w") as fp:
-        fp.write(result_txt)
 
     # wrap up
     tb_writer.close()
