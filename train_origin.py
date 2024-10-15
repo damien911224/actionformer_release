@@ -316,7 +316,7 @@ def main(args):
 
         result_dict["results"][video_id].append({"label": label, "score": score, "segment": (start_time, end_time)})
 
-    result_json_path = os.path.join(ckpt_folder, "results.json")
+    result_json_path = os.path.join(ckpt_folder, "proposals.json")
     with open(result_json_path, "w") as fp:
         json.dump(result_dict, fp, indent=4, sort_keys=True)
 
